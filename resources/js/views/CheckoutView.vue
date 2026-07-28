@@ -55,20 +55,18 @@ async function handleCheckout() {
   error.value = null
 
   try {
-    const payload = {
-      user_id: 1, // Placeholder: should be from auth
-      payment_method: formData.payment_method,
-      customer: {
-        name: customerData.name,
-        phone: customerData.phone,
-        address: customerData.address,
-        email: customerData.email,
-      },
-      items: cartStore.items.map(item => ({
-        product_id: item.product_id,
-        quantity: item.quantity,
-      })),
-    }
+     const payload = {
+       user_id: 1, // Placeholder: should be from auth
+       payment_method: formData.payment_method,
+       customer_name: customerData.name,
+       customer_email: customerData.email,
+       customer_phone: customerData.phone,
+       delivery_address: customerData.address,
+       items: cartStore.items.map(item => ({
+         product_id: item.product_id,
+         quantity: item.quantity,
+       })),
+     }
 
     const response = await fetch('/api/orders', {
       method: 'POST',

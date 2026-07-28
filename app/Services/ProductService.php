@@ -12,7 +12,7 @@ class ProductService
      */
     public function getProducts(array $params): LengthAwarePaginator
     {
-        $query = Product::with(['category', 'attributes']);
+        $query = Product::with(['category']);
 
         // Filter by category
         if (!empty($params['category_id'])) {
@@ -39,13 +39,17 @@ class ProductService
 
         // Sort
         $sort = $params['sort'] ?? 'created_at';
-        match ($sort) {
-            'price_asc' => $query->orderBy('price', 'asc'),
-            'price_desc' => $query->orderBy('price', 'desc'),
-            'name_asc' => $query->orderBy('name', 'asc'),
-            'name_desc' => $query->orderBy('name', 'desc'),
-            default => $query->orderBy('created_at', 'desc'),
-        };
+        if ($sort === 'price_asc') {
+            $query->orderBy('price', 'asc');
+        } elseif ($sort === 'price_desc') {
+            $query->orderBy('price', 'desc');
+        } elseif ($sort === 'name_asc') {
+            $query->orderBy('name', 'asc');
+        } elseif ($sort === 'name_desc') {
+            $query->orderBy('name', 'desc');
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
 
         $perPage = (int)($params['per_page'] ?? 12);
         return $query->paginate($perPage)->withQueryString();
@@ -56,7 +60,7 @@ class ProductService
      */
     public function getProductById(int $id): Product
     {
-        return Product::with(['category', 'attributes'])->findOrFail($id);
+        return Product::with(['category'])->findOrFail($id);
     }
 
     /**
@@ -140,7 +144,7 @@ class ProductService
      */
     public function getSaleProducts(int $limit = 6)
     {
-        return Product::with(['category', 'attributes'])
+        return Product::with(['category'])
             ->where('is_on_sale', true)
             ->orderByDesc('discount_percentage')
             ->limit($limit)
@@ -152,7 +156,7 @@ class ProductService
      */
     public function getNewestProducts(int $limit = 6)
     {
-        return Product::with(['category', 'attributes'])
+        return Product::with(['category'])
             ->where('stock_quantity', '>', 0)
             ->orderBy('created_at', 'desc')
             ->limit($limit)

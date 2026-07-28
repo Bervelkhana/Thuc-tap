@@ -10,7 +10,10 @@ import CheckoutView from '../views/CheckoutView.vue'
 import AdminOrderView from '../views/AdminOrderView.vue'
 import PCBuilderView from '../views/PCBuilderView.vue'
 import ProductBrowserView from '../views/ProductBrowserView.vue'
-import BackendLayout from '../components/backend/BackendLayout.vue'
+import BackendLayout from '../views/BackendLayout.vue'
+import LoginBackendView from '../views/LoginBackendView.vue'
+import AdminDashboardView from '../views/AdminDashboardView.vue'
+import { useAdminStore } from '../stores/adminStore'
 
 const routes = [
   // Landing page
@@ -34,22 +37,39 @@ const routes = [
   // PC Builder route
   { path: '/pc-builder', name: 'pc-builder', component: PCBuilderView },
 
-  // Backend routes
-  {
-    path: '/backend',
-    name: 'backend',
-    component: BackendLayout,
-    children: [
-      { path: '', redirect: 'products' },
-      { path: 'products', name: 'backend-products', component: () => import('../components/backend/ProductManagement.vue') },
-      { path: 'orders', name: 'backend-orders', component: () => import('../components/backend/OrderManagement.vue') },
-    ],
-  },
+   // Login Backend route
+   { path: '/login-backend', name: 'login-backend', component: LoginBackendView },
+
+   // Admin Dashboard route
+   { path: '/admin/dashboard', name: 'admin-dashboard', component: AdminDashboardView, meta: { requiresAuth: true } },
+
+   // Backend routes (deprecated, redirect to dashboard)
+   {
+     path: '/backend',
+     component: BackendLayout,
+     meta: { requiresAuth: true },
+     children: [
+       { path: '', redirect: 'products' },
+       { path: 'products', name: 'backend-products', component: () => import('../components/backend/ProductManagement.vue') },
+       { path: 'orders', name: 'backend-orders', component: () => import('../components/backend/OrderManagement.vue') },
+     ],
+   },
 ]
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
+})
+
+// Navigation guard to check authentication for protected routes
+router.beforeEach((to, from, next) => {
+  const adminStore = useAdminStore()
+  
+  if (to.meta.requiresAuth && !adminStore.isAuthenticated) {
+    next({ name: 'login-backend' })
+  } else {
+    next()
+  }
 })
 
 export default router

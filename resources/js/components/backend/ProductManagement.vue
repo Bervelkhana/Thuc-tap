@@ -39,20 +39,32 @@ const filteredProducts = computed(() => {
 })
 
 async function fetchProducts() {
-  loading.value = true
-  try {
-    const response = await fetch('/api/products?per_page=100')
-    const result = await response.json()
-    if (result.status === 'success') {
-      products.value = result.data
-    }
-  } catch (err) {
-    console.error('Error fetching products:', err)
-    alert('Lỗi khi tải sản phẩm')
-  } finally {
-    loading.value = false
-  }
-}
+   loading.value = true
+   try {
+     const response = await fetch('/api/products?per_page=100')
+     
+     if (!response.ok) {
+       throw new Error(`HTTP error! status: ${response.status}`)
+     }
+     
+     const result = await response.json()
+     console.log('API Response:', result)
+     
+     if (result.status === 'success' && result.data) {
+       // Handle both array and paginated response
+       products.value = Array.isArray(result.data) ? result.data : result.data.data || []
+       console.log('Products loaded:', products.value.length)
+     } else {
+       console.warn('Unexpected response format:', result)
+       products.value = []
+     }
+   } catch (err) {
+     console.error('Error fetching products:', err)
+     alert(`Lỗi khi tải sản phẩm: ${err.message}`)
+   } finally {
+     loading.value = false
+   }
+ }
 
 async function fetchCategories() {
   try {

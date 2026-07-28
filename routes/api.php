@@ -4,8 +4,14 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\AdminOrderController;
+use App\Http\Controllers\Api\AdminAuthController;
 use App\Http\Controllers\Api\PCBuilderController;
 use Illuminate\Support\Facades\Route;
+
+// Test endpoint
+Route::get('/test', function () {
+    return response()->json(['status' => 'ok', 'message' => 'API working']);
+});
 
 Route::get('/categories', [CategoryController::class, 'index']);
 
@@ -21,6 +27,10 @@ Route::put('/products/{product}', [ProductController::class, 'update']);
 Route::delete('/products/{product}', [ProductController::class, 'destroy']);
 
 Route::post('/orders', [OrderController::class, 'store']);
+
+// Admin Auth routes
+Route::post('/admin/login', [AdminAuthController::class, 'login']);
+Route::post('/admin/logout', [AdminAuthController::class, 'logout']);
 
 // Admin routes
 Route::get('/admin/orders', [AdminOrderController::class, 'index']);
