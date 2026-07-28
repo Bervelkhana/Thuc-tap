@@ -1,56 +1,56 @@
-# CHECKLIST ĐÁNH GIÁ CUỐI KỲ
+# CHECKLIST ��NH GI� CU?I K?
 
-## Kiến trúc
+## Ki?n tr�c
 
-- [ ] Laravel và Vue giao tiếp qua API rõ ràng.
-- [ ] Controller mỏng.
-- [ ] Business logic nằm trong service.
-- [ ] Compatibility tách khỏi AI.
-- [ ] Có validation và authorization.
+- [x] Laravel v� Vue giao ti?p qua API r� r�ng.
+- [x] Controller m?ng.
+- [x] Business logic n?m trong service.
+- [x] Compatibility t�ch kh?i AI.
+- [x] C� validation v� authorization.
 
 ## Database
 
-- [ ] ERD khớp migration.
-- [ ] Có unique và foreign key cần thiết.
-- [ ] EAV hỗ trợ text và number.
-- [ ] Snapshot đơn hàng đầy đủ.
-- [ ] Tồn kho không âm.
+- [x] ERD kh?p migration.
+- [x] C� unique v� foreign key c?n thi?t.
+- [x] EAV h? tr? text v� number.
+- [x] Snapshot don h�ng d?y d?.
+- [x] T?n kho kh�ng �m.
 
-## Chức năng
+## Ch?c nang
 
-- [ ] Catalog hoạt động.
-- [ ] Filter hoạt động.
-- [ ] Cart lưu được.
-- [ ] Checkout COD hoạt động.
-- [ ] Admin quản lý order.
-- [ ] PC Builder hoạt động.
+- [x] Catalog ho?t d?ng.
+- [x] Filter ho?t d?ng.
+- [x] Cart luu du?c.
+- [x] Checkout COD ho?t d?ng.
+- [x] Admin qu?n l� order.
+- [x] PC Builder ho?t d?ng.
 
 ## Testing
 
-- [ ] Test order transaction.
-- [ ] Test insufficient stock.
+- [x] Test order transaction.
+- [x] Test insufficient stock.
 - [ ] Test authorization.
-- [ ] Test compatibility.
+- [x] Test compatibility.
 - [ ] Test AI fallback.
 
-## Tài liệu
+## T�i li?u
 
 - [ ] README.
-- [ ] ERD.
-- [ ] API list.
-- [ ] Data dictionary.
-- [ ] Acceptance criteria.
-- [ ] Known limitations.
+- [x] ERD.
+- [x] API list.
+- [x] Data dictionary.
+- [x] Acceptance criteria.
+- [x] Known limitations.
 
 ---
 
 ## Backlog sau MVP
 
-Sau khi MVP đạt yêu cầu mới xem xét:
+Sau khi MVP d?t y�u c?u m?i xem x�t:
 
-1. Thêm SSD, case và cooler vào PC Builder.
-2. Kiểm tra kích thước GPU và case.
-3. Kiểm tra cooler socket.
+1. Th�m SSD, case v� cooler v�o PC Builder.
+2. Ki?m tra k�ch thu?c GPU v� case.
+3. Ki?m tra cooler socket.
 4. VietQR.
 5. Payment webhook.
 6. Product images.
@@ -66,14 +66,14 @@ Sau khi MVP đạt yêu cầu mới xem xét:
 
 ---
 
-## Tiêu chuẩn hoàn thành dự án
+## Ti�u chu?n ho�n th�nh d? �n
 
-Dự án được xem là hoàn thành khi:
+D? �n du?c xem l� ho�n th�nh khi:
 
-- Luồng catalog, cart, order và PC Builder chạy end-to-end.
-- Không có lỗi nghiêm trọng làm sai tồn kho hoặc tổng tiền.
-- AI không phải điểm phụ thuộc bắt buộc của PC Builder.
-- ERD, migration và tài liệu nhất quán.
-- Có test cho nghiệp vụ rủi ro cao.
-- Một lập trình viên khác có thể clone, cấu hình và chạy dự án từ README.
-- Toàn bộ chức năng demo sử dụng API và database thật, không dùng dữ liệu hard-code để thay thế nghiệp vụ.
+- [x] Lu?ng catalog, cart, order v� PC Builder ch?y end-to-end.
+- [x] Kh�ng c� l?i nghi�m tr?ng l�m sai t?n kho ho?c t?ng ti?n.
+- [x] AI kh�ng ph?i di?m ph? thu?c b?t bu?c c?a PC Builder.
+- [x] ERD, migration v� t�i li?u nh?t qu�n.
+- [x] C� test cho nghi?p v? r?i ro cao.
+- [ ] M?t l?p tr�nh vi�n kh�c c� th? clone, c?u h�nh v� ch?y d? �n t? README.
+- [x] To�n b? ch?c nang demo s? d?ng API v� database th?t, kh�ng d�ng d? li?u hard-code d? thay th? nghi?p v?.
