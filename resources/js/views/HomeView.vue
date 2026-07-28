@@ -1,17 +1,25 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const categories = ref([])
 const flashSale = ref([])
+const saleProducts = ref([])
+const newestProducts = ref([])
 const showModal = ref(false)
 const modalMessage = ref('')
 const loading = ref({
   categories: false,
   products: false,
+  sales: false,
+  newest: false,
 })
 const error = ref({
   categories: null,
   products: null,
+  sales: null,
+  newest: null,
 })
 
 // Fetch categories từ API
@@ -72,10 +80,63 @@ async function fetchProducts() {
   }
 }
 
+// Fetch sản phẩm đang sale từ API
+async function fetchSaleProducts() {
+  loading.value.sales = true
+  error.value.sales = null
+  try {
+    const response = await fetch('/api/products/sales?per_page=6')
+    const result = await response.json()
+    
+    if (result.status === 'success') {
+      saleProducts.value = result.data.map(product => ({
+        id: product.id,
+        name: product.name,
+        price: parseFloat(product.price),
+        salePrice: parseFloat(product.sale_price || product.price),
+        discount: product.discount_percentage || 0,
+        thumbnail_url: product.thumbnail_url || '',
+      }))
+    }
+  } catch (err) {
+    error.value.sales = err.message
+    console.error('Lỗi khi tải sản phẩm sale:', err)
+  } finally {
+    loading.value.sales = false
+  }
+}
+
+// Fetch sản phẩm mới nhất từ API
+async function fetchNewestProducts() {
+  loading.value.newest = true
+  error.value.newest = null
+  try {
+    const response = await fetch('/api/products/newest?per_page=6')
+    const result = await response.json()
+    
+    if (result.status === 'success') {
+      newestProducts.value = result.data.map(product => ({
+        id: product.id,
+        name: product.name,
+        price: parseFloat(product.price),
+        salePrice: parseFloat(product.sale_price || product.price),
+        discount: product.discount_percentage || 0,
+        thumbnail_url: product.thumbnail_url || '',
+      }))
+    }
+  } catch (err) {
+    error.value.newest = err.message
+    console.error('Lỗi khi tải sản phẩm mới:', err)
+  } finally {
+    loading.value.newest = false
+  }
+}
+
 // Load dữ liệu khi component mount
 onMounted(() => {
   fetchCategories()
-  fetchProducts()
+  fetchSaleProducts()
+  fetchNewestProducts()
 })
 
 function formatPrice(v) {
@@ -86,7 +147,7 @@ function discount(item) {
   return Math.round((1 - item.price / item.oldPrice) * 100)
 }
 
-// Xử lý click nút CTA chính
+// Xử lý click nút CTA chính - điều hướng đến ProductBrowser
 function handleCTAClick(event) {
   const btn = event.target
   
@@ -103,11 +164,11 @@ function handleCTAClick(event) {
   ripple.classList.add('ripple')
   btn.appendChild(ripple)
   
-  setTimeout(() => ripple.remove(), 600)
-  
-  // Hiển thị modal
-  modalMessage.value = '✨ Chào mừng bạn! Hãy khám phá các linh kiện máy tính chất lượng cao của chúng tôi.'
-  showModal.value = true
+  setTimeout(() => {
+    ripple.remove()
+    // Điều hướng đến ProductBrowser sau hiệu ứng ripple
+    router.push({ name: 'product-browser' })
+  }, 600)
 }
 
 function closeModal() {
@@ -185,14 +246,138 @@ function closeModal() {
       
       <!-- Categories Grid -->
       <div v-else class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-8">
-        <button
+        <router-link
           v-for="c in categories"
           :key="c.id"
-          class="group flex flex-col items-center gap-5 p-8 bg-white rounded-lg hover:bg-black hover:text-white transition-all duration-300 border border-gray-100 hover:border-black"
+          :to="`/category/${c.id}`"
+          class="group flex flex-col items-center gap-5 p-8 bg-white rounded-lg hover:bg-black hover:text-white transition-all duration-300 border border-gray-100 hover:border-black cursor-pointer"
         >
           <span class="text-4xl group-hover:scale-110 transition-transform duration-300">{{ c.icon }}</span>
           <span class="text-xs font-medium text-gray-700 group-hover:text-white text-center">{{ c.name }}</span>
-        </button>
+        </router-link>
+      </div>
+    </section>
+
+    <!-- ===== SALE SECTION ===== -->
+    <section class="max-w-6xl mx-auto px-8 py-32 space-y-16">
+      <div class="space-y-6">
+        <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-widest">🔥 Sản phẩm sale</h3>
+        <div class="w-16 h-px bg-black"></div>
+      </div>
+      
+      <!-- Loading State -->
+      <div v-if="loading.sales" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div v-for="i in 6" :key="i" class="bg-white rounded-lg border border-gray-100 overflow-hidden">
+          <div class="h-48 bg-gray-100 animate-pulse"></div>
+          <div class="p-8 space-y-4">
+            <div class="h-4 bg-gray-100 rounded animate-pulse w-1/3"></div>
+            <div class="h-4 bg-gray-100 rounded animate-pulse w-2/3"></div>
+            <div class="h-6 bg-gray-100 rounded animate-pulse w-1/2"></div>
+            <div class="h-10 bg-gray-100 rounded animate-pulse"></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Error State -->
+      <div v-else-if="error.sales" class="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
+        <p class="text-gray-600">Không thể tải sản phẩm sale. Vui lòng thử lại.</p>
+      </div>
+      
+      <!-- Empty State -->
+      <div v-else-if="saleProducts.length === 0" class="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
+        <p class="text-gray-600">Hiện tại không có sản phẩm sale.</p>
+      </div>
+      
+      <!-- Sale Products Grid -->
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <article
+          v-for="item in saleProducts"
+          :key="item.id"
+          class="group bg-white rounded-lg border border-gray-100 overflow-hidden hover:border-gray-300 transition-all duration-300"
+        >
+          <div class="h-48 bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-gray-100 transition duration-300 relative">
+            <img v-if="item.thumbnail_url" :src="item.thumbnail_url" :alt="item.name" class="w-full h-full object-cover">
+            <span v-else>Product Image</span>
+            <!-- Sale Badge -->
+            <span v-if="item.discount > 0" class="absolute top-4 right-4 bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded">
+              -{{ item.discount }}%
+            </span>
+          </div>
+          
+          <div class="p-8 space-y-4">
+            <h4 class="text-sm font-medium text-gray-900 line-clamp-2">
+              {{ item.name }}
+            </h4>
+            
+            <div class="space-y-2">
+              <p class="text-lg font-semibold text-gray-900">{{ formatPrice(item.salePrice) }}</p>
+              <p v-if="item.discount > 0" class="text-xs text-gray-500 line-through">{{ formatPrice(item.price) }}</p>
+            </div>
+            
+            <button class="w-full mt-6 bg-black text-white py-3 rounded-lg font-medium hover:bg-gray-900 transition-colors duration-200">
+              Thêm vào giỏ
+            </button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- ===== NEWEST PRODUCTS SECTION ===== -->
+    <section class="max-w-6xl mx-auto px-8 py-32 space-y-16">
+      <div class="space-y-6">
+        <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-widest">✨ Sản phẩm mới</h3>
+        <div class="w-16 h-px bg-black"></div>
+      </div>
+      
+      <!-- Loading State -->
+      <div v-if="loading.newest" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div v-for="i in 6" :key="i" class="bg-white rounded-lg border border-gray-100 overflow-hidden">
+          <div class="h-48 bg-gray-100 animate-pulse"></div>
+          <div class="p-8 space-y-4">
+            <div class="h-4 bg-gray-100 rounded animate-pulse w-1/3"></div>
+            <div class="h-4 bg-gray-100 rounded animate-pulse w-2/3"></div>
+            <div class="h-6 bg-gray-100 rounded animate-pulse w-1/2"></div>
+            <div class="h-10 bg-gray-100 rounded animate-pulse"></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Error State -->
+      <div v-else-if="error.newest" class="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
+        <p class="text-gray-600">Không thể tải sản phẩm mới. Vui lòng thử lại.</p>
+      </div>
+      
+      <!-- Empty State -->
+      <div v-else-if="newestProducts.length === 0" class="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
+        <p class="text-gray-600">Hiện tại không có sản phẩm mới.</p>
+      </div>
+      
+      <!-- Newest Products Grid -->
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <article
+          v-for="item in newestProducts"
+          :key="item.id"
+          class="group bg-white rounded-lg border border-gray-100 overflow-hidden hover:border-gray-300 transition-all duration-300"
+        >
+          <div class="h-48 bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-gray-100 transition duration-300">
+            <img v-if="item.thumbnail_url" :src="item.thumbnail_url" :alt="item.name" class="w-full h-full object-cover">
+            <span v-else>Product Image</span>
+          </div>
+          
+          <div class="p-8 space-y-4">
+            <h4 class="text-sm font-medium text-gray-900 line-clamp-2">
+              {{ item.name }}
+            </h4>
+            
+            <div class="space-y-2">
+              <p class="text-lg font-semibold text-gray-900">{{ formatPrice(item.price) }}</p>
+            </div>
+            
+            <button class="w-full mt-6 bg-black text-white py-3 rounded-lg font-medium hover:bg-gray-900 transition-colors duration-200">
+              Thêm vào giỏ
+            </button>
+          </div>
+        </article>
       </div>
     </section>
 
@@ -204,7 +389,7 @@ function closeModal() {
       </div>
       
       <!-- Loading State -->
-      <div v-if="loading.flashSale" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
+      <div v-if="loading.products" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
         <div v-for="i in 5" :key="i" class="bg-white rounded-lg border border-gray-100 overflow-hidden">
           <div class="h-48 bg-gray-100 animate-pulse"></div>
           <div class="p-8 space-y-4">
@@ -217,7 +402,7 @@ function closeModal() {
       </div>
       
       <!-- Error State -->
-      <div v-else-if="error.flashSale" class="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
+      <div v-else-if="error.products" class="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
         <p class="text-gray-600">Không thể tải sản phẩm Flash Sale. Vui lòng thử lại.</p>
       </div>
       
@@ -234,7 +419,7 @@ function closeModal() {
           class="group bg-white rounded-lg border border-gray-100 overflow-hidden hover:border-gray-300 transition-all duration-300"
         >
           <div class="h-48 bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-gray-100 transition duration-300">
-            <img v-if="item.thumbnail_url" :src="item.thumbnail_url" :alt="item.name" class="w-full h-full object-cover">
+            <img v-if="item.thumb" :src="item.thumb" :alt="item.name" class="w-full h-full object-cover">
             <span v-else>Product Image</span>
           </div>
           
@@ -255,7 +440,7 @@ function closeModal() {
             </div>
             
             <button class="w-full mt-6 bg-black text-white py-3 rounded-lg font-medium hover:bg-gray-900 transition-colors duration-200">
-              Add to Cart
+              Thêm vào giỏ
             </button>
           </div>
         </article>
@@ -343,7 +528,6 @@ function closeModal() {
   }
   to {
     transform: translateY(0);
-    opacity: 1;
   }
 }
 
@@ -352,5 +536,13 @@ function closeModal() {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Line Clamp */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 </style>

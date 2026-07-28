@@ -4,6 +4,8 @@ namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Throwable;
+use App\Exceptions\ProductException;
+use App\Exceptions\InsufficientStockException;
 
 class Handler extends ExceptionHandler
 {
@@ -46,5 +48,26 @@ class Handler extends ExceptionHandler
         $this->reportable(function (Throwable $e) {
             //
         });
+
+        // Handle ProductException
+        $this->renderable(function (ProductException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ], $e->getStatusCode());
+        });
+
+        // Handle InsufficientStockException
+        $this->renderable(function (InsufficientStockException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+                'product_id' => $e->productId,
+                'requested' => $e->requested,
+                'available' => $e->available,
+            ], 422);
+        });
+
+
     }
 }

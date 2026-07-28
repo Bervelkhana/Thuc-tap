@@ -3,10 +3,31 @@
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\AdminOrderController;
+use App\Http\Controllers\Api\PCBuilderController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/categories', [CategoryController::class, 'index']);
+
+// Products - Frontend (GET only)
 Route::get('/products', [ProductController::class, 'index']);
+Route::get('/products/sales', [ProductController::class, 'sales']);
+Route::get('/products/newest', [ProductController::class, 'newest']);
 Route::get('/products/{product}', [ProductController::class, 'show']);
 
+// Products - Backend (CRUD)
+Route::post('/products', [ProductController::class, 'store']);
+Route::put('/products/{product}', [ProductController::class, 'update']);
+Route::delete('/products/{product}', [ProductController::class, 'destroy']);
+
 Route::post('/orders', [OrderController::class, 'store']);
+
+// Admin routes
+Route::get('/admin/orders', [AdminOrderController::class, 'index']);
+Route::get('/admin/orders/{order}', [AdminOrderController::class, 'show']);
+Route::patch('/admin/orders/{order}/status', [AdminOrderController::class, 'updateStatus']);
+Route::delete('/admin/orders/{order}', [AdminOrderController::class, 'cancel']);
+
+// PC Builder routes
+Route::post('/pc-builder/validate', [PCBuilderController::class, 'validate']);
+Route::post('/pc-builder/recommend', [PCBuilderController::class, 'recommend']);

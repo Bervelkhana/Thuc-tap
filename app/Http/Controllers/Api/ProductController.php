@@ -3,56 +3,161 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\GetProductsRequest;
+use App\Http\Requests\StoreProductRequest;
+use App\Http\Requests\UpdateProductRequest;
 use App\Models\Product;
-use Illuminate\Http\Request;
+use App\Services\ProductService;
 
 class ProductController extends Controller
 {
-    public function index(Request $request)
+    public function __construct(private ProductService $productService)
     {
-        $query = Product::query()->with(['category', 'attributes']);
+    }
 
-        if ($request->filled('category_id')) {
-            $query->where('category_id', $request->integer('category_id'));
+    public function index(GetProductsRequest $request)
+    {
+        try {
+            $products = $this->productService->getFilteredProducts(
+                categoryId: $request->has('category_id') ? $request->integer('category_id') : null,
+                minPrice: $request->has('min_price') ? $request->integer('min_price') : null,
+                maxPrice: $request->has('max_price') ? $request->integer('max_price') : null,
+                search: $request->filled('search') ? $request->string('search') : null,
+                sort: $request->filled('sort') ? $request->string('sort') : null,
+                perPage: $request->integer('per_page', 12)
+            );
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Danh sách sản phẩm',
+                'data' => $products->items(),
+                'meta' => [
+                    'current_page' => $products->currentPage(),
+                    'last_page' => $products->lastPage(),
+                    'per_page' => $products->perPage(),
+                    'total' => $products->total(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Lỗi khi tải sản phẩm',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
         }
-
-        if ($request->filled('min_price')) {
-            $query->where('price', '>=', $request->integer('min_price'));
-        }
-
-        if ($request->filled('max_price')) {
-            $query->where('price', '<=', $request->integer('max_price'));
-        }
-
-        match ($request->input('sort')) {
-            'price_asc' => $query->orderBy('price', 'asc'),
-            'price_desc' => $query->orderBy('price', 'desc'),
-            default => $query->orderBy('created_at', 'desc'),
-        };
-
-        $products = $query->paginate(12)->withQueryString();
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Danh sách sản phẩm',
-            'data' => $products->items(),
-            'meta' => [
-                'current_page' => $products->currentPage(),
-                'last_page' => $products->lastPage(),
-                'per_page' => $products->perPage(),
-                'total' => $products->total(),
-            ],
-        ]);
     }
 
     public function show($id)
     {
-        $product = Product::with(['category', 'attributes'])->findOrFail($id);
+        try {
+            $product = $this->productService->getProductById($id);
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Chi tiết sản phẩm',
-            'data' => $product,
-        ]);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Chi tiết sản phẩm',
+                'data' => $product,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Sản phẩm không tồn tại',
+            ], 404);
+        }
+    }
+
+    public function sales()
+    {
+        try {
+            $products = $this->productService->getSaleProducts(limit: 6);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Sản phẩm đang sale',
+                'data' => $products,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Lỗi khi tải sản phẩm sale',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    public function newest()
+    {
+        try {
+            $products = $this->productService->getNewestProducts(limit: 6);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Sản phẩm mới nhất',
+                'data' => $products,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Lỗi khi tải sản phẩm mới',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    public function store(StoreProductRequest $request)
+    {
+        try {
+            $product = Product::create($request->validated());
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Tạo sản phẩm thành công',
+                'data' => $product,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Lỗi khi tạo sản phẩm',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    public function update(UpdateProductRequest $request, $id)
+    {
+        try {
+            $product = Product::findOrFail($id);
+            $product->update($request->validated());
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Cập nhật sản phẩm thành công',
+                'data' => $product,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Lỗi khi cập nhật sản phẩm',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    public function destroy($id)
+    {
+        try {
+            $product = Product::findOrFail($id);
+            $product->delete();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Xóa sản phẩm thành công',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Lỗi khi xóa sản phẩm',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
     }
 }

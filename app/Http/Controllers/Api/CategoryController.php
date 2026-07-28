@@ -3,18 +3,30 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Category;
+use App\Services\CategoryService;
 
 class CategoryController extends Controller
 {
+    public function __construct(private CategoryService $categoryService)
+    {
+    }
+
     public function index()
     {
-        $categories = Category::withCount('products')->get();
+        try {
+            $categories = $this->categoryService->getCategories();
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Danh sách danh mục',
-            'data' => $categories,
-        ]);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Danh sách danh mục',
+                'data' => $categories,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Lỗi khi tải danh mục',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
     }
 }

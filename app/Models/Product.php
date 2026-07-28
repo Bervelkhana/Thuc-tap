@@ -17,6 +17,8 @@ class Product extends Model
         'sku',
         'name',
         'price',
+        'sale_price',
+        'is_on_sale',
         'stock_quantity',
         'description',
         'thumbnail_url',
@@ -25,6 +27,8 @@ class Product extends Model
 
     protected $casts = [
         'price' => 'decimal:2',
+        'sale_price' => 'decimal:2',
+        'is_on_sale' => 'boolean',
     ];
 
     public function category(): BelongsTo

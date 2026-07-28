@@ -17,7 +17,9 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// Catch-all: trả về SPA cho các route do Vue Router xử lý (vd /checkout)
+// Catch-all: trả về SPA cho các route do Vue Router xử lý (vd /browse, /home, /checkout)
+// Phải đặt sau tất cả routes khác
+// Regex ^(?!api/) đảm bảo không match /api/* requests
 Route::get('/{any}', function () {
     return view('welcome');
-})->where('any', '^(?!api).*$');
+})->where('any', '^(?!api/).*$');

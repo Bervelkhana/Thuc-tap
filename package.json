@@ -1,8 +1,10 @@
 {
     "private": true,
+    "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "vite build"
+        "build": "vite build",
+        "serve": "php artisan serve --port=8000"
     },
     "devDependencies": {
         "@vitejs/plugin-vue": "^4.6.2",
