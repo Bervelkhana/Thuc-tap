@@ -1,26 +1,82 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
-const categories = ref([
-  { id: 1, name: 'CPU', icon: '🧠' },
-  { id: 2, name: 'RAM', icon: '📊' },
-  { id: 3, name: 'Mainboard', icon: '🔲' },
-  { id: 4, name: 'VGA', icon: '🎮' },
-  { id: 5, name: 'SSD', icon: '💾' },
-  { id: 6, name: 'PSU', icon: '⚡' },
-  { id: 7, name: 'Case', icon: '🖥️' },
-])
-
-const flashSale = ref([
-  { id: 1, name: 'Intel Core i5-13400F', price: 3290000, oldPrice: 3690000, thumb: '' },
-  { id: 2, name: 'NVIDIA RTX 4060 8GB', price: 7290000, oldPrice: 7990000, thumb: '' },
-  { id: 3, name: 'Corsair Vengeance DDR5 16GB', price: 1290000, oldPrice: 1490000, thumb: '' },
-  { id: 4, name: 'Samsung 980 PRO 1TB', price: 1990000, oldPrice: 2290000, thumb: '' },
-  { id: 5, name: 'ASUS ROG STRIX B760-A', price: 5490000, oldPrice: 5990000, thumb: '' },
-])
-
+const categories = ref([])
+const flashSale = ref([])
 const showModal = ref(false)
 const modalMessage = ref('')
+const loading = ref({
+  categories: false,
+  products: false,
+})
+const error = ref({
+  categories: null,
+  products: null,
+})
+
+// Fetch categories từ API
+async function fetchCategories() {
+  loading.value.categories = true
+  error.value.categories = null
+  try {
+    const response = await fetch('/api/categories')
+    const result = await response.json()
+    
+    if (result.status === 'success') {
+      // Map category data với icon tương ứng
+      const iconMap = {
+        'CPU': '🧠',
+        'RAM': '📊',
+        'Mainboard': '🔲',
+        'VGA': '🎮',
+        'SSD': '💾',
+        'PSU': '⚡',
+        'Case': '🖥️',
+      }
+      
+      categories.value = result.data.map(cat => ({
+        ...cat,
+        icon: iconMap[cat.name] || '🔧'
+      }))
+    }
+  } catch (err) {
+    error.value.categories = err.message
+    console.error('Lỗi khi tải danh mục:', err)
+  } finally {
+    loading.value.categories = false
+  }
+}
+
+// Fetch products từ API
+async function fetchProducts() {
+  loading.value.products = true
+  error.value.products = null
+  try {
+    const response = await fetch('/api/products?per_page=5')
+    const result = await response.json()
+    
+    if (result.status === 'success') {
+      flashSale.value = result.data.map(product => ({
+        id: product.id,
+        name: product.name,
+        price: parseFloat(product.price),
+        oldPrice: parseFloat(product.price) * 1.15, // Giả sử discount 15% cho demo
+        thumb: product.thumbnail_url || '',
+      }))
+    }
+  } catch (err) {
+    error.value.products = err.message
+    console.error('Lỗi khi tải sản phẩm:', err)
+  } finally {
+    loading.value.products = false
+  }
+}
+
+// Load dữ liệu khi component mount
+onMounted(() => {
+  fetchCategories()
+  fetchProducts()
+})
 
 function formatPrice(v) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(v)
@@ -62,57 +118,48 @@ function closeModal() {
 <template>
   <div class="min-h-screen bg-white font-system">
     <!-- ===== HEADER - Minimalist ===== -->
-    <header class="sticky top-0 z-50 bg-white border-b border-gray-200">
-      <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        <h1 class="text-2xl font-bold text-gray-900 tracking-tight">TechGear</h1>
+    <header class="sticky top-0 z-50 bg-white border-b border-gray-100">
+      <div class="max-w-6xl mx-auto px-8 py-6 flex items-center justify-between">
+        <h1 class="text-xl font-semibold text-gray-900 tracking-tight">TechGear</h1>
         
-        <nav class="flex items-center gap-8">
-          <button class="text-gray-700 hover:text-gray-900 transition">Catalog</button>
-          <button class="text-gray-700 hover:text-gray-900 transition">About</button>
+        <nav class="flex items-center gap-12">
+          <button class="text-sm text-gray-600 hover:text-gray-900 transition duration-200">Catalog</button>
+          <button class="text-sm text-gray-600 hover:text-gray-900 transition duration-200">About</button>
           <button class="relative group cursor-pointer">
-            <span class="text-gray-700 group-hover:text-gray-900 transition">Cart</span>
-            <span class="absolute -top-2 -right-3 bg-gray-900 text-white text-xs px-1.5 py-0.5 rounded-full">0</span>
+            <span class="text-sm text-gray-600 group-hover:text-gray-900 transition duration-200">Cart</span>
+            <span class="absolute -top-2 -right-4 bg-black text-white text-xs font-medium px-2 py-1 rounded-full">0</span>
           </button>
         </nav>
       </div>
     </header>
 
-    <!-- ===== HERO - Minimalist with Whitespace ===== -->
-    <section class="relative h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
-      <div class="absolute inset-0 opacity-5">
-        <div class="absolute top-10 right-20 w-96 h-96 bg-gray-400 rounded-full blur-3xl"></div>
-        <div class="absolute bottom-10 left-20 w-80 h-80 bg-gray-300 rounded-full blur-3xl"></div>
-      </div>
-      
-      <div class="relative text-center max-w-2xl mx-auto px-6 space-y-8">
-        <!-- Tagline -->
-        <p class="text-sm font-medium text-gray-600 uppercase tracking-widest">Build Your Dream PC</p>
-        
+    <!-- ===== HERO - Clean Minimalist ===== -->
+    <section class="relative flex items-center justify-center bg-white overflow-hidden py-32">
+      <div class="relative text-center max-w-3xl mx-auto px-8 space-y-12">
         <!-- Main Heading -->
-        <h2 class="text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 leading-tight">
+        <h2 class="text-6xl md:text-7xl font-light text-gray-900 leading-tight tracking-tight">
           Linh kiện PC chất lượng
         </h2>
         
         <!-- Subheading -->
-        <p class="text-xl text-gray-600 leading-relaxed max-w-xl mx-auto">
+        <p class="text-lg text-gray-600 leading-relaxed max-w-2xl mx-auto font-light">
           Khám phá bộ sưu tập linh kiện máy tính premium với giá cạnh tranh. Tư vấn cấu hình thông minh bằng AI.
         </p>
         
         <!-- Whitespace -->
         <div class="pt-8"></div>
         
-        <!-- CTA Button with Ripple Effect -->
+        <!-- Primary CTA Button -->
         <button 
           @click="handleCTAClick"
-          class="relative inline-flex items-center justify-center px-8 py-4 bg-gray-900 text-white font-semibold rounded-lg overflow-hidden group hover:shadow-2xl transition-all duration-300 hover:scale-105"
+          class="inline-flex items-center justify-center px-10 py-4 bg-black text-white font-medium rounded-lg overflow-hidden group hover:bg-gray-900 transition-all duration-300 shadow-sm hover:shadow-xl"
         >
           <span class="relative z-10">Khám phá ngay</span>
-          <span class="absolute inset-0 bg-gradient-to-r from-gray-800 to-gray-900 opacity-0 group-hover:opacity-100 transition-opacity"></span>
         </button>
         
         <!-- Secondary CTA -->
         <div class="pt-4">
-          <button class="text-gray-700 hover:text-gray-900 underline font-medium transition">
+          <button class="text-sm text-gray-600 hover:text-gray-900 font-medium transition duration-200">
             Xem AI PC Builder →
           </button>
         </div>
@@ -120,58 +167,94 @@ function closeModal() {
     </section>
 
     <!-- ===== CATEGORIES SECTION ===== -->
-    <section class="max-w-7xl mx-auto px-6 py-24 space-y-12">
-      <div class="space-y-4">
-        <h3 class="text-lg font-semibold text-gray-900 uppercase tracking-wide">Danh mục</h3>
-        <div class="w-12 h-1 bg-gray-900"></div>
+    <section class="max-w-6xl mx-auto px-8 py-32 space-y-16">
+      <div class="space-y-6">
+        <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-widest">Danh mục</h3>
+        <div class="w-16 h-px bg-gray-900"></div>
       </div>
       
-      <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-6">
+      <!-- Loading State -->
+      <div v-if="loading.categories" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-8">
+        <div v-for="i in 7" :key="i" class="h-32 bg-gray-100 rounded-lg animate-pulse"></div>
+      </div>
+      
+      <!-- Error State -->
+      <div v-else-if="error.categories" class="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
+        <p class="text-gray-600">Không thể tải danh mục. Vui lòng thử lại.</p>
+      </div>
+      
+      <!-- Categories Grid -->
+      <div v-else class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-8">
         <button
           v-for="c in categories"
           :key="c.id"
-          class="group flex flex-col items-center gap-4 p-6 bg-gray-50 rounded-xl hover:bg-gray-900 hover:text-white transition-all duration-300 border border-gray-200 hover:border-gray-900"
+          class="group flex flex-col items-center gap-5 p-8 bg-white rounded-lg hover:bg-black hover:text-white transition-all duration-300 border border-gray-100 hover:border-black"
         >
-          <span class="text-4xl group-hover:scale-110 transition-transform">{{ c.icon }}</span>
-          <span class="text-sm font-medium text-gray-700 group-hover:text-white text-center">{{ c.name }}</span>
+          <span class="text-4xl group-hover:scale-110 transition-transform duration-300">{{ c.icon }}</span>
+          <span class="text-xs font-medium text-gray-700 group-hover:text-white text-center">{{ c.name }}</span>
         </button>
       </div>
     </section>
 
     <!-- ===== FLASH SALE SECTION ===== -->
-    <section class="max-w-7xl mx-auto px-6 py-24 space-y-12 bg-gray-50 rounded-2xl">
-      <div class="space-y-4">
-        <h3 class="text-lg font-semibold text-gray-900 uppercase tracking-wide">⚡ Flash Sale</h3>
-        <div class="w-12 h-1 bg-red-600"></div>
+    <section class="max-w-6xl mx-auto px-8 py-32 space-y-16">
+      <div class="space-y-6">
+        <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-widest">⚡ Flash Sale</h3>
+        <div class="w-16 h-px bg-black"></div>
       </div>
       
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+      <!-- Loading State -->
+      <div v-if="loading.flashSale" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
+        <div v-for="i in 5" :key="i" class="bg-white rounded-lg border border-gray-100 overflow-hidden">
+          <div class="h-48 bg-gray-100 animate-pulse"></div>
+          <div class="p-8 space-y-4">
+            <div class="h-4 bg-gray-100 rounded animate-pulse w-1/3"></div>
+            <div class="h-4 bg-gray-100 rounded animate-pulse w-2/3"></div>
+            <div class="h-6 bg-gray-100 rounded animate-pulse w-1/2"></div>
+            <div class="h-10 bg-gray-100 rounded animate-pulse"></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Error State -->
+      <div v-else-if="error.flashSale" class="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
+        <p class="text-gray-600">Không thể tải sản phẩm Flash Sale. Vui lòng thử lại.</p>
+      </div>
+      
+      <!-- Empty State -->
+      <div v-else-if="flashSale.length === 0" class="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
+        <p class="text-gray-600">Hiện tại không có sản phẩm Flash Sale.</p>
+      </div>
+      
+      <!-- Flash Sale Grid -->
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
         <article
           v-for="item in flashSale"
           :key="item.id"
-          class="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg transition-all duration-300"
+          class="group bg-white rounded-lg border border-gray-100 overflow-hidden hover:border-gray-300 transition-all duration-300"
         >
-          <div class="h-40 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-400 group-hover:from-gray-200 group-hover:to-gray-300 transition">
-            Product Image
+          <div class="h-48 bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-gray-100 transition duration-300">
+            <img v-if="item.thumbnail_url" :src="item.thumbnail_url" :alt="item.name" class="w-full h-full object-cover">
+            <span v-else>Product Image</span>
           </div>
           
-          <div class="p-6 space-y-3">
+          <div class="p-8 space-y-4">
             <div class="flex items-center justify-between">
-              <span class="bg-red-100 text-red-700 text-xs font-bold px-2.5 py-1 rounded-full">
+              <span class="bg-black text-white text-xs font-bold px-3 py-1.5 rounded">
                 -{{ discount(item) }}%
               </span>
             </div>
             
-            <h4 class="text-sm font-semibold text-gray-900 line-clamp-2 group-hover:text-gray-700">
+            <h4 class="text-sm font-medium text-gray-900 line-clamp-2">
               {{ item.name }}
             </h4>
             
-            <div class="space-y-1">
-              <p class="text-lg font-bold text-gray-900">{{ formatPrice(item.price) }}</p>
+            <div class="space-y-2">
+              <p class="text-lg font-semibold text-gray-900">{{ formatPrice(item.price) }}</p>
               <p class="text-xs text-gray-500 line-through">{{ formatPrice(item.oldPrice) }}</p>
             </div>
             
-            <button class="w-full mt-4 bg-gray-900 text-white py-2.5 rounded-lg font-medium hover:bg-gray-800 transition-colors">
+            <button class="w-full mt-6 bg-black text-white py-3 rounded-lg font-medium hover:bg-gray-900 transition-colors duration-200">
               Add to Cart
             </button>
           </div>
@@ -180,35 +263,35 @@ function closeModal() {
     </section>
 
     <!-- ===== FOOTER - Minimal ===== -->
-    <footer class="bg-gray-900 text-gray-400 py-12">
-      <div class="max-w-7xl mx-auto px-6 text-center">
-        <p class="text-sm">© 2026 TechGear. All rights reserved.</p>
+    <footer class="bg-white border-t border-gray-100 py-16">
+      <div class="max-w-6xl mx-auto px-8 text-center">
+        <p class="text-sm text-gray-600">© 2026 TechGear. All rights reserved.</p>
       </div>
     </footer>
 
     <!-- ===== MODAL - Minimal Design ===== -->
     <transition name="fade">
-      <div v-if="showModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 space-y-6 animate-slideUp">
+      <div v-if="showModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-12 space-y-8 animate-slideUp">
           <div class="text-center">
-            <div class="text-5xl mb-4">✨</div>
-            <h3 class="text-2xl font-bold text-gray-900">Welcome!</h3>
+            <div class="text-4xl mb-6">✨</div>
+            <h3 class="text-2xl font-semibold text-gray-900">Welcome!</h3>
           </div>
           
-          <p class="text-gray-600 text-center leading-relaxed">
+          <p class="text-gray-600 text-center leading-relaxed text-sm">
             {{ modalMessage }}
           </p>
           
-          <div class="flex gap-4">
+          <div class="flex gap-3 pt-4">
             <button
               @click="closeModal"
-              class="flex-1 px-4 py-3 bg-gray-100 text-gray-900 font-semibold rounded-lg hover:bg-gray-200 transition"
+              class="flex-1 px-4 py-3 bg-gray-100 text-gray-900 font-medium rounded-lg hover:bg-gray-200 transition duration-200"
             >
               Đóng
             </button>
             <button
               @click="closeModal"
-              class="flex-1 px-4 py-3 bg-gray-900 text-white font-semibold rounded-lg hover:bg-gray-800 transition"
+              class="flex-1 px-4 py-3 bg-black text-white font-medium rounded-lg hover:bg-gray-900 transition duration-200"
             >
               Bắt đầu
             </button>
@@ -224,7 +307,7 @@ function closeModal() {
 .ripple {
   position: absolute;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(0, 0, 0, 0.15);
   transform: scale(0);
   animation: ripple-animation 0.6s ease-out;
   pointer-events: none;
@@ -267,5 +350,7 @@ function closeModal() {
 /* Font System */
 .font-system {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 </style>
