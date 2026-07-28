@@ -33,6 +33,7 @@ Route::post('/admin/login', [AdminAuthController::class, 'login']);
 Route::post('/admin/logout', [AdminAuthController::class, 'logout']);
 
 // Admin routes
+Route::get('/admin/stats', [AdminOrderController::class, 'stats']);
 Route::get('/admin/orders', [AdminOrderController::class, 'index']);
 Route::get('/admin/orders/{order}', [AdminOrderController::class, 'show']);
 Route::patch('/admin/orders/{order}/status', [AdminOrderController::class, 'updateStatus']);

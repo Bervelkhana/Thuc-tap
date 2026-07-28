@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\Product;
 use App\Services\OrderService;
 use Illuminate\Http\Request;
 
@@ -124,6 +125,7 @@ class AdminOrderController extends Controller
     {
         $stats = [
             'total_orders' => Order::count(),
+            'total_products' => Product::count(),
             'pending' => Order::where('status', 'pending')->count(),
             'confirmed' => Order::where('status', 'confirmed')->count(),
             'shipped' => Order::where('status', 'shipped')->count(),

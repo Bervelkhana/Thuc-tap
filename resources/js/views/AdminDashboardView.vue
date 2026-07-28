@@ -7,38 +7,42 @@ const router = useRouter()
 const adminStore = useAdminStore()
 
 const stats = ref({
-  totalOrders: 0,
-  totalProducts: 0,
-  totalRevenue: 0,
-  pendingOrders: 0,
+  total_orders: 0,
+  total_products: 0,
+  total_revenue: 0,
+  pending: 0,
 })
 
 const loading = ref(true)
+const error = ref(null)
 
 async function fetchDashboardData() {
   try {
     loading.value = true
-    // Nếu có API endpoint cho dashboard data
-    // const response = await fetch('/api/admin/dashboard', {
-    //   headers: {
-    //     'Authorization': `Bearer ${adminStore.token}`
-    //   }
-    // })
-    // const data = await response.json()
-    // stats.value = data
-
-    // Mock data cho demo
-    setTimeout(() => {
+    error.value = null
+    
+    const response = await fetch('/api/admin/stats')
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch stats: ${response.statusText}`)
+    }
+    
+    const data = await response.json()
+    
+    if (data.status === 'success') {
       stats.value = {
-        totalOrders: 24,
-        totalProducts: 156,
-        totalRevenue: 25500000,
-        pendingOrders: 5,
+        total_orders: data.data.total_orders || 0,
+        total_products: data.data.total_products || 0,
+        total_revenue: data.data.total_revenue || 0,
+        pending: data.data.pending || 0,
       }
-      loading.value = false
-    }, 500)
-  } catch (error) {
-    console.error('Failed to fetch dashboard data:', error)
+    } else {
+      throw new Error(data.message || 'Failed to fetch stats')
+    }
+  } catch (err) {
+    console.error('Failed to fetch dashboard data:', err)
+    error.value = err.message
+  } finally {
     loading.value = false
   }
 }
@@ -89,6 +93,13 @@ onMounted(() => {
 
     <!-- CONTENT -->
     <div class="max-w-7xl mx-auto px-6 py-8">
+      <!-- Error State -->
+      <div v-if="error" class="text-center py-8 mb-8">
+        <div class="inline-block bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          <p>{{ error }}</p>
+        </div>
+      </div>
+
       <!-- Loading State -->
       <div v-if="loading" class="text-center py-12">
         <div class="inline-block animate-spin">
@@ -106,7 +117,7 @@ onMounted(() => {
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-500 text-sm">Tổng đơn hàng</p>
-              <p class="text-3xl font-bold text-gray-900 mt-2">{{ stats.totalOrders }}</p>
+              <p class="text-3xl font-bold text-gray-900 mt-2">{{ stats.total_orders }}</p>
             </div>
             <div class="text-4xl text-blue-600 opacity-20">📋</div>
           </div>
@@ -117,7 +128,7 @@ onMounted(() => {
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-500 text-sm">Tổng sản phẩm</p>
-              <p class="text-3xl font-bold text-gray-900 mt-2">{{ stats.totalProducts }}</p>
+              <p class="text-3xl font-bold text-gray-900 mt-2">{{ stats.total_products }}</p>
             </div>
             <div class="text-4xl text-green-600 opacity-20">📦</div>
           </div>
@@ -128,7 +139,7 @@ onMounted(() => {
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-500 text-sm">Doanh thu</p>
-              <p class="text-3xl font-bold text-gray-900 mt-2">{{ (stats.totalRevenue / 1000000).toFixed(1) }}M</p>
+              <p class="text-3xl font-bold text-gray-900 mt-2">{{ (stats.total_revenue / 1000000).toFixed(1) }}M</p>
             </div>
             <div class="text-4xl text-purple-600 opacity-20">💰</div>
           </div>
@@ -139,7 +150,7 @@ onMounted(() => {
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-500 text-sm">Đơn chờ xử lý</p>
-              <p class="text-3xl font-bold text-gray-900 mt-2">{{ stats.pendingOrders }}</p>
+              <p class="text-3xl font-bold text-gray-900 mt-2">{{ stats.pending }}</p>
             </div>
             <div class="text-4xl text-orange-600 opacity-20">⏳</div>
           </div>
