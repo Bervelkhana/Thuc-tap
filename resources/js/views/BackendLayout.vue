@@ -11,12 +11,12 @@ const activeTab = ref('products')
     <!-- NAVBAR -->
     <nav class="bg-white shadow-md sticky top-0 z-40">
       <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        <router-link to="/home" class="text-2xl font-bold text-gray-900 hover:text-gray-700">
+        <router-link to="/admin/dashboard" class="text-2xl font-bold text-gray-900 hover:text-gray-700">
           🏪 Backend
         </router-link>
         <div class="flex gap-4">
           <router-link 
-            to="/home" 
+            to="/admin/dashboard" 
             class="px-4 py-2 rounded-lg bg-gray-200 text-gray-900 hover:bg-gray-300 transition"
           >
             ← Quay lại

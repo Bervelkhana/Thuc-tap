@@ -69,14 +69,13 @@ class AdminOrderController extends Controller
 
         $order = Order::findOrFail($id);
 
-        // Kiểm tra luồng trạng thái hợp lệ
-        $validTransitions = [
-            'pending' => ['confirmed', 'cancelled'],
-            'confirmed' => ['shipped', 'cancelled'],
-            'shipped' => ['delivered', 'cancelled'],
-            'delivered' => [],
-            'cancelled' => [],
-        ];
+        // Kiểm tra luồng trạng thái hợp lệ - cho phép chuyển tới tất cả các trạng thái khác
+         $allStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+         $validTransitions = [];
+         
+         foreach ($allStatuses as $status) {
+             $validTransitions[$status] = array_diff($allStatuses, [$status]);
+         }
 
         $newStatus = $request->input('status');
         if (!in_array($newStatus, $validTransitions[$order->status] ?? [])) {

@@ -237,15 +237,15 @@ onMounted(() => {
               :key="product.id"
               class="group bg-white rounded-lg border border-gray-100 overflow-hidden hover:border-gray-300 transition-all duration-300"
             >
-              <div class="h-48 bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-gray-100 transition duration-300">
-                <img 
-                  v-if="product.thumbnail_url" 
-                  :src="product.thumbnail_url" 
-                  :alt="product.name"
-                  class="w-full h-full object-cover"
-                >
-                <span v-else>Product Image</span>
-              </div>
+               <div class="aspect-square bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-gray-100 transition duration-300 overflow-hidden">
+                 <img 
+                   v-if="product.thumbnail_url" 
+                   :src="product.thumbnail_url" 
+                   :alt="product.name"
+                   class="w-full h-full object-contain"
+                 >
+                 <span v-else>Product Image</span>
+               </div>
               
               <div class="p-6 space-y-4">
                 <h4 class="text-sm font-medium text-gray-900 line-clamp-2">

@@ -16,16 +16,16 @@ class OrderController extends Controller
     public function store(StoreOrderRequest $request)
     {
         try {
-            $result = $this->orderService->createOrder($request->validated());
+            $order = $this->orderService->createOrder($request->validated());
 
             return response()->json([
                 'status' => 'success',
                 'message' => 'Đặt hàng thành công',
                 'data' => [
-                    'order_id' => $result['order']->id,
-                    'created_at' => $result['created_at']->format('d-m-Y H:i:s'),
-                    'estimated_delivery' => $result['estimated_delivery']->format('d-m-Y H:i:s'),
-                    'total' => $result['order']->total_amount,
+                    'order_id' => $order->id,
+                    'created_at' => $order->created_at->format('d-m-Y H:i:s'),
+                    'estimated_delivery' => $order->created_at->addDays(3)->format('d-m-Y H:i:s'),
+                    'total' => $order->total_amount,
                 ],
             ], Response::HTTP_CREATED);
         } catch (\Exception $e) {

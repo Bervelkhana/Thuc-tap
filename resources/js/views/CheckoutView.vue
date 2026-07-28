@@ -84,9 +84,9 @@ async function handleCheckout() {
       orderData.value = result.data
       cartStore.clearCart()
       
-      // Redirect to home after 3 seconds
+      // Redirect to browse after 3 seconds
       setTimeout(() => {
-        router.push('/home')
+        router.push('/browse')
       }, 3000)
     } else {
       error.value = result.message || 'Failed to create order'

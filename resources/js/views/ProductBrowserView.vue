@@ -12,6 +12,8 @@ const selectedCategory = ref(null)
 const loading = ref(false)
 const showCart = ref(false)
 const addedToCart = ref(null)
+const showDetailModal = ref(false)
+const selectedProduct = ref(null)
 
 // Fetch categories từ API
 async function fetchCategories() {
@@ -38,11 +40,11 @@ async function fetchCategories() {
   }
 }
 
-// Fetch sản phẩm từ API
+// Fetch tất cả sản phẩm từ API
 async function fetchProducts() {
   loading.value = true
   try {
-    const response = await fetch('/api/products?per_page=50')
+    const response = await fetch('/api/products?per_page=100')
     console.log('API Response status:', response.status)
     const result = await response.json()
     console.log('API Response:', result)
@@ -54,6 +56,8 @@ async function fetchProducts() {
         category_id: product.category_id,
         thumbnail_url: product.thumbnail_url || '',
         stock_quantity: product.stock_quantity,
+        description: product.description || '',
+        created_at: product.created_at,
       }))
       console.log('Products loaded:', products.value.length)
       filterProducts()
@@ -73,6 +77,11 @@ function filterProducts() {
 
   if (selectedCategory.value) {
     result = result.filter(p => p.category_id === selectedCategory.value)
+  } else {
+    // Nếu không chọn category, chỉ hiển thị 6 sản phẩm mới nhất
+    result = result
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 6)
   }
 
   if (searchQuery.value) {
@@ -101,6 +110,18 @@ function addToCart(product) {
   setTimeout(() => {
     addedToCart.value = null
   }, 2000)
+}
+
+// Open product detail modal
+function openProductDetail(product) {
+  selectedProduct.value = product
+  showDetailModal.value = true
+}
+
+// Close product detail modal
+function closeDetailModal() {
+  showDetailModal.value = false
+  selectedProduct.value = null
 }
 
 // Format price
@@ -210,12 +231,12 @@ onMounted(() => {
 
         <!-- PRODUCTS SECTION -->
         <section>
-          <div class="flex items-center justify-between mb-8">
-            <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-widest">
-              {{ selectedCategory ? 'Sản phẩm trong danh mục' : 'Tất cả sản phẩm' }}
-            </h2>
-            <span class="text-sm text-gray-600">{{ filteredProducts.length }} sản phẩm</span>
-          </div>
+           <div class="flex items-center justify-between mb-8">
+             <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-widest">
+               {{ selectedCategory ? 'Sản phẩm trong danh mục' : 'Sản phẩm mới' }}
+             </h2>
+             <span class="text-sm text-gray-600">{{ filteredProducts.length }} sản phẩm</span>
+           </div>
 
           <!-- Loading State -->
           <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -238,10 +259,10 @@ onMounted(() => {
               :key="product.id"
               class="group bg-white rounded-lg border border-gray-200 overflow-hidden hover:border-gray-400 transition-all duration-300 hover:shadow-lg"
             >
-              <!-- Product Image Placeholder -->
-              <div class="h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-400 group-hover:from-gray-200 group-hover:to-gray-300 transition">
+              <!-- Product Image -->
+              <div class="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-400 group-hover:from-gray-200 group-hover:to-gray-300 transition overflow-hidden">
                 <span v-if="product.thumbnail_url">
-                  <img :src="product.thumbnail_url" :alt="product.name" class="w-full h-full object-cover" />
+                  <img :src="product.thumbnail_url" :alt="product.name" class="w-full h-full object-contain" />
                 </span>
                 <span v-else>📦</span>
               </div>
@@ -257,20 +278,31 @@ onMounted(() => {
                   <p class="text-xs text-gray-500">Tồn kho: {{ product.stock_quantity }}</p>
                 </div>
 
-                <!-- Add to Cart Button -->
-                <button
-                  @click="addToCart(product)"
-                  :disabled="product.stock_quantity === 0"
-                  :class="[
-                    'w-full py-3 rounded-lg font-medium transition-all duration-200 text-sm',
-                    product.stock_quantity === 0
-                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                      : 'bg-black text-white hover:bg-gray-900 active:scale-95'
-                  ]"
-                >
-                  <span v-if="addedToCart === product.id" class="text-green-400">✓ Đã thêm</span>
-                  <span v-else>{{ product.stock_quantity === 0 ? 'Hết hàng' : 'Thêm vào giỏ' }}</span>
-                </button>
+                <!-- Action Buttons -->
+                <div class="flex gap-2">
+                  <!-- Detail Button -->
+                  <button
+                    @click="openProductDetail(product)"
+                    class="flex-1 py-2 rounded-lg font-medium transition-all duration-200 text-sm border border-gray-300 text-gray-900 hover:border-black hover:bg-gray-50"
+                  >
+                    Chi tiết
+                  </button>
+                  
+                  <!-- Add to Cart Button -->
+                  <button
+                    @click="addToCart(product)"
+                    :disabled="product.stock_quantity === 0"
+                    :class="[
+                      'flex-1 py-2 rounded-lg font-medium transition-all duration-200 text-sm',
+                      product.stock_quantity === 0
+                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        : 'bg-black text-white hover:bg-gray-900 active:scale-95'
+                    ]"
+                  >
+                    <span v-if="addedToCart === product.id" class="text-green-400">✓</span>
+                    <span v-else>{{ product.stock_quantity === 0 ? 'Hết' : 'Giỏ' }}</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -361,6 +393,80 @@ onMounted(() => {
       </aside>
     </div>
 
+    <!-- PRODUCT DETAIL MODAL -->
+    <transition name="fade">
+      <div v-if="showDetailModal" class="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <!-- Modal Header -->
+          <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+            <h2 class="text-xl font-bold text-gray-900">Chi tiết sản phẩm</h2>
+            <button @click="closeDetailModal" class="text-2xl text-gray-400 hover:text-gray-600">✕</button>
+          </div>
+
+          <!-- Modal Content -->
+          <div v-if="selectedProduct" class="p-6 space-y-6">
+            <!-- Product Image -->
+            <div class="aspect-square bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden">
+              <img v-if="selectedProduct.thumbnail_url" :src="selectedProduct.thumbnail_url" :alt="selectedProduct.name" class="w-full h-full object-contain" />
+              <span v-else class="text-gray-400 text-5xl">📦</span>
+            </div>
+
+            <!-- Product Info -->
+            <div class="space-y-4">
+              <div>
+                <h3 class="text-2xl font-bold text-gray-900">{{ selectedProduct.name }}</h3>
+                <p class="text-sm text-gray-600 mt-1">SKU: {{ selectedProduct.sku }}</p>
+              </div>
+
+              <!-- Price and Stock -->
+              <div class="flex items-center justify-between py-4 border-y border-gray-200">
+                <div>
+                  <p class="text-sm text-gray-600">Giá</p>
+                  <p class="text-3xl font-bold text-gray-900">{{ formatPrice(selectedProduct.price) }}</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-sm text-gray-600">Tồn kho</p>
+                  <p :class="['text-3xl font-bold', selectedProduct.stock_quantity > 0 ? 'text-green-600' : 'text-red-600']">
+                    {{ selectedProduct.stock_quantity }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Description -->
+              <div>
+                <h4 class="text-lg font-semibold text-gray-900 mb-2">Chi tiết sản phẩm</h4>
+                <p class="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  {{ selectedProduct.description }}
+                </p>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="flex gap-4 pt-4">
+                <button
+                  @click="addToCart(selectedProduct); closeDetailModal()"
+                  :disabled="selectedProduct.stock_quantity === 0"
+                  :class="[
+                    'flex-1 py-3 rounded-lg font-medium transition-colors',
+                    selectedProduct.stock_quantity === 0
+                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                      : 'bg-black text-white hover:bg-gray-900'
+                  ]"
+                >
+                  {{ selectedProduct.stock_quantity === 0 ? 'Hết hàng' : 'Thêm vào giỏ hàng' }}
+                </button>
+                <button
+                  @click="closeDetailModal"
+                  class="flex-1 py-3 rounded-lg font-medium bg-gray-200 text-gray-900 hover:bg-gray-300 transition-colors"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
+
     <!-- MOBILE CART DRAWER -->
     <transition name="slide-up">
       <div
@@ -442,6 +548,17 @@ onMounted(() => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Fade Animation for Modal */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
 /* Slide Up Animation */

@@ -295,9 +295,9 @@ function closeModal() {
           :key="item.id"
           class="group bg-white rounded-lg border border-gray-100 overflow-hidden hover:border-gray-300 transition-all duration-300"
         >
-          <div class="h-48 bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-gray-100 transition duration-300 relative">
-            <img v-if="item.thumbnail_url" :src="item.thumbnail_url" :alt="item.name" class="w-full h-full object-cover">
-            <span v-else>Product Image</span>
+           <div class="aspect-square bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-gray-100 transition duration-300 relative overflow-hidden">
+             <img v-if="item.thumbnail_url" :src="item.thumbnail_url" :alt="item.name" class="w-full h-full object-contain">
+             <span v-else>Product Image</span>
             <!-- Sale Badge -->
             <span v-if="item.discount > 0" class="absolute top-4 right-4 bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded">
               -{{ item.discount }}%
@@ -359,15 +359,15 @@ function closeModal() {
           :key="item.id"
           class="group bg-white rounded-lg border border-gray-100 overflow-hidden hover:border-gray-300 transition-all duration-300"
         >
-          <div class="h-48 bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-gray-100 transition duration-300">
-            <img v-if="item.thumbnail_url" :src="item.thumbnail_url" :alt="item.name" class="w-full h-full object-cover">
-            <span v-else>Product Image</span>
-          </div>
-          
-          <div class="p-8 space-y-4">
-            <h4 class="text-sm font-medium text-gray-900 line-clamp-2">
-              {{ item.name }}
-            </h4>
+           <div class="aspect-square bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-gray-100 transition duration-300 overflow-hidden">
+             <img v-if="item.thumbnail_url" :src="item.thumbnail_url" :alt="item.name" class="w-full h-full object-contain">
+             <span v-else>Product Image</span>
+           </div>
+           
+           <div class="p-8 space-y-4">
+             <h4 class="text-sm font-medium text-gray-900 line-clamp-2">
+               {{ item.name }}
+             </h4>
             
             <div class="space-y-2">
               <p class="text-lg font-semibold text-gray-900">{{ formatPrice(item.price) }}</p>
@@ -418,13 +418,13 @@ function closeModal() {
           :key="item.id"
           class="group bg-white rounded-lg border border-gray-100 overflow-hidden hover:border-gray-300 transition-all duration-300"
         >
-          <div class="h-48 bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-gray-100 transition duration-300">
-            <img v-if="item.thumb" :src="item.thumb" :alt="item.name" class="w-full h-full object-cover">
-            <span v-else>Product Image</span>
-          </div>
-          
-          <div class="p-8 space-y-4">
-            <div class="flex items-center justify-between">
+           <div class="aspect-square bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-gray-100 transition duration-300 overflow-hidden">
+             <img v-if="item.thumb" :src="item.thumb" :alt="item.name" class="w-full h-full object-contain">
+             <span v-else>Product Image</span>
+           </div>
+           
+           <div class="p-8 space-y-4">
+             <div class="flex items-center justify-between">
               <span class="bg-black text-white text-xs font-bold px-3 py-1.5 rounded">
                 -{{ discount(item) }}%
               </span>

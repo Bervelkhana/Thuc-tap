@@ -18,11 +18,14 @@ class OrderService
     }
 
     /**
-     * Tạo order từ cart items
+     * Tạo order từ validated data
      */
-    public function createOrder(array $orderData, array $items): Order
+    public function createOrder(array $validated): Order
     {
-        return DB::transaction(function () use ($orderData, $items) {
+        // Extract items từ validated data
+        $items = $validated['items'] ?? [];
+        
+        return DB::transaction(function () use ($validated, $items) {
             // Validate tất cả items trước
             foreach ($items as $item) {
                 if (!$this->productService->checkStock($item['product_id'], $item['quantity'])) {
@@ -39,10 +42,15 @@ class OrderService
 
             // Tạo order
             $order = Order::create([
-                'user_id' => $orderData['user_id'] ?? null,
+                'user_id' => $validated['user_id'] ?? null,
                 'total_amount' => $totalAmount,
-                'payment_method' => $orderData['payment_method'] ?? 'cod',
+                'payment_method' => $validated['payment_method'] ?? 'cod',
                 'status' => 'pending',
+                'customer_name' => $validated['customer_name'] ?? null,
+                'customer_email' => $validated['customer_email'] ?? null,
+                'customer_phone' => $validated['customer_phone'] ?? null,
+                'delivery_address' => $validated['delivery_address'] ?? null,
+                'notes' => $validated['notes'] ?? null,
             ]);
 
             // Tạo order items và giảm tồn kho
@@ -52,10 +60,8 @@ class OrderService
                 OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => $item['product_id'],
-                    'product_name' => $product->name,
-                    'product_price' => $product->price,
+                    'price' => $product->price,
                     'quantity' => $item['quantity'],
-                    'subtotal' => $product->price * $item['quantity'],
                 ]);
 
                 // Giảm tồn kho

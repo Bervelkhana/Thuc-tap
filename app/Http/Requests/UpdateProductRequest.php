@@ -24,8 +24,8 @@ class UpdateProductRequest extends FormRequest
             'is_on_sale' => 'nullable|boolean',
             'stock_quantity' => 'nullable|integer|min:0',
             'description' => 'nullable|string',
-            'thumbnail_url' => 'nullable|string|url',
-            'datasheet_pdf_url' => 'nullable|string|url',
+            'thumbnail_url' => 'nullable|string|url|max:2048',
+            'datasheet_pdf_url' => 'nullable|string|url|max:2048',
         ];
     }
 
