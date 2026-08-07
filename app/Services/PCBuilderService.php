@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\Product;
 use App\Models\Category;
+use App\Models\Product;
 use Illuminate\Support\Collection;
 
 class PCBuilderService
@@ -16,43 +16,51 @@ class PCBuilderService
     }
 
     /**
-     * Lấy danh sách sản phẩm theo danh mục
+     * Lấy danh sách sản phẩm theo slug danh mục
      */
-    public function getProductsByCategory(string $categoryName)
+    public function getProductsByCategory(string $categorySlug, ?string $search = null): Collection
     {
-        $category = Category::where('name', $categoryName)->firstOrFail();
-        return $category->products()
+        $category = Category::query()
+            ->where('slug', $categorySlug)
+            ->firstOrFail();
+
+        $query = Product::query()
+            ->with('category')
+            ->where('category_id', $category->id)
             ->where('stock_quantity', '>', 0)
-            ->select(['id', 'name', 'price', 'stock_quantity'])
-            ->get();
+            ->orderByDesc('created_at');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                  ->orWhere('sku', 'like', '%' . $search . '%')
+                  ->orWhere('description', 'like', '%' . $search . '%');
+            });
+        }
+
+        return $query
+            ->get(['id', 'category_id', 'sku', 'name', 'price', 'stock_quantity', 'description', 'thumbnail_url', 'created_at']);
     }
 
     /**
      * Kiểm tra compatibility giữa các component
-     * Logic cơ bản: kiểm tra socket CPU, power consumption, etc.
      */
     public function checkCompatibility(array $selectedProducts): array
     {
         $issues = [];
 
-        // Lấy thông tin các sản phẩm được chọn
         $cpu = $selectedProducts['cpu'] ?? null;
         $mainboard = $selectedProducts['mainboard'] ?? null;
         $ram = $selectedProducts['ram'] ?? null;
-        $vga = $selectedProducts['vga'] ?? null;
         $psu = $selectedProducts['psu'] ?? null;
 
-        // Kiểm tra CPU và Mainboard
-        if ($cpu && $mainboard) {
-            if (!$this->checkCPUMainboardCompatibility($cpu, $mainboard)) {
-                $issues[] = [
-                    'type' => 'warning',
-                    'message' => 'CPU và Mainboard có thể không tương thích. Vui lòng kiểm tra socket.',
-                ];
-            }
+        if ($cpu && $mainboard && !$this->checkCPUMainboardCompatibility($cpu, $mainboard)) {
+            $issues[] = [
+                'type' => 'warning',
+                'message' => 'CPU và Mainboard có thể không tương thích. Vui lòng kiểm tra socket.',
+            ];
         }
 
-        // Kiểm tra Power Supply
         if ($psu) {
             $estimatedPower = $this->estimatePowerConsumption($selectedProducts);
             $psuPower = $this->extractPowerFromName($psu['name']);
@@ -65,14 +73,11 @@ class PCBuilderService
             }
         }
 
-        // Kiểm tra RAM và Mainboard
-        if ($ram && $mainboard) {
-            if (!$this->checkRAMMainboardCompatibility($ram, $mainboard)) {
-                $issues[] = [
-                    'type' => 'info',
-                    'message' => 'Kiểm tra loại RAM (DDR4/DDR5) phù hợp với mainboard.',
-                ];
-            }
+        if ($ram && $mainboard && !$this->checkRAMMainboardCompatibility($ram, $mainboard)) {
+            $issues[] = [
+                'type' => 'info',
+                'message' => 'Kiểm tra loại RAM (DDR4/DDR5) phù hợp với mainboard.',
+            ];
         }
 
         return [
@@ -89,26 +94,21 @@ class PCBuilderService
         $total = 0;
         foreach ($selectedProducts as $product) {
             if ($product) {
-                $total += (float)$product['price'];
+                $total += (float) $product['price'];
             }
         }
+
         return $total;
     }
 
-    /**
-     * Kiểm tra compatibility CPU-Mainboard
-     */
     protected function checkCPUMainboardCompatibility(array $cpu, array $mainboard): bool
     {
         $cpuSocket = $this->extractSocket($cpu['name']);
         $mbSocket = $this->extractSocket($mainboard['name']);
 
-        return $cpuSocket && $mbSocket && strpos($cpuSocket, $mbSocket) !== false;
+        return $cpuSocket && $mbSocket && str_contains($cpuSocket, $mbSocket);
     }
 
-    /**
-     * Kiểm tra compatibility RAM-Mainboard
-     */
     protected function checkRAMMainboardCompatibility(array $ram, array $mainboard): bool
     {
         $hasDDR4 = stripos($ram['name'], 'DDR4') !== false;
@@ -120,42 +120,31 @@ class PCBuilderService
         return ($hasDDR4 && $mbDDR4) || ($hasDDR5 && $mbDDR5);
     }
 
-    /**
-     * Estimate power consumption dựa trên component
-     */
     protected function estimatePowerConsumption(array $selectedProducts): int
     {
         $power = 0;
 
-        // CPU: ~50-200W
         if (isset($selectedProducts['cpu'])) {
             $power += $this->estimateCPUPower($selectedProducts['cpu']['name']);
         }
 
-        // GPU: ~50-450W
         if (isset($selectedProducts['vga'])) {
             $power += $this->estimateGPUPower($selectedProducts['vga']['name']);
         }
 
-        // RAM: ~3-5W per stick
         if (isset($selectedProducts['ram'])) {
             $power += 5;
         }
 
-        // SSD: ~2-5W
         if (isset($selectedProducts['ssd'])) {
             $power += 5;
         }
 
-        // Other: ~50W
         $power += 50;
 
         return $power;
     }
 
-    /**
-     * Extract CPU power estimate
-     */
     protected function estimateCPUPower(string $cpuName): int
     {
         if (stripos($cpuName, 'i3') !== false || stripos($cpuName, 'Ryzen 3') !== false) {
@@ -174,9 +163,6 @@ class PCBuilderService
         return 100;
     }
 
-    /**
-     * Extract GPU power estimate
-     */
     protected function estimateGPUPower(string $gpuName): int
     {
         if (stripos($gpuName, '1030') !== false || stripos($gpuName, '6400') !== false) {
@@ -198,21 +184,15 @@ class PCBuilderService
         return 150;
     }
 
-    /**
-     * Extract power wattage from PSU name
-     */
     protected function extractPowerFromName(string $psName): int
     {
         if (preg_match('/(\d+)W/', $psName, $matches)) {
-            return (int)$matches[1];
+            return (int) $matches[1];
         }
 
         return 0;
     }
 
-    /**
-     * Extract socket from CPU/Mainboard name
-     */
     protected function extractSocket(string $name): ?string
     {
         if (preg_match('/(LGA\d+|AM\d+|SOCKET\d+)/i', $name, $matches)) {
@@ -222,9 +202,6 @@ class PCBuilderService
         return null;
     }
 
-    /**
-     * Lấy thông tin build categories
-     */
     public function getBuildCategories(): array
     {
         return [
@@ -234,6 +211,7 @@ class PCBuilderService
             'vga' => 'VGA',
             'ssd' => 'SSD',
             'psu' => 'PSU',
+            'case' => 'Case',
         ];
     }
 }

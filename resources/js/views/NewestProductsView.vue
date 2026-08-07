@@ -8,7 +8,6 @@ const cartStore = useCartStore()
 
 const categories = ref([])
 const products = ref([])
-const filteredProducts = ref([])
 const searchQuery = ref('')
 const selectedCategory = ref(null)
 const loading = ref(false)
@@ -31,7 +30,6 @@ const filteredProductsList = computed(() => {
     result = result.filter(p => p.name.toLowerCase().includes(query))
   }
 
-  filteredProducts.value = result
   return result
 })
 
@@ -96,12 +94,30 @@ async function fetchProducts() {
 }
 
 function updateSearch() {
-  filteredProductsList
+  // Force update for search
 }
 
 function selectCategory(categoryId) {
   selectedCategory.value = selectedCategory.value === categoryId ? null : categoryId
 }
+
+// Update filtered products dựa vào computed
+const filteredProducts = computed(() => {
+  let result = products.value
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .slice(0, 6)
+
+  if (selectedCategory.value) {
+    result = result.filter(p => p.category_id === selectedCategory.value)
+  }
+
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase()
+    result = result.filter(p => p.name.toLowerCase().includes(query))
+  }
+
+  return result
+})
 
 function addToCart(product) {
   cartStore.addToCart(product, 1)
@@ -304,6 +320,73 @@ onMounted(() => {
         </main>
       </div>
     </div>
+
+    <!-- MOBILE CART DRAWER -->
+    <transition name="slide-up">
+      <div
+        v-if="showCart"
+        class="fixed inset-0 z-50 bg-black/50"
+        @click="showCart = false"
+      ></div>
+    </transition>
+
+    <transition name="slide-up">
+      <div
+        v-if="showCart"
+        class="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl p-6 max-h-[80vh] overflow-y-auto"
+      >
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-lg font-bold text-gray-900">🛒 Giỏ hàng</h2>
+          <button @click="showCart = false" class="text-2xl text-gray-400">✕</button>
+        </div>
+
+        <!-- Mobile Cart Items -->
+        <div v-if="cartStore.items.length === 0" class="text-center py-8">
+          <p class="text-gray-600">Giỏ hàng trống</p>
+        </div>
+
+        <div v-else class="space-y-4">
+          <div
+            v-for="item in cartStore.items"
+            :key="item.product_id"
+            class="flex gap-4 pb-4 border-b border-gray-200"
+          >
+            <div class="flex-1">
+              <p class="font-medium text-gray-900">{{ item.name }}</p>
+              <p class="text-sm text-gray-600">{{ formatPrice(item.price) }}</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                @click="updateQuantity(item.product_id, item.quantity - 1)"
+                class="w-6 h-6 flex items-center justify-center bg-gray-100 rounded text-sm"
+              >
+                −
+              </button>
+              <span class="w-6 text-center font-semibold">{{ item.quantity }}</span>
+              <button
+                @click="updateQuantity(item.product_id, item.quantity + 1)"
+                class="w-6 h-6 flex items-center justify-center bg-gray-100 rounded text-sm"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div class="border-t border-gray-200 pt-4 space-y-4">
+            <div class="flex justify-between font-bold">
+              <span>Tổng:</span>
+              <span>{{ formatPrice(cartTotal) }}</span>
+            </div>
+            <router-link
+              to="/checkout-new"
+              class="block w-full text-center bg-black text-white py-3 rounded-xl font-medium"
+            >
+              Thanh toán
+            </router-link>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -319,5 +402,21 @@ onMounted(() => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Slide Up Animation */
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-up-enter-from {
+  opacity: 0;
+  transform: translateY(100%);
+}
+
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(100%);
 }
 </style>

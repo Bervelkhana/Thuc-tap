@@ -42,7 +42,9 @@ Route::patch('/admin/orders/{order}/status', [AdminOrderController::class, 'upda
 Route::delete('/admin/orders/{order}', [AdminOrderController::class, 'cancel']);
 
 // PC Builder routes
-Route::post('/pc-builder/validate', [PCBuilderController::class, 'validate']);
+Route::get('/pc-builder/components', [PCBuilderController::class, 'getComponentsByCategory']);
+Route::get('/pc-builder/categories', [PCBuilderController::class, 'getBuildCategories']);
+Route::post('/pc-builder/validate', [PCBuilderController::class, 'checkCompatibility']);
 Route::post('/pc-builder/recommend', [PCBuilderController::class, 'recommend']);
 
 // Chat AI routes

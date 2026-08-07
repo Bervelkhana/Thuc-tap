@@ -1,14 +1,19 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useCartStore } from '../stores/cartStore'
 
 const router = useRouter()
+const cartStore = useCartStore()
 const configs = ref([])
 const filteredConfigs = ref([])
 const searchQuery = ref('')
 const loading = ref(false)
+const showCart = ref(false)
 
 const totalCount = computed(() => filteredConfigs.value.length)
+const cartCount = computed(() => cartStore.cartCount)
+const cartTotal = computed(() => cartStore.cartTotal)
 
 async function fetchConfigs() {
   loading.value = true
@@ -49,6 +54,18 @@ function openDetail(config) {
   router.push(`/prebuilt-config/${config.id}`)
 }
 
+function removeFromCart(productId) {
+  cartStore.removeFromCart(productId)
+}
+
+function updateQuantity(productId, quantity) {
+  if (quantity <= 0) {
+    removeFromCart(productId)
+  } else {
+    cartStore.updateQuantity(productId, quantity)
+  }
+}
+
 onMounted(fetchConfigs)
 </script>
 
@@ -60,15 +77,24 @@ onMounted(fetchConfigs)
           ← TechGear
         </router-link>
 
-        <div class="hidden md:flex items-center bg-gray-100 rounded-lg px-4 py-2 flex-1 max-w-xs ml-6">
-          <input
-            v-model="searchQuery"
-            @input="updateSearch"
-            type="text"
-            placeholder="Tìm kiếm cấu hình..."
-            class="bg-transparent outline-none text-sm text-gray-700 placeholder-gray-500 w-full"
-          />
-          <span class="text-gray-400">🔍</span>
+        <div class="flex items-center gap-4 sm:gap-6">
+          <div class="hidden md:flex items-center bg-gray-100 rounded-lg px-4 py-2 flex-1 max-w-xs">
+            <input
+              v-model="searchQuery"
+              @input="updateSearch"
+              type="text"
+              placeholder="Tìm kiếm cấu hình..."
+              class="bg-transparent outline-none text-sm text-gray-700 placeholder-gray-500 w-full"
+            />
+            <span class="text-gray-400">🔍</span>
+          </div>
+
+          <button @click="showCart = !showCart" class="relative group cursor-pointer transition-all duration-200">
+            <span class="text-2xl group-hover:scale-110">🛒</span>
+            <span v-if="cartCount > 0" class="absolute -top-2 -right-3 bg-black text-white text-xs font-bold px-2 py-1 rounded-full">
+              {{ cartCount }}
+            </span>
+          </button>
         </div>
       </div>
     </header>
@@ -150,6 +176,73 @@ onMounted(fetchConfigs)
         </main>
       </div>
     </div>
+
+    <!-- MOBILE CART DRAWER -->
+    <transition name="slide-up">
+      <div
+        v-if="showCart"
+        class="fixed inset-0 z-50 bg-black/50"
+        @click="showCart = false"
+      ></div>
+    </transition>
+
+    <transition name="slide-up">
+      <div
+        v-if="showCart"
+        class="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl p-6 max-h-[80vh] overflow-y-auto"
+      >
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-lg font-bold text-gray-900">🛒 Giỏ hàng</h2>
+          <button @click="showCart = false" class="text-2xl text-gray-400">✕</button>
+        </div>
+
+        <!-- Cart Items -->
+        <div v-if="cartStore.items.length === 0" class="text-center py-8">
+          <p class="text-gray-600">Giỏ hàng trống</p>
+        </div>
+
+        <div v-else class="space-y-4">
+          <div
+            v-for="item in cartStore.items"
+            :key="item.product_id"
+            class="flex gap-4 pb-4 border-b border-gray-200"
+          >
+            <div class="flex-1">
+              <p class="font-medium text-gray-900">{{ item.name }}</p>
+              <p class="text-sm text-gray-600">{{ formatPrice(item.price) }}</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                @click="updateQuantity(item.product_id, item.quantity - 1)"
+                class="w-6 h-6 flex items-center justify-center bg-gray-100 rounded text-sm"
+              >
+                −
+              </button>
+              <span class="w-6 text-center font-semibold">{{ item.quantity }}</span>
+              <button
+                @click="updateQuantity(item.product_id, item.quantity + 1)"
+                class="w-6 h-6 flex items-center justify-center bg-gray-100 rounded text-sm"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div class="border-t border-gray-200 pt-4 space-y-4">
+            <div class="flex justify-between font-bold">
+              <span>Tổng:</span>
+              <span>{{ formatPrice(cartTotal) }}</span>
+            </div>
+            <router-link
+              to="/checkout-new"
+              class="block w-full text-center bg-black text-white py-3 rounded-xl font-medium"
+            >
+              Thanh toán
+            </router-link>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -162,5 +255,21 @@ onMounted(fetchConfigs)
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Slide Up Animation */
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-up-enter-from {
+  opacity: 0;
+  transform: translateY(100%);
+}
+
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(100%);
 }
 </style>

@@ -16,17 +16,19 @@ class PCBuilderController extends Controller
     }
 
     /**
-     * Lấy danh sách component theo category
+     * Lấy danh sách component theo category slug
      */
     public function getComponentsByCategory(Request $request)
     {
         $request->validate([
-            'category' => 'required|string|in:cpu,mainboard,ram,vga,ssd,psu',
+            'category' => 'required|string|in:cpu,mainboard,ram,vga,ssd,psu,case',
+            'search' => 'nullable|string|max:255',
         ]);
 
         try {
             $components = $this->pcBuilderService->getProductsByCategory(
-                $this->mapCategoryName($request->input('category'))
+                $request->string('category')->toString(),
+                $request->input('search')
             );
 
             return response()->json([
@@ -48,9 +50,10 @@ class PCBuilderController extends Controller
     {
         $request->validate([
             'selected_products' => 'required|array',
-            'selected_products.*.product_id' => 'integer',
-            'selected_products.*.name' => 'string',
-            'selected_products.*.price' => 'numeric',
+            'selected_products.*.category' => 'required|string',
+            'selected_products.*.product_id' => 'required|integer',
+            'selected_products.*.name' => 'required|string',
+            'selected_products.*.price' => 'required|numeric',
         ]);
 
         $selectedProducts = [];
@@ -82,21 +85,5 @@ class PCBuilderController extends Controller
             'data' => $categories,
         ]);
     }
-
-    /**
-     * Map category code to display name
-     */
-    private function mapCategoryName(string $code): string
-    {
-        $map = [
-            'cpu' => 'CPU',
-            'mainboard' => 'Mainboard',
-            'ram' => 'RAM',
-            'vga' => 'VGA',
-            'ssd' => 'SSD',
-            'psu' => 'PSU',
-        ];
-
-        return $map[$code] ?? $code;
-    }
 }
+
