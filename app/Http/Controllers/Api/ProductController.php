@@ -24,19 +24,12 @@ class ProductController extends Controller
                 maxPrice: $request->has('max_price') ? $request->integer('max_price') : null,
                 search: $request->filled('search') ? $request->string('search') : null,
                 sort: $request->filled('sort') ? $request->string('sort') : null,
-                perPage: $request->integer('per_page', 12)
+                perPage: $request->integer('per_page', 100)
             );
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Danh sách sản phẩm',
                 'data' => $products->items(),
-                'meta' => [
-                    'current_page' => $products->currentPage(),
-                    'last_page' => $products->lastPage(),
-                    'per_page' => $products->perPage(),
-                    'total' => $products->total(),
-                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -72,7 +65,6 @@ class ProductController extends Controller
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Sản phẩm đang sale',
                 'data' => $products,
             ]);
         } catch (\Exception $e) {
@@ -91,7 +83,6 @@ class ProductController extends Controller
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Sản phẩm mới nhất',
                 'data' => $products,
             ]);
         } catch (\Exception $e) {

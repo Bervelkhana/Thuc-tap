@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AdminOrderController;
 use App\Http\Controllers\Api\AdminAuthController;
 use App\Http\Controllers\Api\PCBuilderController;
 use App\Http\Controllers\Api\ChatController;
+use App\Http\Controllers\Api\PrebuiltConfigController;
 use Illuminate\Support\Facades\Route;
 
 // Test endpoint
@@ -46,4 +47,15 @@ Route::post('/pc-builder/recommend', [PCBuilderController::class, 'recommend']);
 
 // Chat AI routes
 Route::post('/chat', [ChatController::class, 'sendMessage']);
+
+// Prebuilt Config routes - Frontend (GET)
+Route::get('/prebuilt-configs', [PrebuiltConfigController::class, 'index']);
+Route::get('/prebuilt-configs/{id}', [PrebuiltConfigController::class, 'show']);
+
+// Prebuilt Config routes - Backend (CRUD + toggle)
+Route::post('/prebuilt-configs', [PrebuiltConfigController::class, 'store']);
+Route::put('/prebuilt-configs/{id}', [PrebuiltConfigController::class, 'update']);
+Route::delete('/prebuilt-configs/{id}', [PrebuiltConfigController::class, 'destroy']);
+Route::patch('/prebuilt-configs/{id}/toggle-active', [PrebuiltConfigController::class, 'toggleActive']);
+Route::patch('/prebuilt-configs/{id}/toggle-featured', [PrebuiltConfigController::class, 'toggleFeatured']);
 

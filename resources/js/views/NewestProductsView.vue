@@ -1,9 +1,9 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useCartStore } from '../stores/cartStore'
 
-const route = useRoute()
+const router = useRouter()
 const cartStore = useCartStore()
 
 const categories = ref([])
@@ -16,35 +16,24 @@ const showCart = ref(false)
 const addedToCart = ref(null)
 const showDetailModal = ref(false)
 const selectedProduct = ref(null)
-const activeCategoryName = ref('')
 
-function applyCategorySelectionBySlug(slug) {
-  if (!slug || categories.value.length === 0) {
-    return
+const filteredProductsList = computed(() => {
+  let result = products.value
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .slice(0, 6)
+
+  if (selectedCategory.value) {
+    result = result.filter(p => p.category_id === selectedCategory.value)
   }
 
-  const matchedCategory = categories.value.find((category) => category.slug === slug)
-  if (matchedCategory) {
-    selectedCategory.value = matchedCategory.id
-    activeCategoryName.value = matchedCategory.name
-    filterProducts()
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase()
+    result = result.filter(p => p.name.toLowerCase().includes(query))
   }
-}
 
-function syncRouteCategory() {
-  const slugFromRoute = typeof route.params.slug === 'string' ? route.params.slug : null
-  
-  if (slugFromRoute && categories.value.length > 0) {
-    applyCategorySelectionBySlug(slugFromRoute)
-  }
-}
-
-watch(
-  () => route.params.slug,
-  () => {
-    syncRouteCategory()
-  }
-)
+  filteredProducts.value = result
+  return result
+})
 
 async function fetchCategories() {
   try {
@@ -76,8 +65,6 @@ async function fetchCategories() {
         slug: cat.slug || slugMap[cat.name] || cat.name.toLowerCase().replace(/\s+/g, '-'),
         icon: iconMap[cat.name] || '🔧'
       }))
-
-      syncRouteCategory()
     }
   } catch (err) {
     console.error('Error fetching categories:', err)
@@ -100,7 +87,6 @@ async function fetchProducts() {
         description: product.description || '',
         created_at: product.created_at,
       }))
-      filterProducts()
     }
   } catch (err) {
     console.error('Error fetching products:', err)
@@ -109,23 +95,12 @@ async function fetchProducts() {
   }
 }
 
-function filterProducts() {
-  let result = products.value
-
-  if (selectedCategory.value) {
-    result = result.filter(p => p.category_id === selectedCategory.value)
-  }
-
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    result = result.filter(p => p.name.toLowerCase().includes(query))
-  }
-
-  filteredProducts.value = result
+function updateSearch() {
+  filteredProductsList
 }
 
-const updateSearch = () => {
-  filterProducts()
+function selectCategory(categoryId) {
+  selectedCategory.value = selectedCategory.value === categoryId ? null : categoryId
 }
 
 function addToCart(product) {
@@ -217,8 +192,6 @@ onMounted(() => {
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 lg:py-12">
       <div class="flex flex-col lg:flex-row gap-6 lg:gap-8">
-        
-        <!-- SIDEBAR: CATEGORIES -->
         <aside class="w-full lg:w-[280px] xl:w-[300px] shrink-0 order-2 lg:order-1">
           <div class="sticky top-24 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
             <div class="px-5 py-4 border-b border-gray-100 bg-gray-50">
@@ -226,7 +199,7 @@ onMounted(() => {
             </div>
 
             <div class="p-3 border-b border-gray-100 space-y-2">
-              <router-link to="/browse" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 border-2 bg-white text-gray-800 border-transparent hover:border-gray-200 hover:bg-gray-50">
+              <router-link to="/browse" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 border-2 bg-black text-white border-black hover:bg-gray-900">
                 <span class="text-xl shrink-0">🆕</span>
                 <span class="text-sm font-medium leading-tight flex-1">Sản phẩm mới</span>
               </router-link>
@@ -245,11 +218,7 @@ onMounted(() => {
                 v-for="category in categories"
                 :key="category.id"
                 :href="`/browser-${category.slug}`"
-                :class="['w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 border-2', 
-                  selectedCategory === category.id 
-                    ? 'bg-black text-white border-black hover:bg-gray-900'
-                    : 'bg-white text-gray-800 border-transparent hover:border-gray-200 hover:bg-gray-50'
-                ]"
+                class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 border-2 bg-white text-gray-800 border-transparent hover:border-gray-200 hover:bg-gray-50"
               >
                 <span class="text-xl shrink-0">{{ category.icon }}</span>
                 <span class="text-sm font-medium leading-tight flex-1">{{ category.name }}</span>
@@ -258,21 +227,17 @@ onMounted(() => {
           </div>
         </aside>
 
-        <!-- MAIN: PRODUCTS -->
         <main class="flex-1 order-1 lg:order-2 min-w-0">
           <section>
             <div class="mb-6 sm:mb-8">
               <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-widest">
-                    {{ activeCategoryName }}
-                  </h2>
+                  <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-widest">Sản phẩm mới</h2>
                   <p class="text-sm text-gray-500 mt-2">{{ filteredProducts.length }} sản phẩm</p>
                 </div>
               </div>
             </div>
 
-            <!-- Loading State -->
             <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               <div v-for="i in 6" :key="i" class="animate-pulse rounded-2xl border border-gray-200 p-4">
                 <div class="aspect-[4/3] bg-gray-200 rounded-xl mb-4"></div>
@@ -281,19 +246,16 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- Empty State -->
             <div v-else-if="filteredProducts.length === 0" class="bg-gray-50 rounded-2xl p-8 sm:p-12 text-center border border-gray-200">
               <p class="text-gray-600">Không tìm thấy sản phẩm phù hợp</p>
             </div>
 
-            <!-- Products Grid -->
             <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               <div
                 v-for="product in filteredProducts"
                 :key="product.id"
                 class="group bg-white rounded-2xl border border-gray-200 overflow-hidden hover:border-gray-400 transition-all duration-300 hover:shadow-lg flex flex-col"
               >
-                <!-- Product Image -->
                 <div class="aspect-[4/3] bg-gray-50 flex items-center justify-center overflow-hidden">
                   <img
                     v-if="product.thumbnail_url"
@@ -304,7 +266,6 @@ onMounted(() => {
                   <div v-else class="text-5xl text-gray-300">🛍️</div>
                 </div>
 
-                <!-- Product Info -->
                 <div class="p-4 sm:p-5 space-y-3 sm:space-y-4 flex flex-col flex-1">
                   <div>
                     <p class="text-xs uppercase tracking-widest text-gray-400 mb-1 sm:mb-2">

@@ -10,6 +10,9 @@ import CheckoutView from '../views/CheckoutView.vue'
 import AdminOrderView from '../views/AdminOrderView.vue'
 import PCBuilderView from '../views/PCBuilderView.vue'
 import ProductBrowserView from '../views/ProductBrowserView.vue'
+import NewestProductsView from '../views/NewestProductsView.vue'
+import PrebuiltConfigsView from '../views/PrebuiltConfigsView.vue'
+import PrebuiltConfigDetailView from '../views/PrebuiltConfigDetailView.vue'
 import BackendLayout from '../views/BackendLayout.vue'
 import LoginBackendView from '../views/LoginBackendView.vue'
 import AdminDashboardView from '../views/AdminDashboardView.vue'
@@ -17,10 +20,11 @@ import { useAdminStore } from '../stores/adminStore'
 
 const routes = [
   // Landing page
-  { path: '/', name: 'start', component: StartView },
+  { path: '/', name: 'start', component: ProductBrowserView },
+  { path: '/build', name: 'build', component: () => import('../views/BuildView.vue') },
   
   // Route cũ (Bước 3-4) — giữ song song
-  { path: '/old-home', name: 'home', component: ProductList },
+  { path: '/old-home', name: 'home', component: ProductList },,
   { path: '/checkout', name: 'checkout', component: Checkout },
 
   // Route mới (Bước 2 - thiết kế mockup, dùng mock data)
@@ -29,7 +33,10 @@ const routes = [
   { path: '/category/:categoryId', name: 'category-products', component: CategoryProductsView },
   { path: '/product', name: 'product-detail', component: ProductDetailView },
   { path: '/checkout-new', name: 'checkout-view', component: CheckoutView },
-  { path: '/browse', name: 'product-browser', component: ProductBrowserView },
+  { path: '/browser-:slug', name: 'browser-category', component: ProductBrowserView, props: true },
+  { path: '/browse', name: 'product-browser', component: NewestProductsView },
+  { path: '/browse-prebuilt', name: 'browse-prebuilt', component: PrebuiltConfigsView },
+  { path: '/prebuilt-config/:id', name: 'prebuilt-config-detail', component: PrebuiltConfigDetailView, props: true },
   { path: '/browser', redirect: '/browse' },
   
   // Admin routes
@@ -74,3 +81,4 @@ router.beforeEach((to, from, next) => {
 })
 
 export default router
+

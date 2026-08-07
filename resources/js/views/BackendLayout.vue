@@ -1,7 +1,9 @@
 <script setup>
 import { ref } from 'vue'
-import ProductManagement from '../components/backend/ProductManagement.vue'
-import OrderManagement from '../components/backend/OrderManagement.vue'
+import PrebuiltConfigManagement from '../components/backend/PrebuiltConfigManagement.vue'
+
+const ProductManagement = () => import('../components/backend/ProductManagement.vue')
+const OrderManagement = () => import('../components/backend/OrderManagement.vue')
 
 const activeTab = ref('products')
 </script>
@@ -28,11 +30,11 @@ const activeTab = ref('products')
     <!-- TABS -->
     <div class="max-w-7xl mx-auto px-6 py-6">
       <div class="bg-white rounded-lg shadow-md">
-        <div class="flex border-b">
+        <div class="flex border-b overflow-x-auto">
           <button
             @click="activeTab = 'products'"
             :class="[
-              'flex-1 px-6 py-4 font-semibold transition text-center',
+              'flex-1 min-w-[180px] px-6 py-4 font-semibold transition text-center',
               activeTab === 'products'
                 ? 'text-black border-b-2 border-black bg-gray-50'
                 : 'text-gray-600 hover:text-gray-900'
@@ -41,9 +43,20 @@ const activeTab = ref('products')
             📦 Quản lý sản phẩm
           </button>
           <button
+            @click="activeTab = 'prebuilt'"
+            :class="[
+              'flex-1 min-w-[180px] px-6 py-4 font-semibold transition text-center',
+              activeTab === 'prebuilt'
+                ? 'text-black border-b-2 border-black bg-gray-50'
+                : 'text-gray-600 hover:text-gray-900'
+            ]"
+          >
+            🧩 Quản lý cấu hình
+          </button>
+          <button
             @click="activeTab = 'orders'"
             :class="[
-              'flex-1 px-6 py-4 font-semibold transition text-center',
+              'flex-1 min-w-[180px] px-6 py-4 font-semibold transition text-center',
               activeTab === 'orders'
                 ? 'text-black border-b-2 border-black bg-gray-50'
                 : 'text-gray-600 hover:text-gray-900'
@@ -54,8 +67,16 @@ const activeTab = ref('products')
         </div>
 
         <div class="p-6">
-          <ProductManagement v-if="activeTab === 'products'" />
-          <OrderManagement v-else />
+          <Suspense>
+            <template #default>
+              <ProductManagement v-if="activeTab === 'products'" />
+              <PrebuiltConfigManagement v-else-if="activeTab === 'prebuilt'" />
+              <OrderManagement v-else />
+            </template>
+            <template #fallback>
+              <div class="text-center py-8 text-gray-600">Đang tải...</div>
+            </template>
+          </Suspense>
         </div>
       </div>
     </div>

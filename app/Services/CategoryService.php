@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Category;
+use Illuminate\Support\Str;
 
 class CategoryService
 {
@@ -11,9 +12,15 @@ class CategoryService
      */
     public function getCategories()
     {
-        return Category::withCount('products')
-                       ->orderBy('name')
-                       ->get();
+        return Category::query()
+            ->select(['id', 'name', 'parent_id'])
+            ->withCount('products')
+            ->orderBy('name')
+            ->get()
+            ->map(function (Category $category) {
+                $category->slug = $category->slug ?? Str::slug($category->name);
+                return $category;
+            });
     }
 
     /**

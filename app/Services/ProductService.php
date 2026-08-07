@@ -34,6 +34,62 @@ class ProductService
         return $context;
     }
 
+    public function getFilteredProducts(?int $categoryId = null, ?int $minPrice = null, ?int $maxPrice = null, ?string $search = null, ?string $sort = null, int $perPage = 12)
+    {
+        $query = Product::query()->with('category');
+
+        if ($categoryId) {
+            $query->where('category_id', $categoryId);
+        }
+
+        if ($minPrice !== null) {
+            $query->where('price', '>=', $minPrice);
+        }
+
+        if ($maxPrice !== null) {
+            $query->where('price', '<=', $maxPrice);
+        }
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                  ->orWhere('description', 'like', '%' . $search . '%');
+            });
+        }
+
+        match ($sort) {
+            'price_asc' => $query->orderBy('price', 'asc'),
+            'price_desc' => $query->orderBy('price', 'desc'),
+            'name_asc' => $query->orderBy('name', 'asc'),
+            'name_desc' => $query->orderBy('name', 'desc'),
+            default => $query->latest(),
+        };
+
+        return $query->paginate($perPage);
+    }
+
+    public function getProductById(int $id): Product
+    {
+        return Product::with(['category', 'attributes'])->findOrFail($id);
+    }
+
+    public function getSaleProducts(int $limit = 6)
+    {
+        return Product::where('is_on_sale', true)
+            ->with('category')
+            ->orderByDesc('sale_percent')
+            ->limit($limit)
+            ->get();
+    }
+
+    public function getNewestProducts(int $limit = 6)
+    {
+        return Product::with('category')
+            ->latest()
+            ->limit($limit)
+            ->get();
+    }
+
     /**
      * Search products by keyword
      */
@@ -166,5 +222,35 @@ class ProductService
         }
 
         return $context;
+    }
+
+    /**
+     * Check if product has sufficient stock
+     */
+    public function checkStock(int $productId, int $quantity): bool
+    {
+        $product = Product::find($productId);
+        
+        if (!$product) {
+            return false;
+        }
+        
+        return $product->stock_quantity >= $quantity;
+    }
+
+    /**
+     * Decrease product stock
+     */
+    public function decreaseStock(int $productId, int $quantity): bool
+    {
+        $product = Product::find($productId);
+        
+        if (!$product || $product->stock_quantity < $quantity) {
+            return false;
+        }
+        
+        $product->decrement('stock_quantity', $quantity);
+        
+        return true;
     }
 }

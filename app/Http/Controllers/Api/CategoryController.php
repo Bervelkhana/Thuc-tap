@@ -18,7 +18,6 @@ class CategoryController extends Controller
 
             return response()->json([
                 'status' => 'success',
-                'message' => 'Danh sách danh mục',
                 'data' => $categories,
             ]);
         } catch (\Exception $e) {
