@@ -1,7 +1,16 @@
 <script setup>
-// Root component: chứa router-view để hiển thị trang theo route
+import { ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
+import ChatBoxAI from './components/ChatBoxAI.vue'
+
+const route = useRoute()
+const isLoading = ref(false)
+const showChatBox = computed(() => route.path !== '/login-backend')
 </script>
 
 <template>
-  <router-view />
+  <div>
+    <router-view />
+  </div>
+  <ChatBoxAI v-if="showChatBox" />
 </template>

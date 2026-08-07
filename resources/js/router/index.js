@@ -30,6 +30,7 @@ const routes = [
   { path: '/product', name: 'product-detail', component: ProductDetailView },
   { path: '/checkout-new', name: 'checkout-view', component: CheckoutView },
   { path: '/browse', name: 'product-browser', component: ProductBrowserView },
+  { path: '/browser', redirect: '/browse' },
   
   // Admin routes
   { path: '/admin/orders', name: 'admin-orders', component: AdminOrderView },

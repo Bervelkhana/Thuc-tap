@@ -3,184 +3,168 @@
 namespace App\Services;
 
 use App\Models\Product;
-use Illuminate\Pagination\LengthAwarePaginator;
+use App\Models\Category;
 
 class ProductService
 {
     /**
-     * Lấy danh sách sản phẩm với filter, search và sort
+     * Get products with stock info for AI context
      */
-    public function getProducts(array $params): LengthAwarePaginator
+    public function getProductsContext(int $limit = 10): string
     {
-        $query = Product::with(['category']);
+        $products = Product::where('stock_quantity', '>', 0)
+            ->with('category')
+            ->limit($limit)
+            ->get();
 
-        // Filter by category
-        if (!empty($params['category_id'])) {
-            $query->where('category_id', $params['category_id']);
+        if ($products->isEmpty()) {
+            return "Hien tai khong co san pham trong kho.";
         }
 
-        // Filter by price range
-        if (!empty($params['min_price'])) {
-            $query->where('price', '>=', (int)$params['min_price']);
+        $context = "San pham co san trong kho:\n";
+        foreach ($products as $product) {
+            $categoryName = $product->category?->name ?? 'N/A';
+            $price = number_format($product->price, 0, ',', '.');
+            $status = $product->is_on_sale ? 'Dang sale' : 'Binh thuong';
+            
+            $line = "- {$product->name} (ID: {$product->id}, Danh muc: {$categoryName}, Gia: {$price} VND, Ton kho: {$product->stock_quantity}, {$status})\n";
+            $context .= $line;
         }
 
-        if (!empty($params['max_price'])) {
-            $query->where('price', '<=', (int)$params['max_price']);
-        }
-
-        // Search by name or SKU
-        if (!empty($params['search'])) {
-            $search = $params['search'];
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('sku', 'like', "%{$search}%");
-            });
-        }
-
-        // Sort
-        $sort = $params['sort'] ?? 'created_at';
-        if ($sort === 'price_asc') {
-            $query->orderBy('price', 'asc');
-        } elseif ($sort === 'price_desc') {
-            $query->orderBy('price', 'desc');
-        } elseif ($sort === 'name_asc') {
-            $query->orderBy('name', 'asc');
-        } elseif ($sort === 'name_desc') {
-            $query->orderBy('name', 'desc');
-        } else {
-            $query->orderBy('created_at', 'desc');
-        }
-
-        $perPage = (int)($params['per_page'] ?? 12);
-        return $query->paginate($perPage)->withQueryString();
+        return $context;
     }
 
     /**
-     * Lấy chi tiết sản phẩm
+     * Search products by keyword
      */
-    public function getProductById(int $id): Product
+    public function searchProductsContext(string $keyword): string
     {
-        return Product::with(['category'])->findOrFail($id);
-    }
+        $products = Product::where('name', 'like', '%' . $keyword . '%')
+            ->orWhere('description', 'like', '%' . $keyword . '%')
+            ->with('category')
+            ->limit(5)
+            ->get();
 
-    /**
-     * Kiểm tra tồn kho
-     */
-    public function checkStock(int $productId, int $quantity): bool
-    {
-        $product = Product::find($productId);
-        return $product && $product->stock_quantity >= $quantity;
-    }
-
-    /**
-     * Lấy thông tin tồn kho
-     */
-    public function getStock(int $productId): ?int
-    {
-        $product = Product::find($productId);
-        return $product?->stock_quantity;
-    }
-
-    /**
-     * Giảm tồn kho (dùng khi tạo order)
-     */
-    public function decreaseStock(int $productId, int $quantity): bool
-    {
-        $product = Product::find($productId);
-        
-        if (!$product || $product->stock_quantity < $quantity) {
-            return false;
+        if ($products->isEmpty()) {
+            return "Khong tim thay san pham phu hop voi tu khoa: " . $keyword;
         }
 
-        $product->decrement('stock_quantity', $quantity);
-        return true;
+        $context = "Ket qua tim kiem cho '{$keyword}':\n";
+        foreach ($products as $product) {
+            $price = number_format($product->price, 0, ',', '.');
+            $context .= "- {$product->name}: {$price} VND (Ton: {$product->stock_quantity} cai)\n";
+        }
+
+        return $context;
     }
 
     /**
-     * Tăng tồn kho (dùng khi hủy order)
+     * Get products by category
      */
-    public function increaseStock(int $productId, int $quantity): bool
+    public function getProductsByCategoryContext(string $categoryName): string
     {
-        $product = Product::find($productId);
-        
+        $category = Category::where('name', 'like', '%' . $categoryName . '%')->first();
+
+        if (!$category) {
+            return "Khong tim thay danh muc: " . $categoryName;
+        }
+
+        $products = $category->products()
+            ->where('stock_quantity', '>', 0)
+            ->limit(10)
+            ->get();
+
+        if ($products->isEmpty()) {
+            return "Danh muc {$categoryName} hien khong co san pham trong kho.";
+        }
+
+        $context = "San pham trong danh muc '{$categoryName}':\n";
+        foreach ($products as $product) {
+            $price = number_format($product->price, 0, ',', '.');
+            $context .= "- {$product->name}: {$price} VND (Ton: {$product->stock_quantity})\n";
+        }
+
+        return $context;
+    }
+
+    /**
+     * Get product details
+     */
+    public function getProductDetailsContext(int $productId): string
+    {
+        $product = Product::with(['category', 'attributes'])->find($productId);
+
         if (!$product) {
-            return false;
+            return "Khong tim thay san pham voi ID: " . $productId;
         }
 
-        $product->increment('stock_quantity', $quantity);
-        return true;
-    }
+        $categoryName = $product->category?->name ?? 'N/A';
+        $price = number_format($product->price, 0, ',', '.');
+        $description = $product->description ?? 'Khong co mo ta';
+        
+        $context = "Chi tiet san pham:\n- Ten: {$product->name}\n- Danh muc: {$categoryName}\n- Gia: {$price} VND\n- Ton kho: {$product->stock_quantity} cai\n- Mo ta: {$description}\n";
 
-    /**
-     * Lấy sản phẩm có tồn kho
-     */
-    public function getProductWithStock(int $productId): ?Product
-    {
-        return Product::with(['category', 'attributes'])
-            ->where('stock_quantity', '>', 0)
-            ->find($productId);
-    }
-
-    /**
-     * Filter sản phẩm theo category và price range
-     */
-    public function filterByCategoryAndPrice(?int $categoryId, array $priceRange, int $perPage = 12)
-    {
-        $query = Product::with(['category', 'attributes']);
-
-        if ($categoryId) {
-            $query->where('category_id', $categoryId);
+        if ($product->attributes->isNotEmpty()) {
+            $context .= "- Thong so ky thuat:\n";
+            foreach ($product->attributes as $attr) {
+                $context .= "  � {$attr->name}: {$attr->pivot->value}\n";
+            }
         }
 
-        if (count($priceRange) === 2) {
-            $query->whereBetween('price', $priceRange);
+        return $context;
+    }
+
+    /**
+     * Get stock status
+     */
+    public function getStockStatusContext(int $productId): string
+    {
+        $product = Product::find($productId);
+
+        if (!$product) {
+            return "San pham khong ton tai.";
         }
 
-        return $query->paginate($perPage);
+        if ($product->stock_quantity <= 0) {
+            return "{$product->name} hien da het hang.";
+        }
+
+        return "{$product->name} co {$product->stock_quantity} cai con lai trong kho.";
     }
 
     /**
-     * Lấy sản phẩm đang sale (5-6 sản phẩm)
+     * Compare two products by name
      */
-    public function getSaleProducts(int $limit = 6)
+    public function compareProductsContext(array $productNames): string
     {
-        return Product::with(['category'])
-            ->where('is_on_sale', true)
-            ->orderByDesc('discount_percentage')
-            ->limit($limit)
-            ->get();
-    }
+        if (empty($productNames)) {
+            return "Vui long cung cap ten cac san pham can so sanh.";
+        }
 
-    /**
-     * Lấy sản phẩm mới nhất (5-6 sản phẩm)
-     */
-    public function getNewestProducts(int $limit = 6)
-    {
-        return Product::with(['category'])
-            ->where('stock_quantity', '>', 0)
-            ->orderBy('created_at', 'desc')
-            ->limit($limit)
-            ->get();
-    }
+        $products = [];
+        foreach ($productNames as $name) {
+            $product = Product::where('name', 'like', '%' . trim($name) . '%')->first();
+            if ($product) {
+                $products[] = $product;
+            }
+        }
 
-    /**
-     * Wrapper cho getFilteredProducts - sử dụng getProducts
-     */
-    public function getFilteredProducts(
-        ?int $categoryId = null,
-        ?int $minPrice = null,
-        ?int $maxPrice = null,
-        ?string $search = null,
-        ?string $sort = null,
-        int $perPage = 12
-    ) {
-        return $this->getProducts([
-            'category_id' => $categoryId,
-            'min_price' => $minPrice,
-            'max_price' => $maxPrice,
-            'search' => $search,
-            'sort' => $sort,
-            'per_page' => $perPage,
-        ]);
+        if (count($products) < 2) {
+            return "Khong tim thay du 2 san pham de so sanh.";
+        }
+
+        $context = "So sanh san pham:\n\n";
+        foreach ($products as $product) {
+            $price = number_format($product->price, 0, ',', '.');
+            $context .= "=== {$product->name} ===\n";
+            $context .= "- Gia: {$price} VND\n";
+            $context .= "- Ton kho: {$product->stock_quantity}\n";
+            if ($product->description) {
+                $context .= "- Mo ta: {$product->description}\n";
+            }
+            $context .= "\n";
+        }
+
+        return $context;
     }
 }

@@ -1,4 +1,4 @@
-﻿# BÁOÁO CÁO THỰC HIỆN TUẦN 3
+﻿# BÁO CÁO CÁO THỰC HIỆN TUẦN 3
 ## Khởi Tạo Backend và Cấu Trúc Dữ Liệu
 
 **Giai đoạn:** Tuần 3 (14/07/2026 - 28/07/2026)  
@@ -468,5 +468,4 @@ OrderItem::create([
 ---
 
 **Báo cáo được soạn:** 2026-07-28  
-**Người soạn:** Kiro Assistant  
 **Trạng thái:** ✅ Hoàn thành

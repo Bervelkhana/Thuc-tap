@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\AdminOrderController;
 use App\Http\Controllers\Api\AdminAuthController;
 use App\Http\Controllers\Api\PCBuilderController;
+use App\Http\Controllers\Api\ChatController;
 use Illuminate\Support\Facades\Route;
 
 // Test endpoint
@@ -42,3 +43,7 @@ Route::delete('/admin/orders/{order}', [AdminOrderController::class, 'cancel']);
 // PC Builder routes
 Route::post('/pc-builder/validate', [PCBuilderController::class, 'validate']);
 Route::post('/pc-builder/recommend', [PCBuilderController::class, 'recommend']);
+
+// Chat AI routes
+Route::post('/chat', [ChatController::class, 'sendMessage']);
+
