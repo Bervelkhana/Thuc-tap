@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AiBuilderController;
 use App\Http\Controllers\BuildController;
 use App\Http\Controllers\ProductBrowserController;
 use Illuminate\Support\Facades\Route;
@@ -20,6 +21,9 @@ Route::get('/', function () {
 });
 
 Route::get('/pc-build', [BuildController::class, 'index']);
+Route::get('/ai-build', [AiBuilderController::class, 'index']);
+Route::post('/ai-build/process', [AiBuilderController::class, 'process']);
+Route::get('/ai-build/result', [AiBuilderController::class, 'result'])->name('ai-build.result');
 Route::get('/browser-{slug}', [ProductBrowserController::class, 'showByCategory']);
 
 // Catch-all: trả về SPA cho các route do Vue Router xử lý (vd /browse, /home, /checkout)

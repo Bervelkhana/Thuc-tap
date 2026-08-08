@@ -223,6 +223,10 @@ onMounted(() => {
                 <span class="text-xl shrink-0">🧩</span>
                 <span class="text-sm font-medium leading-tight flex-1">Cấu hình xây sẵn</span>
               </router-link>
+              <a href="/ai-build" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 border-2 bg-white text-gray-800 border-transparent hover:border-gray-200 hover:bg-gray-50">
+                <span class="text-xl shrink-0">🤖</span>
+                <span class="text-sm font-medium leading-tight flex-1">Xây dựng cấu hình bằng AI</span>
+              </a>
               <a href="/pc-build" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 border-2 bg-white text-gray-800 border-transparent hover:border-gray-200 hover:bg-gray-50">
                 <span class="text-xl shrink-0">🔧</span>
                 <span class="text-sm font-medium leading-tight flex-1">Xây dựng cấu hình</span>

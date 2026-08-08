@@ -24,7 +24,7 @@ const routes = [
   { path: '/build', name: 'build', component: () => import('../views/BuildView.vue') },
   
   // Route cũ (Bước 3-4) — giữ song song
-  { path: '/old-home', name: 'home', component: ProductList },,
+  { path: '/old-home', name: 'home', component: ProductList },
   { path: '/checkout', name: 'checkout', component: Checkout },
 
   // Route mới (Bước 2 - thiết kế mockup, dùng mock data)

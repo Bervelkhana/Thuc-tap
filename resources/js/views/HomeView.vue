@@ -186,6 +186,7 @@ function closeModal() {
         <nav class="flex items-center gap-12">
           <button class="text-sm text-gray-600 hover:text-gray-900 transition duration-200">Catalog</button>
           <button class="text-sm text-gray-600 hover:text-gray-900 transition duration-200">About</button>
+          <a href="/ai-build" class="text-sm text-gray-600 hover:text-gray-900 transition duration-200">Xây dựng cấu hình bằng AI</a>
           <button class="relative group cursor-pointer">
             <span class="text-sm text-gray-600 group-hover:text-gray-900 transition duration-200">Cart</span>
             <span class="absolute -top-2 -right-4 bg-black text-white text-xs font-medium px-2 py-1 rounded-full">0</span>
