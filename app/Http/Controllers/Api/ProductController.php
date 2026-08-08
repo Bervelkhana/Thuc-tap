@@ -22,8 +22,8 @@ class ProductController extends Controller
                 categoryId: $request->has('category_id') ? $request->integer('category_id') : null,
                 minPrice: $request->has('min_price') ? $request->integer('min_price') : null,
                 maxPrice: $request->has('max_price') ? $request->integer('max_price') : null,
-                search: $request->filled('search') ? $request->string('search') : null,
-                sort: $request->filled('sort') ? $request->string('sort') : null,
+                search: $request->filled('search') ? $request->input('search') : null,
+                sort: $request->filled('sort') ? $request->input('sort') : null,
                 perPage: $request->integer('per_page', 100)
             );
 

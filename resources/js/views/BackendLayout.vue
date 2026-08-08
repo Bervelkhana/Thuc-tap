@@ -1,9 +1,9 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, defineAsyncComponent } from 'vue'
 import PrebuiltConfigManagement from '../components/backend/PrebuiltConfigManagement.vue'
 
-const ProductManagement = () => import('../components/backend/ProductManagement.vue')
-const OrderManagement = () => import('../components/backend/OrderManagement.vue')
+const ProductManagement = defineAsyncComponent(() => import('../components/backend/ProductManagement.vue'))
+const OrderManagement = defineAsyncComponent(() => import('../components/backend/OrderManagement.vue'))
 
 const activeTab = ref('products')
 </script>

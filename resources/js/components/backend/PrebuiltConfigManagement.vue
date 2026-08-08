@@ -41,6 +41,46 @@ const totalPrice = computed(() => {
   return total
 })
 
+const productGroups = computed(() => {
+  const groups = {}
+
+  products.value.forEach((product) => {
+    const categoryId = product.category_id ?? 'uncategorized'
+    const categoryName = product.category?.name || 'Khác'
+    const categoryLabel = product.category?.name || 'Khác'
+
+    if (!groups[categoryId]) {
+      groups[categoryId] = {
+        id: categoryId,
+        name: categoryName,
+        label: categoryLabel,
+        products: [],
+      }
+    }
+
+    groups[categoryId].products.push(product)
+  })
+
+  return Object.values(groups).sort((a, b) => a.name.localeCompare(b.name, 'vi'))
+})
+
+function getCategoryIcon(categoryName) {
+  const icons = {
+    CPU: '🧠',
+    RAM: '💾',
+    Mainboard: '🔲',
+    VGA: '🎮',
+    SSD: '⚡',
+    HDD: '💽',
+    PSU: '🔌',
+    Case: '🖥️',
+    'Tản nhiệt': '🌬️',
+    'Fan': '🌀',
+  }
+
+  return icons[categoryName] || '📦'
+}
+
 async function fetchConfigs() {
   loading.value = true
   try {
@@ -57,17 +97,29 @@ async function fetchConfigs() {
   }
 }
 
-async function fetchProducts() {
-  try {
-    const response = await fetch('/api/products?per_page=1000')
-    const result = await response.json()
-    if (result.status === 'success') {
-      products.value = result.data || []
+  async function fetchProducts() {
+    try {
+      const response = await fetch('/api/products?per_page=100', {
+        headers: {
+          Accept: 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+      if (result.status === 'success' && result.data) {
+        products.value = Array.isArray(result.data) ? result.data : result.data.data || []
+      } else {
+        products.value = []
+      }
+    } catch (err) {
+      console.error('Error fetching products:', err)
     }
-  } catch (err) {
-    console.error('Error fetching products:', err)
   }
-}
 
 function validateForm() {
   formErrors.value = {}
@@ -360,19 +412,38 @@ onMounted(() => {
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Chọn sản phẩm cấu thành *</label>
             <div v-if="formErrors.products" class="mb-2 text-xs text-red-600 bg-red-50 px-3 py-2 rounded">{{ formErrors.products }}</div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50">
-              <div v-for="product in products" :key="product.id" class="flex items-center justify-between gap-2 p-2 bg-white rounded border border-gray-200">
-                <label class="flex items-center gap-2 cursor-pointer flex-1">
-                  <input v-model="formData.product_ids" :value="product.id" type="checkbox" class="rounded" />
-                  <span class="text-sm text-gray-700">{{ product.name }}</span>
-                </label>
-                <div v-if="formData.product_ids.includes(product.id)" class="flex items-center gap-1">
-                  <input v-model.number="formData.product_quantities[product.id]" type="number" min="1" class="w-12 px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-black" placeholder="1" />
-                  <span class="text-xs text-gray-500">x</span>
+
+            <div class="space-y-4 max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50">
+              <div v-for="group in productGroups" :key="group.id" class="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                <div class="flex items-center justify-between gap-3 border-b border-gray-100 bg-gray-50 px-4 py-3">
+                  <div>
+                    <h4 class="font-semibold text-gray-900">
+                      {{ getCategoryIcon(group.name) }} {{ group.name }} - Bộ linh kiện
+                    </h4>
+                    <p class="text-xs text-gray-500 mt-0.5">{{ group.products.length }} sản phẩm</p>
+                  </div>
                 </div>
-                <span v-if="formErrors[`qty_${product.id}`]" class="text-xs text-red-600">!</span>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-2 p-3">
+                  <div v-for="product in group.products" :key="product.id" class="flex items-center justify-between gap-2 p-2 rounded border border-gray-200 bg-white">
+                    <label class="flex items-center gap-2 cursor-pointer flex-1 min-w-0">
+                      <input v-model="formData.product_ids" :value="product.id" type="checkbox" class="rounded" />
+                      <div class="min-w-0">
+                        <span class="text-sm text-gray-700 block truncate">{{ product.name }}</span>
+                        <span class="text-xs text-gray-500 block">{{ formatPrice(product.price) }}</span>
+                      </div>
+                    </label>
+
+                    <div v-if="formData.product_ids.includes(product.id)" class="flex items-center gap-1 shrink-0">
+                      <input v-model.number="formData.product_quantities[product.id]" type="number" min="1" class="w-12 px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-black" placeholder="1" />
+                      <span class="text-xs text-gray-500">x</span>
+                    </div>
+                    <span v-if="formErrors[`qty_${product.id}`]" class="text-xs text-red-600">!</span>
+                  </div>
+                </div>
               </div>
             </div>
+
             <p v-if="formData.product_ids.length" class="text-sm text-gray-500 mt-2">Đã chọn {{ formData.product_ids.length }} sản phẩm</p>
           </div>
 
