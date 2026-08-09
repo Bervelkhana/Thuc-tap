@@ -91,9 +91,9 @@
                     </div>
 
                     <aside class="border-t border-gray-100 bg-gray-50 p-6 sm:p-8 lg:border-l lg:border-t-0">
-                        <h2 class="text-lg font-semibold text-gray-900">Kết quả mô phỏng / AI response</h2>
+                        <h2 class="text-lg font-semibold text-gray-900">Kết quả AI build</h2>
                         <p class="mt-2 text-sm text-gray-600">
-                            Hiện tại trang này dùng skeleton service. Khi bạn gắn API Gemini/OpenAI, kết quả sẽ render ở đây hoặc trang kết quả riêng.
+                            Kết quả sẽ trả về trực tiếp từ Gemini. Nếu có lỗi, hệ thống sẽ hiển thị thông báo rõ ràng thay vì cấu hình dự phòng.
                         </p>
 
                         <div id="ai-build-result" class="mt-6 rounded-2xl border border-dashed border-gray-300 bg-white p-6 text-sm text-gray-500">
@@ -125,7 +125,7 @@
 
             const updateRequirement = () => {
                 const selected = document.querySelector('input[name="purpose"]:checked')?.value
-                const shouldShowWork = selected === 'work'
+                const shouldShowWork = selected === 'lam_viec'
                 const shouldShowGaming = selected === 'gaming'
 
                 if (!subPurposeWrapper || !gamingDetailWrapper) return
@@ -151,7 +151,7 @@
             const renderResult = (data) => {
                 if (!resultBox) return
 
-                const items = Array.isArray(data.configuration) ? data.configuration : []
+                const items = Array.isArray(data.configuration?.items) ? data.configuration.items : []
                 const cards = items.map((item) => `
                     <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
                         <div class="flex items-center justify-between gap-3">
@@ -169,6 +169,11 @@
                         <div class="font-semibold text-gray-900">Trạng thái</div>
                         <div class="mt-1 text-gray-600">${data.status ?? 'unknown'}</div>
                     </div>
+                    ${data.error ? `
+                    <div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                        <div class="font-semibold text-red-900">Lỗi Gemini</div>
+                        <div class="mt-1">${data.error}</div>
+                    </div>` : ''}
                     <div class="rounded-2xl border border-gray-200 bg-white p-4 text-sm">
                         <div class="font-semibold text-gray-900">Tóm tắt</div>
                         <div class="mt-1 text-gray-600">${data.summary ?? 'Chưa có tóm tắt.'}</div>

@@ -71,7 +71,7 @@ final class AiBuildService
                 'ai_payload' => $decoded,
             ];
         } catch (\Throwable $e) {
-            return $this->buildFallbackResult($budget, $purpose, $subPurpose, $prompt, $e->getMessage());
+            throw new RuntimeException('Gemini build failed: ' . $e->getMessage(), previous: $e);
         }
     }
 
@@ -140,10 +140,18 @@ final class AiBuildService
 
     private function buildPrompt(int $budget, string $purpose, ?string $subPurpose, array $products): string
     {
-        $purposeLabel = $purpose === 'study' ? 'Học tập' : 'Làm việc';
+        $purposeLabel = match ($purpose) {
+            'hoc_tap' => 'Học tập',
+            'lam_viec' => 'Làm việc',
+            'gaming' => 'Gaming',
+            default => $purpose,
+        };
+
         $subPurposeLabel = match ($subPurpose) {
-            'office' => 'Làm việc văn phòng cơ bản',
-            'big_render' => 'Dựng video / Đồ họa nặng',
+            'lam_viec_van_phong' => 'Làm việc văn phòng cơ bản',
+            'dung_video_do_hoa' => 'Dựng video / Đồ họa nặng',
+            'esports_co_ban' => 'Game eSports cơ bản',
+            'aaa_do_hoa_nang' => 'Game AAA / Đồ họa nặng',
             default => 'Không áp dụng',
         };
 

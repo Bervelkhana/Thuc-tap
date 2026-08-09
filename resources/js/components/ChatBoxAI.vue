@@ -18,11 +18,19 @@ function toggleChat() {
   isOpen.value = !isOpen.value
 }
 
+function getCsrfToken() {
+  return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+}
+
+function extractBackendError(data) {
+  if (!data || typeof data !== 'object') return ''
+  return data.message || data.error || data?.data?.message || data?.data?.error || ''
+}
+
 async function sendMessage() {
   const text = input.value.trim()
   if (!text || isLoading.value) return
 
-  // Add user message
   messages.value.push({
     id: Date.now(),
     role: 'user',
@@ -33,51 +41,67 @@ async function sendMessage() {
   isLoading.value = true
 
   try {
-    // Build conversation history (without system message)
     const history = messages.value
-      .filter(m => m.role !== 'assistant' || messages.value.indexOf(m) > 0) // Exclude initial greeting
+      .filter(m => m.role !== 'assistant' || messages.value.indexOf(m) > 0)
       .map(m => ({
         role: m.role,
         content: m.text
       }))
 
-    // Call backend API
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...(getCsrfToken() ? { 'X-CSRF-TOKEN': getCsrfToken() } : {})
       },
+      credentials: 'same-origin',
       body: JSON.stringify({
         message: text,
         history: history
       })
     })
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+    const responseText = await response.text()
+    let data = null
+
+    try {
+      data = responseText ? JSON.parse(responseText) : null
+    } catch (parseError) {
+      console.error('Backend returned invalid JSON:', responseText)
+      throw new Error('Phản hồi từ máy chủ không hợp lệ.')
     }
 
-    const data = await response.json()
+    if (!response.ok) {
+      const detail = extractBackendError(data)
+      throw new Error(detail || `HTTP error! status: ${response.status}`)
+    }
 
-    if (data.status === 'success') {
+    if (data?.status === 'success') {
       messages.value.push({
         id: Date.now() + 1,
         role: 'assistant',
         text: data.data.reply
       })
     } else {
+      throw new Error(extractBackendError(data) || 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.')
+    }
+  } catch (error) {
+    if (error instanceof TypeError && String(error.message).toLowerCase().includes('failed to fetch')) {
+      console.error('Network error while calling /api/chat:', error)
       messages.value.push({
         id: Date.now() + 1,
         role: 'assistant',
-        text: 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.'
+        text: 'Lỗi mạng hoặc không thể kết nối tới server. Vui lòng kiểm tra kết nối hoặc thử lại sau.'
       })
+      return
     }
-  } catch (error) {
+
     console.error('Chat error:', error)
     messages.value.push({
       id: Date.now() + 1,
       role: 'assistant',
-      text: 'Xin lỗi, không thể kết nối tới máy chủ. Vui lòng kiểm tra kết nối internet.'
+      text: error?.message || 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.'
     })
   } finally {
     isLoading.value = false

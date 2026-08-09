@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Services\GeminiChatService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ChatController extends Controller
 {
@@ -32,33 +33,31 @@ class ChatController extends Controller
             $userMessage = $validated['message'];
             $conversationHistory = $validated['history'] ?? [];
 
-            // Get AI response from Gemini
             $aiResponse = $this->geminiChatService->chat($userMessage, $conversationHistory);
-            
-            // Ensure proper UTF-8 encoding
-            $aiResponse = mb_convert_encoding($aiResponse, 'UTF-8', 'UTF-8');
-            
-            $responseData = [
+
+            return response()->json([
                 'status' => 'success',
                 'data' => [
                     'reply' => $aiResponse,
                 ]
-            ];
-            
-            // Ensure all strings are valid UTF-8 before JSON encoding
-            array_walk_recursive($responseData, function(&$value) {
-                if (is_string($value) && !mb_check_encoding($value, 'UTF-8')) {
-                    $value = mb_convert_encoding($value, 'UTF-8', 'UTF-8');
-                }
-            });
-
-            return response()->json($responseData);
-        } catch (\Exception $e) {
-            \Log::error('Chat Error in Controller: ' . $e->getMessage());
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại sau.'
+                'message' => 'Dữ liệu đầu vào không hợp lệ.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('Chat Error in Controller', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Lỗi kết nối AI: ' . $e->getMessage(),
             ], 500);
         }
     }
 }
+
