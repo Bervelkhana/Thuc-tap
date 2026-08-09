@@ -23,12 +23,14 @@ class PCBuilderController extends Controller
         $request->validate([
             'category' => 'required|string|in:cpu,mainboard,ram,vga,ssd,psu,case',
             'search' => 'nullable|string|max:255',
+            'cpu_id' => 'nullable|integer',
         ]);
 
         try {
             $components = $this->pcBuilderService->getProductsByCategory(
                 $request->string('category')->toString(),
-                $request->input('search')
+                $request->input('search'),
+                $request->input('cpu_id')
             );
 
             return response()->json([
@@ -40,6 +42,31 @@ class PCBuilderController extends Controller
                 'status' => 'error',
                 'message' => $e->getMessage(),
             ], 404);
+        }
+    }
+
+    /**
+     * Tìm kiếm sản phẩm toàn cục
+     */
+    public function searchComponents(Request $request)
+    {
+        $request->validate([
+            'q' => 'required|string|min:1|max:255',
+        ]);
+
+        try {
+            $query = $request->string('q')->toString();
+            $results = $this->pcBuilderService->searchAllProducts($query);
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $results,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ], 400);
         }
     }
 

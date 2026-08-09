@@ -88,6 +88,11 @@ final class GroqBuildService
                 'first_100_chars' => substr($responseBody, 0, 100),
             ]);
             
+            // Đảm bảo body là UTF-8
+            if (!mb_check_encoding($responseBody, 'UTF-8')) {
+                $responseBody = mb_convert_encoding($responseBody, 'UTF-8', 'UTF-8,ISO-8859-1,CP1252');
+            }
+            
             // Cố gắng parse JSON trực tiếp trước
             $responseData = @json_decode($responseBody, true, 512, JSON_UNESCAPED_UNICODE);
             
@@ -167,6 +172,25 @@ final class GroqBuildService
         }
 
         return substr($apiKey, 0, 4) . str_repeat('*', max(0, $length - 8)) . substr($apiKey, -4);
+    }
+
+    /**
+     * Ensure string is valid UTF-8
+     */
+    private function ensureUtf8(?string $text): ?string
+    {
+        if ($text === null) {
+            return null;
+        }
+
+        if (!mb_check_encoding($text, 'UTF-8')) {
+            $text = @iconv('ISO-8859-1', 'UTF-8//IGNORE', $text);
+            if ($text === false) {
+                $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8,ISO-8859-1,CP1252');
+            }
+        }
+
+        return $text;
     }
 
     /**
@@ -349,19 +373,19 @@ PROMPT;
             $result[] = [
                 'category' => strtoupper($categoryKey),
                 'id' => $resolved['product']?->id,
-                'name' => $resolved['product']?->name,
+                'name' => $this->ensureUtf8($resolved['product']?->name),
                 'price' => $resolved['product'] ? (int) round((float) $resolved['product']->price) : 0,
-                'reason' => $resolved['reason'],
+                'reason' => $this->ensureUtf8($resolved['reason']),
                 'matched' => $resolved['product'] !== null,
                 'match_source' => $resolved['source'],
-                'matched_text' => $resolved['matched_text'],
+                'matched_text' => $this->ensureUtf8($resolved['matched_text']),
             ];
         }
 
         return [
-            'summary' => (string) ($payload['summary'] ?? ''),
+            'summary' => $this->ensureUtf8((string) ($payload['summary'] ?? '')),
             'total_price' => (int) data_get($payload, 'total_price', 0),
-            'notes' => array_values(array_filter((array) data_get($payload, 'notes', []), static fn ($note) => is_string($note) && $note !== '')),
+            'notes' => array_map(fn($note) => $this->ensureUtf8($note), array_values(array_filter((array) data_get($payload, 'notes', []), static fn ($note) => is_string($note) && $note !== ''))),
             'items' => $result,
         ];
     }

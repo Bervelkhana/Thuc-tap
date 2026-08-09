@@ -44,6 +44,7 @@ Route::delete('/admin/orders/{order}', [AdminOrderController::class, 'destroy'])
 // PC Builder routes
 Route::get('/pc-builder/components', [PCBuilderController::class, 'getComponentsByCategory']);
 Route::get('/pc-builder/categories', [PCBuilderController::class, 'getBuildCategories']);
+Route::get('/pc-builder/search', [PCBuilderController::class, 'searchComponents']);
 Route::post('/pc-builder/validate', [PCBuilderController::class, 'checkCompatibility']);
 Route::post('/pc-builder/recommend', [PCBuilderController::class, 'recommend']);
 

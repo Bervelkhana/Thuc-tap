@@ -34,7 +34,9 @@ class GeminiChatService
 
             $response = Http::timeout(30)
                 ->acceptJson()
-                ->withHeaders(['Content-Type' => 'application/json'])
+                ->withHeaders([
+                    'Content-Type' => 'application/json; charset=utf-8'
+                ])
                 ->post($this->apiUrl . '?key=' . urlencode($this->apiKey), [
                     'contents' => [
                         [
@@ -62,7 +64,11 @@ class GeminiChatService
             $reply = data_get($data, 'candidates.0.content.parts.0.text');
 
             if (is_string($reply) && $reply !== '') {
-                return mb_check_encoding($reply, 'UTF-8') ? $reply : mb_convert_encoding($reply, 'UTF-8', 'UTF-8');
+                // Đảm bảo dữ liệu là UTF-8 hợp lệ
+                if (!mb_check_encoding($reply, 'UTF-8')) {
+                    $reply = mb_convert_encoding($reply, 'UTF-8', 'UTF-8,ISO-8859-1,CP1252');
+                }
+                return $reply;
             }
 
             \Log::warning('Unexpected Gemini response structure', ['response' => $data]);

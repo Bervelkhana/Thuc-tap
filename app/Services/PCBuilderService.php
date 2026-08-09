@@ -18,7 +18,7 @@ class PCBuilderService
     /**
      * Lấy danh sách sản phẩm theo slug danh mục
      */
-    public function getProductsByCategory(string $categorySlug, ?string $search = null): Collection
+    public function getProductsByCategory(string $categorySlug, ?string $search = null, ?int $cpuId = null): Collection
     {
         $category = Category::query()
             ->where('slug', $categorySlug)
@@ -29,6 +29,17 @@ class PCBuilderService
             ->where('category_id', $category->id)
             ->where('stock_quantity', '>', 0)
             ->orderByDesc('created_at');
+
+        // Nếu là mainboard và có cpu_id, filter theo socket
+        if ($categorySlug === 'mainboard' && $cpuId) {
+            $cpu = Product::find($cpuId);
+            if ($cpu) {
+                $cpuSocket = $this->extractSocket($cpu->name);
+                if ($cpuSocket) {
+                    $query->where('name', 'like', '%' . $cpuSocket . '%');
+                }
+            }
+        }
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -213,5 +224,54 @@ class PCBuilderService
             'psu' => 'PSU',
             'case' => 'Case',
         ];
+    }
+
+    /**
+     * Tìm kiếm sản phẩm toàn cục từ tất cả category
+     */
+    public function searchAllProducts(string $query): array
+    {
+        $categoryMap = [
+            'cpu' => 'CPU',
+            'mainboard' => 'Mainboard',
+            'ram' => 'RAM',
+            'vga' => 'VGA',
+            'ssd' => 'SSD',
+            'psu' => 'PSU',
+            'case' => 'Case',
+        ];
+
+        $results = [];
+
+        foreach ($categoryMap as $slug => $label) {
+            $category = Category::query()
+                ->where('slug', $slug)
+                ->first();
+
+            if (!$category) {
+                continue;
+            }
+
+            $products = Product::query()
+                ->where('category_id', $category->id)
+                ->where('stock_quantity', '>', 0)
+                ->where(function ($q) use ($query) {
+                    $q->where('name', 'like', '%' . $query . '%')
+                      ->orWhere('sku', 'like', '%' . $query . '%')
+                      ->orWhere('description', 'like', '%' . $query . '%');
+                })
+                ->orderByDesc('created_at')
+                ->limit(5)
+                ->get(['id', 'category_id', 'sku', 'name', 'price', 'stock_quantity', 'description', 'thumbnail_url']);
+
+            if ($products->count() > 0) {
+                $results[$slug] = [
+                    'category_name' => $label,
+                    'products' => $products->toArray(),
+                ];
+            }
+        }
+
+        return $results;
     }
 }

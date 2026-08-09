@@ -21,7 +21,6 @@ import { useAdminStore } from '../stores/adminStore'
 const routes = [
   // Landing page - mặc định hiển thị sản phẩm mới
   { path: '/', name: 'start', component: NewestProductsView },
-  { path: '/build', name: 'build', component: () => import('../views/BuildView.vue') },
   
   // Route cũ (Bước 3-4) — giữ song song
   { path: '/old-home', name: 'home', component: ProductList },
