@@ -3,17 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Services\GeminiChatService;
+use App\Services\GroqChatService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class ChatController extends Controller
 {
-    protected $geminiChatService;
+    protected $groqChatService;
 
-    public function __construct(GeminiChatService $geminiChatService)
+    public function __construct(GroqChatService $groqChatService)
     {
-        $this->geminiChatService = $geminiChatService;
+        $this->groqChatService = $groqChatService;
     }
 
     public function sendMessage(Request $request)
@@ -24,33 +24,23 @@ class ChatController extends Controller
                 'history' => 'nullable|array',
             ]);
 
-            $aiResponse = $this->geminiChatService->chat(
+            $aiResponse = $this->groqChatService->chat(
                 $validated['message'],
                 $validated['history'] ?? []
             );
 
-            return response()->json([
-                'status' => 'success',
-                'data' => [
-                    'reply' => $aiResponse,
-                ],
+            return $this->successResponse([
+                'reply' => $aiResponse,
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'status' => 'error',
-                'error' => 'Dữ liệu đầu vào không hợp lệ.',
-                'errors' => $e->errors(),
-            ], 422);
+            return $this->errorResponse('Dữ liệu đầu vào không hợp lệ.', 422, $e->errors());
         } catch (\Throwable $e) {
             Log::error('Chat Error in Controller', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return response()->json([
-                'status' => 'error',
-                'error' => $e->getMessage(),
-            ], 500);
+            return $this->errorResponse($e->getMessage(), 500);
         }
     }
 }

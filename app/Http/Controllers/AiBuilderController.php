@@ -57,7 +57,7 @@ final class AiBuilderController extends Controller
             Session::put('ai_build_input', $payload['input']);
 
             if ($request->expectsJson()) {
-                return response()->json($payload);
+                return $this->successResponse($payload);
             }
 
             return redirect()->route('ai-build.result');
@@ -65,10 +65,7 @@ final class AiBuilderController extends Controller
             report($e);
 
             if ($request->expectsJson()) {
-                return response()->json([
-                    'status' => 'error',
-                    'error' => $e->getMessage(),
-                ], 500);
+                return $this->errorResponse($e->getMessage(), 500);
             }
 
             return back()

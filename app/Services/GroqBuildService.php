@@ -240,18 +240,18 @@ final class GroqBuildService
     private function buildPrompt(int $budget, string $purpose, ?string $subPurpose, array $products): string
     {
         $purposeLabel = match ($purpose) {
-            'hoc_tap' => 'Học tập',
-            'lam_viec' => 'Làm việc',
+            'hoc_tap' => 'Learning/Education',
+            'lam_viec' => 'Work/Office',
             'gaming' => 'Gaming',
             default => $purpose,
         };
 
         $subPurposeLabel = match ($subPurpose) {
-            'lam_viec_van_phong' => 'Làm việc văn phòng cơ bản',
-            'dung_video_do_hoa' => 'Dựng video / Đồ họa nặng',
-            'esports_co_ban' => 'Game eSports cơ bản',
-            'aaa_do_hoa_nang' => 'Game AAA / Đồ họa nặng',
-            default => 'Không áp dụng',
+            'lam_viec_van_phong' => 'Basic office work',
+            'dung_video_do_hoa' => 'Video editing / Graphic design',
+            'esports_co_ban' => 'Basic esports games',
+            'aaa_do_hoa_nang' => 'AAA games / Heavy graphics',
+            default => 'Not applicable',
         };
 
         $context = '';
@@ -272,42 +272,45 @@ final class GroqBuildService
         }
 
         return <<<PROMPT
-Bạn là chuyên gia tư vấn cấu hình PC của TechGear.
+You are a PC configuration expert for TechGear store.
 
-QUY TẮC BẮT BUỘC:
-- CHỈ trả về đúng 1 chuỗi JSON thuần túy.
-- KHÔNG bọc markdown, KHÔNG dùng ```json, KHÔNG giải thích thêm, KHÔNG thêm bất kỳ văn bản nào ngoài JSON.
-- JSON phải parse được trực tiếp bằng json_decode.
-- Không được thêm text trước hoặc sau JSON.
-- Nếu không chắc chắn, vẫn phải trả về JSON hợp lệ theo schema.
+STRICT JSON OUTPUT REQUIREMENTS:
+- You MUST return ONLY a valid JSON object. Nothing else.
+- Do NOT wrap the JSON in markdown code blocks (no ```json or ```).
+- Do NOT add any explanations, greetings, or text before or after the JSON.
+- Do NOT add comments inside the JSON.
+- The response must be parseable directly by json_decode() with zero modifications.
+- Every field must be valid UTF-8 encoded.
 
-Mục tiêu:
-- Ngân sách tối đa: {$budget} VND
-- Mục đích chính: {$purposeLabel}
-- Mục đích chi tiết: {$subPurposeLabel}
-- Chỉ được chọn từ danh sách sản phẩm DB bên dưới.
-- Nếu một danh mục không cần thiết, vẫn trả về null cho danh mục đó.
-- Ưu tiên sản phẩm còn hàng và cân đối ngân sách.
-- Khi chọn sản phẩm, trả về đúng product_id từ DB.
+Task:
+- Maximum budget: {$budget} VND
+- Primary purpose: {$purposeLabel}
+- Detailed purpose: {$subPurposeLabel}
+- Select ONLY from the product database below.
+- If a category is not needed, return null for that category item.
+- Prioritize in-stock products and balance within budget.
+- When selecting a product, use the exact product_id from the DB.
 
-Schema JSON bắt buộc:
+Required JSON Schema (must be exactly like this):
 {
-  "summary": "string",
+  "summary": "Brief explanation of this configuration and why it's good for the user's needs",
   "total_price": 0,
   "items": {
-    "cpu": {"id": 0, "name": "", "price": 0, "reason": ""},
-    "mainboard": {"id": 0, "name": "", "price": 0, "reason": ""},
-    "ram": {"id": 0, "name": "", "price": 0, "reason": ""},
-    "vga": {"id": 0, "name": "", "price": 0, "reason": ""},
-    "ssd": {"id": 0, "name": "", "price": 0, "reason": ""},
-    "psu": {"id": 0, "name": "", "price": 0, "reason": ""},
-    "case": {"id": 0, "name": "", "price": 0, "reason": ""}
+    "cpu": {"id": 0, "name": "", "price": 0, "reason": "Why this CPU is chosen"},
+    "mainboard": {"id": 0, "name": "", "price": 0, "reason": "Why this mainboard is chosen"},
+    "ram": {"id": 0, "name": "", "price": 0, "reason": "Why this RAM is chosen"},
+    "vga": {"id": 0, "name": "", "price": 0, "reason": "Why this GPU is chosen"},
+    "ssd": {"id": 0, "name": "", "price": 0, "reason": "Why this SSD is chosen"},
+    "psu": {"id": 0, "name": "", "price": 0, "reason": "Why this PSU is chosen"},
+    "case": {"id": 0, "name": "", "price": 0, "reason": "Why this case is chosen"}
   },
-  "notes": ["string"]
+  "notes": ["Performance estimate", "Additional notes about compatibility or budget efficiency"]
 }
 
-Dữ liệu sản phẩm DB hiện có:
+Available Products from Database:
 {$context}
+
+Return ONLY the JSON. Do not add anything else.
 PROMPT;
     }
 
@@ -315,33 +318,40 @@ PROMPT;
     {
         $json = $rawText;
         
-        // XỬ LÝ ENCODING: Force convert ISO-8859-1 -> UTF-8 tại raw bytes level
-        // Sử dụng iconv thay vì mb_convert vì iconv xử lý bytes level tốt hơn
+        // FIX ENCODING: Convert ISO-8859-1 -> UTF-8 at bytes level
         $json = @iconv('ISO-8859-1', 'UTF-8//IGNORE', $json);
         if ($json === false) {
-            $json = $rawText; // Fallback nếu iconv fail
+            $json = $rawText;
         }
         
         $json = trim($json);
         
         Log::debug('Payload after encoding fix', [
             'length' => strlen($json),
-            'first_80_chars' => substr($json, 0, 80),
+            'first_100_chars' => substr($json, 0, 100),
         ]);
         
-        // Làm sạch Markdown
+        // STEP 1: Remove markdown code blocks
         $json = preg_replace('/^\s*```json\s*/i', '', $json);
         $json = preg_replace('/^\s*```\s*/i', '', $json);
         $json = preg_replace('/\s*```\s*$/i', '', $json);
         $json = trim($json);
         
-        // Kiểm tra trống
+        // STEP 2: Extract valid JSON fragment (handle text before/after JSON)
+        $json = $this->extractJsonFragment($json);
+        
+        // STEP 3: Check if empty
         if (empty($json) || strlen($json) < 2) {
             Log::error('JSON is empty after cleanup');
-            throw new RuntimeException('JSON response is empty');
+            throw new RuntimeException('JSON response is empty after cleanup');
         }
         
-        // Parse JSON
+        Log::debug('Final JSON to parse', [
+            'json_preview' => substr($json, 0, 300),
+            'json_length' => strlen($json),
+        ]);
+        
+        // STEP 4: Parse JSON with strict mode
         $decoded = json_decode($json, true, 512, JSON_UNESCAPED_UNICODE);
         
         if ($decoded === null) {
@@ -349,16 +359,104 @@ PROMPT;
             Log::error('JSON decode failed', [
                 'error' => $error,
                 'code' => json_last_error(),
-                'json_preview' => substr($json, 0, 200),
+                'json_preview' => substr($json, 0, 300),
+                'raw_preview' => substr($rawText, 0, 300),
             ]);
-            throw new RuntimeException('JSON parse error: ' . $error);
+            throw new RuntimeException('JSON parse error: ' . $error . '. Raw: ' . substr($json, 0, 100));
         }
         
         if (!is_array($decoded)) {
-            throw new RuntimeException('JSON is not an array');
+            throw new RuntimeException('JSON decoded result is not an array. Type: ' . gettype($decoded));
         }
 
         return $decoded;
+    }
+
+    /**
+     * Extract valid JSON object or array from text that may have extra content
+     */
+    private function extractJsonFragment(string $text): string
+    {
+        $text = trim($text);
+        
+        if (empty($text)) {
+            return '';
+        }
+
+        // Find first { or [
+        $bracePos = strpos($text, '{');
+        $bracketPos = strpos($text, '[');
+        
+        $startPos = -1;
+        $openChar = '';
+        
+        if ($bracePos !== false && ($bracketPos === false || $bracePos < $bracketPos)) {
+            $startPos = $bracePos;
+            $openChar = '{';
+        } elseif ($bracketPos !== false) {
+            $startPos = $bracketPos;
+            $openChar = '[';
+        }
+        
+        if ($startPos === -1) {
+            // No JSON structure found
+            return $text;
+        }
+        
+        $closeChar = $openChar === '{' ? '}' : ']';
+        $depth = 0;
+        $inString = false;
+        $escaped = false;
+        $endPos = -1;
+        $textLength = strlen($text);
+        
+        for ($i = $startPos; $i < $textLength; $i++) {
+            $char = $text[$i];
+            
+            // Handle string state
+            if ($inString) {
+                if ($escaped) {
+                    $escaped = false;
+                    continue;
+                }
+                if ($char === '\\') {
+                    $escaped = true;
+                    continue;
+                }
+                if ($char === '"') {
+                    $inString = false;
+                }
+                continue;
+            }
+            
+            // Enter string
+            if ($char === '"') {
+                $inString = true;
+                continue;
+            }
+            
+            // Track depth for { } or [ ]
+            if ($char === '{' || $char === '[') {
+                $depth++;
+                continue;
+            }
+            
+            if ($char === '}' || $char === ']') {
+                $depth--;
+                if ($depth === 0 && $char === $closeChar) {
+                    $endPos = $i;
+                    break;
+                }
+            }
+        }
+        
+        if ($endPos === -1) {
+            // Unbalanced JSON, return what we have from start pos
+            Log::warning('Unbalanced JSON structure detected');
+            return substr($text, $startPos);
+        }
+        
+        return substr($text, $startPos, $endPos - $startPos + 1);
     }
 
     private function resolveConfigurationFromProducts(array $payload): array

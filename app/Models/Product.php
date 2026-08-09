@@ -23,12 +23,22 @@ class Product extends Model
         'description',
         'thumbnail_url',
         'datasheet_pdf_url',
+        'brand',
+        'socket_type',
+        'chipset',
+        'platform',
+        'tier',
+        'tdp',
+        'memory_type',
+        'memory_speed',
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
         'sale_price' => 'decimal:2',
         'is_on_sale' => 'boolean',
+        'tdp' => 'integer',
+        'memory_speed' => 'integer',
     ];
 
     public function category(): BelongsTo

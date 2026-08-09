@@ -57,13 +57,17 @@ class ProductService
             });
         }
 
-        match ($sort) {
-            'price_asc' => $query->orderBy('price', 'asc'),
-            'price_desc' => $query->orderBy('price', 'desc'),
-            'name_asc' => $query->orderBy('name', 'asc'),
-            'name_desc' => $query->orderBy('name', 'desc'),
-            default => $query->latest(),
-        };
+        if ($sort) {
+            match ($sort) {
+                'price_asc' => $query->orderBy('price', 'asc'),
+                'price_desc' => $query->orderBy('price', 'desc'),
+                'name_asc' => $query->orderBy('name', 'asc'),
+                'name_desc' => $query->orderBy('name', 'desc'),
+                default => $query->latest(),
+            };
+        } else {
+            $query->latest();
+        }
 
         return $query->paginate($perPage);
     }

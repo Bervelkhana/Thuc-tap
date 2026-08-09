@@ -35,10 +35,6 @@ return [
         'api_key' => env('OPENAI_API_KEY'),
     ],
 
-    'gemini' => [
-        'api_key' => env('GEMINI_API_KEY'),
-    ],
-
     'groq' => [
         'api_key' => env('GROQ_API_KEY'),
         'api_url' => env('GROQ_API_URL', 'https://api.groq.com/openai/v1'),
