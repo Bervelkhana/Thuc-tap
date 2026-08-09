@@ -34,9 +34,13 @@ final class AiBuildService
                 throw new RuntimeException('GEMINI_API_KEY is missing.');
             }
 
+            $endpoint = $this->geminiEndpoint($apiKey);
+
             $response = Http::timeout(45)
+                ->connectTimeout(15)
+                ->acceptJson()
                 ->withHeaders(['Content-Type' => 'application/json'])
-                ->post($this->geminiEndpoint($apiKey), [
+                ->post($endpoint, [
                     'contents' => [
                         [
                             'parts' => [
@@ -54,10 +58,24 @@ final class AiBuildService
                 ]);
 
             if ($response->failed()) {
-                throw new RuntimeException('Gemini API request failed: ' . $response->status());
+                $body = trim($response->body());
+                throw new RuntimeException(sprintf(
+                    'Gemini API request failed (%d): %s',
+                    $response->status(),
+                    $body !== '' ? $body : 'Empty response body'
+                ));
             }
 
-            $rawText = (string) data_get($response->json(), 'candidates.0.content.parts.0.text', '');
+            $responseData = $response->json();
+            if (!is_array($responseData)) {
+                throw new RuntimeException('Gemini API returned invalid JSON response: ' . $response->body());
+            }
+
+            $rawText = (string) data_get($responseData, 'candidates.0.content.parts.0.text', '');
+            if ($rawText === '') {
+                throw new RuntimeException('Gemini API response missing candidates[0].content.parts[0].text. Raw: ' . $response->body());
+            }
+
             $decoded = $this->decodeAiPayload($rawText);
 
             return [
@@ -71,6 +89,15 @@ final class AiBuildService
                 'ai_payload' => $decoded,
             ];
         } catch (\Throwable $e) {
+            logger()->error('Gemini build failed', [
+                'message' => $e->getMessage(),
+                'budget' => $budget,
+                'purpose' => $purpose,
+                'sub_purpose' => $subPurpose,
+                'prompt' => $prompt,
+                'exception' => $e,
+            ]);
+
             throw new RuntimeException('Gemini build failed: ' . $e->getMessage(), previous: $e);
         }
     }
@@ -93,7 +120,7 @@ final class AiBuildService
 
     private function geminiEndpoint(string $apiKey): string
     {
-        return 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' . urlencode($apiKey);
+        return 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' . urlencode($apiKey);
     }
 
     /**
@@ -175,6 +202,13 @@ final class AiBuildService
         return <<<PROMPT
 Bạn là chuyên gia tư vấn cấu hình PC của TechGear.
 
+QUY TẮC BẮT BUỘC:
+- CHỈ trả về đúng 1 chuỗi JSON thuần túy.
+- KHÔNG bọc markdown, KHÔNG dùng ```json, KHÔNG giải thích thêm, KHÔNG thêm bất kỳ văn bản nào ngoài JSON.
+- JSON phải parse được trực tiếp bằng json_decode.
+- Không được thêm text trước hoặc sau JSON.
+- Nếu không chắc chắn, vẫn phải trả về JSON hợp lệ theo schema.
+
 Mục tiêu:
 - Ngân sách tối đa: {$budget} VND
 - Mục đích chính: {$purposeLabel}
@@ -182,9 +216,7 @@ Mục tiêu:
 - Chỉ được chọn từ danh sách sản phẩm DB bên dưới.
 - Nếu một danh mục không cần thiết, vẫn trả về null cho danh mục đó.
 - Ưu tiên sản phẩm còn hàng và cân đối ngân sách.
-- Trả về JSON hợp lệ duy nhất, không bọc markdown, không giải thích ngoài JSON.
 - Khi chọn sản phẩm, trả về đúng product_id từ DB.
-- Nếu không chắc chắn, chọn sản phẩm theo danh mục tương ứng và mức giá phù hợp nhất.
 
 Schema JSON bắt buộc:
 {
@@ -210,11 +242,13 @@ PROMPT;
     private function decodeAiPayload(string $rawText): array
     {
         $json = trim($rawText);
-        $json = preg_replace('/```json|```/i', '', $json) ?? $json;
+        $json = preg_replace('/^```json\s*/i', '', $json) ?? $json;
+        $json = preg_replace('/^```\s*/i', '', $json) ?? $json;
+        $json = preg_replace('/\s*```$/', '', $json) ?? $json;
         $decoded = json_decode(trim($json), true);
 
         if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
-            throw new RuntimeException('Gemini returned invalid JSON: ' . json_last_error_msg());
+            throw new RuntimeException('Gemini returned invalid JSON: ' . json_last_error_msg() . '. Raw: ' . $rawText);
         }
 
         return $decoded;

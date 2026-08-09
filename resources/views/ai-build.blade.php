@@ -152,35 +152,69 @@
                 if (!resultBox) return
 
                 const items = Array.isArray(data.configuration?.items) ? data.configuration.items : []
-                const cards = items.map((item) => `
-                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                        <div class="flex items-center justify-between gap-3">
-                            <span class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">${item.category ?? ''}</span>
-                            <span class="text-sm font-semibold text-gray-900">${Number(item.price || 0).toLocaleString('vi-VN')} VND</span>
+                const itemMap = items.reduce((acc, item) => {
+                    acc[String(item.category || '').toLowerCase()] = item
+                    return acc
+                }, {})
+
+                const cpu = itemMap.cpu
+                const mainboard = itemMap.mainboard
+                const ram = itemMap.ram
+                const vga = itemMap.vga
+                const ssd = itemMap.ssd
+                const psu = itemMap.psu
+                const pcCase = itemMap.case
+                const totalPrice = Number(data.configuration?.items?.reduce?.((sum, item) => sum + Number(item.price || 0), 0) || data.total_price || 0)
+                const notes = Array.isArray(data.notes) && data.notes.length > 0 ? data.notes : []
+
+                const row = (icon, label, value) => `
+                    <div class="flex items-start gap-3 rounded-2xl border border-gray-200 bg-white p-4">
+                        <div class="mt-0.5 text-lg">${icon}</div>
+                        <div class="min-w-0 flex-1">
+                            <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">${label}</div>
+                            <div class="mt-1 text-sm font-medium text-gray-900">${value || 'Không có dữ liệu'}</div>
                         </div>
-                        <div class="mt-1 font-medium text-gray-900">${item.name ?? 'Không có dữ liệu'}</div>
-                        <div class="mt-1 text-gray-600">${item.reason ?? ''}</div>
                     </div>
-                `).join('')
+                `
+
+                const formatVnd = (value) => Number(value || 0).toLocaleString('vi-VN') + ' VNĐ'
+                const ramText = ram
+                    ? `${ram.name || 'RAM'}${ram.reason ? ` · ${ram.reason}` : ''}`
+                    : 'Không có dữ liệu'
 
                 resultBox.className = 'mt-6 space-y-4'
                 resultBox.innerHTML = `
-                    <div class="rounded-2xl border border-gray-200 bg-white p-4 text-sm">
-                        <div class="font-semibold text-gray-900">Trạng thái</div>
-                        <div class="mt-1 text-gray-600">${data.status ?? 'unknown'}</div>
+                    <div class="rounded-2xl border border-gray-200 bg-gradient-to-br from-white to-gray-50 p-5 shadow-sm">
+                        <div class="flex items-center justify-between gap-3">
+                            <div>
+                                <div class="text-xs font-semibold uppercase tracking-[0.3em] text-gray-400">Kết quả AI Build</div>
+                                <h3 class="mt-2 text-lg font-bold text-gray-900">${data.summary || 'Cấu hình được đề xuất'}</h3>
+                            </div>
+                            <div class="rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white">
+                                ${formatVnd(totalPrice)}
+                            </div>
+                        </div>
                     </div>
-                    ${data.error ? `
-                    <div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                        <div class="font-semibold text-red-900">Lỗi Gemini</div>
-                        <div class="mt-1">${data.error}</div>
-                    </div>` : ''}
-                    <div class="rounded-2xl border border-gray-200 bg-white p-4 text-sm">
-                        <div class="font-semibold text-gray-900">Tóm tắt</div>
-                        <div class="mt-1 text-gray-600">${data.summary ?? 'Chưa có tóm tắt.'}</div>
+
+                    <div class="grid gap-3">
+                        ${row('🔲', 'CPU', cpu?.name || 'Không có dữ liệu')}
+                        ${row('🗂️', 'Mainboard', mainboard?.name || 'Không có dữ liệu')}
+                        ${row('🧠', 'RAM', ramText)}
+                        ${row('🎮', 'VGA', vga?.name || 'Không có dữ liệu')}
+                        ${row('💾', 'SSD', ssd?.name || 'Không có dữ liệu')}
+                        ${row('⚡', 'Nguồn (PSU)', psu?.name || 'Không có dữ liệu')}
+                        ${row('📦', 'Vỏ Case', pcCase?.name || 'Không có dữ liệu')}
                     </div>
-                    <div class="rounded-2xl border border-gray-200 bg-white p-4 text-sm">
-                        <div class="font-semibold text-gray-900">Gợi ý cấu hình</div>
-                        <div class="mt-3 space-y-3">${cards}</div>
+
+                    <div class="rounded-2xl border border-gray-200 bg-white p-5">
+                        <div class="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                            <span>💰</span>
+                            <span>Tổng giá ước tính: ${formatVnd(totalPrice)}</span>
+                        </div>
+                        <div class="mt-3 rounded-xl bg-gray-50 p-4 text-sm text-gray-700">
+                            <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">💡 Lời khuyên từ chuyên gia</div>
+                            <div class="mt-2 leading-relaxed">${notes.length ? notes.join('<br>') : (data.summary || 'Cấu hình đã được tối ưu theo ngân sách và nhu cầu.')}</div>
+                        </div>
                     </div>
                 `
             }
@@ -191,7 +225,12 @@
                 if (!submitButton) return
                 submitButton.disabled = true
                 const originalText = submitButton.textContent
-                submitButton.textContent = 'Đang xử lý...'
+                submitButton.innerHTML = '<span class="inline-flex items-center gap-2"><span class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span><span>🤖 AI đang phân tích và chọn linh kiện...</span></span>'
+
+                if (resultBox) {
+                    resultBox.className = 'mt-6 rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-500'
+                    resultBox.innerHTML = '<div class="flex items-center gap-3 text-gray-500"><span class="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-black"></span><span>Đang xử lý yêu cầu...</span></div>'
+                }
 
                 try {
                     const formData = new FormData(form)
@@ -207,14 +246,14 @@
                     const data = await response.json()
 
                     if (!response.ok) {
-                        throw new Error(data?.message || 'Có lỗi xảy ra.')
+                        throw new Error(data?.error || data?.message || 'Có lỗi xảy ra.')
                     }
 
                     renderResult(data)
                 } catch (error) {
                     if (resultBox) {
                         resultBox.className = 'mt-6 rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700'
-                        resultBox.textContent = error.message || 'Không thể xử lý yêu cầu.'
+                        resultBox.innerHTML = `<div class="font-semibold text-red-900">Không thể tạo cấu hình</div><div class="mt-2 leading-relaxed">${error.message || 'Không thể xử lý yêu cầu.'}</div>`
                     }
                 } finally {
                     submitButton.disabled = false

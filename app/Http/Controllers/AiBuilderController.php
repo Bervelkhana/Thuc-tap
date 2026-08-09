@@ -45,18 +45,19 @@ final class AiBuilderController extends Controller
                 subPurpose: $subPurpose !== null ? (string) $subPurpose : null,
             );
 
-            $result['input'] = [
+            $payload = $this->normalizeAiResult($result);
+            $payload['input'] = [
                 'budget' => (int) $validated['budget'],
                 'purpose' => $purpose,
                 'sub_purpose' => $subPurpose,
                 'gaming_type' => $gamingType,
             ];
 
-            Session::put('ai_build_result', $result);
-            Session::put('ai_build_input', $result['input']);
+            Session::put('ai_build_result', $payload);
+            Session::put('ai_build_input', $payload['input']);
 
             if ($request->expectsJson()) {
-                return response()->json($result);
+                return response()->json($payload);
             }
 
             return redirect()->route('ai-build.result');
@@ -66,16 +67,34 @@ final class AiBuilderController extends Controller
             if ($request->expectsJson()) {
                 return response()->json([
                     'status' => 'error',
-                    'message' => 'Không thể tạo cấu hình AI lúc này.',
+                    'error' => $e->getMessage(),
                 ], 500);
             }
 
             return back()
                 ->withInput()
                 ->withErrors([
-                    'ai_build' => 'Không thể tạo cấu hình AI lúc này. Vui lòng thử lại sau.',
+                    'ai_build' => $e->getMessage(),
                 ]);
         }
+    }
+
+    private function normalizeAiResult(array $result): array
+    {
+        $configuration = $result['configuration'] ?? [];
+        $items = array_values($configuration['items'] ?? []);
+
+        return [
+            'status' => $result['status'] ?? 'success',
+            'summary' => (string) ($configuration['summary'] ?? $result['summary'] ?? ''),
+            'total_price' => (int) ($configuration['total_price'] ?? $result['total_price'] ?? 0),
+            'notes' => array_values($configuration['notes'] ?? $result['notes'] ?? []),
+            'configuration' => [
+                'items' => $items,
+            ],
+            'raw_response' => $result['raw_response'] ?? null,
+            'ai_payload' => $result['ai_payload'] ?? null,
+        ];
     }
 
     public function result(): View

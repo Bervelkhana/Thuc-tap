@@ -16,12 +16,6 @@ class ChatController extends Controller
         $this->geminiChatService = $geminiChatService;
     }
 
-    /**
-     * Send a message and get AI response
-     * 
-     * @param Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
     public function sendMessage(Request $request)
     {
         try {
@@ -30,21 +24,21 @@ class ChatController extends Controller
                 'history' => 'nullable|array',
             ]);
 
-            $userMessage = $validated['message'];
-            $conversationHistory = $validated['history'] ?? [];
-
-            $aiResponse = $this->geminiChatService->chat($userMessage, $conversationHistory);
+            $aiResponse = $this->geminiChatService->chat(
+                $validated['message'],
+                $validated['history'] ?? []
+            );
 
             return response()->json([
                 'status' => 'success',
                 'data' => [
                     'reply' => $aiResponse,
-                ]
+                ],
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Dữ liệu đầu vào không hợp lệ.',
+                'error' => 'Dữ liệu đầu vào không hợp lệ.',
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
@@ -55,7 +49,7 @@ class ChatController extends Controller
 
             return response()->json([
                 'status' => 'error',
-                'message' => 'Lỗi kết nối AI: ' . $e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

@@ -24,7 +24,7 @@ function getCsrfToken() {
 
 function extractBackendError(data) {
   if (!data || typeof data !== 'object') return ''
-  return data.message || data.error || data?.data?.message || data?.data?.error || ''
+  return data.error || data.message || data?.data?.message || data?.data?.error || ''
 }
 
 async function sendMessage() {
@@ -43,10 +43,7 @@ async function sendMessage() {
   try {
     const history = messages.value
       .filter(m => m.role !== 'assistant' || messages.value.indexOf(m) > 0)
-      .map(m => ({
-        role: m.role,
-        content: m.text
-      }))
+      .map(m => ({ role: m.role, content: m.text }))
 
     const response = await fetch('/api/chat', {
       method: 'POST',
@@ -58,7 +55,7 @@ async function sendMessage() {
       credentials: 'same-origin',
       body: JSON.stringify({
         message: text,
-        history: history
+        history
       })
     })
 
@@ -73,8 +70,7 @@ async function sendMessage() {
     }
 
     if (!response.ok) {
-      const detail = extractBackendError(data)
-      throw new Error(detail || `HTTP error! status: ${response.status}`)
+      throw new Error(extractBackendError(data) || `HTTP ${response.status}`)
     }
 
     if (data?.status === 'success') {
@@ -83,9 +79,10 @@ async function sendMessage() {
         role: 'assistant',
         text: data.data.reply
       })
-    } else {
-      throw new Error(extractBackendError(data) || 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.')
+      return
     }
+
+    throw new Error(extractBackendError(data) || 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.')
   } catch (error) {
     if (error instanceof TypeError && String(error.message).toLowerCase().includes('failed to fetch')) {
       console.error('Network error while calling /api/chat:', error)
