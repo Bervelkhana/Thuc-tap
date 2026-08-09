@@ -51,17 +51,18 @@ const routes = [
    // Admin Dashboard route
    { path: '/admin/dashboard', name: 'admin-dashboard', component: AdminDashboardView, meta: { requiresAuth: true } },
 
-   // Backend routes (deprecated, redirect to dashboard)
-   {
-     path: '/backend',
-     component: BackendLayout,
-     meta: { requiresAuth: true },
-     children: [
-       { path: '', redirect: 'products' },
-       { path: 'products', name: 'backend-products', component: () => import('../components/backend/ProductManagement.vue') },
-       { path: 'orders', name: 'backend-orders', component: () => import('../components/backend/OrderManagement.vue') },
-     ],
-   },
+    // Backend routes (deprecated, redirect to dashboard)
+    {
+      path: '/backend',
+      component: BackendLayout,
+      meta: { requiresAuth: true },
+      children: [
+        { path: '', redirect: 'products' },
+        { path: 'products', name: 'backend-products', component: () => import('../components/backend/ProductManagement.vue') },
+        { path: 'prebuilt', name: 'backend-prebuilt', component: () => import('../components/backend/PrebuiltConfigManagement.vue') },
+        { path: 'orders', name: 'backend-orders', component: () => import('../components/backend/OrderManagement.vue') },
+      ],
+    },
 ]
 
 const router = createRouter({

@@ -72,33 +72,60 @@ function getStatusBadgeClass(status) {
 }
 
 async function updateStatus(orderId, newStatus) {
-  if (!confirm(`Bạn chắc chắn muốn đổi trạng thái sang "${newStatus}"?`)) return
+   if (!confirm(`Bạn chắc chắn muốn đổi trạng thái sang "${newStatus}"?`)) return
 
-  loading.value = true
-  try {
-    const response = await fetch(`/api/admin/orders/${orderId}/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus })
-    })
+   loading.value = true
+   try {
+     const response = await fetch(`/api/admin/orders/${orderId}/status`, {
+       method: 'PATCH',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({ status: newStatus })
+     })
 
-    const result = await response.json()
+     const result = await response.json()
 
-    if (result.status === 'success') {
-      alert('Cập nhật trạng thái thành công')
-      await fetchOrders()
-      if (selectedOrder.value?.id === orderId) {
-        selectedOrder.value = result.data
-      }
-    } else {
-      alert(result.message || 'Lỗi khi cập nhật trạng thái')
-    }
-  } catch (err) {
-    console.error('Error updating status:', err)
-    alert('Lỗi khi cập nhật trạng thái')
-  } finally {
-    loading.value = false
-  }
+     if (result.status === 'success') {
+       alert('Cập nhật trạng thái thành công')
+       await fetchOrders()
+       if (selectedOrder.value?.id === orderId) {
+         selectedOrder.value = result.data
+       }
+     } else {
+       alert(result.message || 'Lỗi khi cập nhật trạng thái')
+     }
+   } catch (err) {
+     console.error('Error updating status:', err)
+     alert('Lỗi khi cập nhật trạng thái')
+   } finally {
+     loading.value = false
+   }
+}
+
+async function deleteOrder(orderId) {
+   if (!confirm('Bạn chắc chắn muốn xóa đơn hàng này? Hành động này không thể hoàn tác.')) return
+
+   loading.value = true
+   try {
+     const response = await fetch(`/api/admin/orders/${orderId}`, {
+       method: 'DELETE',
+       headers: { 'Content-Type': 'application/json' }
+     })
+
+     const result = await response.json()
+
+     if (result.status === 'success') {
+       alert('Xóa đơn hàng thành công')
+       showDetails.value = false
+       await fetchOrders()
+     } else {
+       alert(result.message || 'Lỗi khi xóa đơn hàng')
+     }
+   } catch (err) {
+     console.error('Error deleting order:', err)
+     alert('Lỗi khi xóa đơn hàng')
+   } finally {
+     loading.value = false
+   }
 }
 
 function formatDate(dateStr) {
@@ -314,12 +341,21 @@ onMounted(() => {
           </div>
 
           <!-- CLOSE BUTTON -->
-          <button
-            @click="showDetails = false"
-            class="w-full px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition font-medium"
-          >
-            Đóng
-          </button>
+          <div class="flex gap-3">
+            <button
+              @click="deleteOrder(selectedOrder.id)"
+              :disabled="loading"
+              class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium disabled:opacity-50"
+            >
+              🗑️ Xóa đơn hàng
+            </button>
+            <button
+              @click="showDetails = false"
+              class="flex-1 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition font-medium"
+            >
+              Đóng
+            </button>
+          </div>
         </div>
       </div>
     </div>

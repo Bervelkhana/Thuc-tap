@@ -160,7 +160,7 @@ onMounted(() => {
       <!-- Quick Actions -->
       <div class="bg-white rounded-lg shadow-md p-6">
         <h2 class="text-xl font-bold text-gray-900 mb-4">Thao tác nhanh</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <router-link
             to="/backend/products"
             class="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-600 hover:bg-blue-50 transition text-center"
@@ -168,6 +168,14 @@ onMounted(() => {
             <div class="text-3xl mb-2">📦</div>
             <p class="font-semibold text-gray-900">Quản lý sản phẩm</p>
             <p class="text-sm text-gray-500">Thêm, sửa, xóa sản phẩm</p>
+          </router-link>
+          <router-link
+            to="/backend/prebuilt"
+            class="p-4 border-2 border-gray-200 rounded-lg hover:border-purple-600 hover:bg-purple-50 transition text-center"
+          >
+            <div class="text-3xl mb-2">🧩</div>
+            <p class="font-semibold text-gray-900">Quản lý cấu hình</p>
+            <p class="text-sm text-gray-500">Quản lý config PC được build sẵn</p>
           </router-link>
           <router-link
             to="/backend/orders"

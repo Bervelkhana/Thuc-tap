@@ -1,11 +1,24 @@
 <script setup>
-import { ref, defineAsyncComponent } from 'vue'
+import { ref, defineAsyncComponent, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import PrebuiltConfigManagement from '../components/backend/PrebuiltConfigManagement.vue'
 
 const ProductManagement = defineAsyncComponent(() => import('../components/backend/ProductManagement.vue'))
 const OrderManagement = defineAsyncComponent(() => import('../components/backend/OrderManagement.vue'))
 
+const route = useRoute()
 const activeTab = ref('products')
+
+const getActiveTabFromRoute = () => {
+  const path = route.path
+  if (path.includes('orders')) return 'orders'
+  if (path.includes('prebuilt')) return 'prebuilt'
+  return 'products'
+}
+
+onMounted(() => {
+  activeTab.value = getActiveTabFromRoute()
+})
 </script>
 
 <template>
@@ -42,28 +55,28 @@ const activeTab = ref('products')
           >
             📦 Quản lý sản phẩm
           </button>
-          <button
-            @click="activeTab = 'prebuilt'"
-            :class="[
-              'flex-1 min-w-[180px] px-6 py-4 font-semibold transition text-center',
-              activeTab === 'prebuilt'
-                ? 'text-black border-b-2 border-black bg-gray-50'
-                : 'text-gray-600 hover:text-gray-900'
-            ]"
-          >
-            🧩 Quản lý cấu hình
-          </button>
-          <button
-            @click="activeTab = 'orders'"
-            :class="[
-              'flex-1 min-w-[180px] px-6 py-4 font-semibold transition text-center',
-              activeTab === 'orders'
-                ? 'text-black border-b-2 border-black bg-gray-50'
-                : 'text-gray-600 hover:text-gray-900'
-            ]"
-          >
-            📋 Quản lý đơn hàng
-          </button>
+           <button
+             @click="activeTab = 'prebuilt'"
+             :class="[
+               'flex-1 min-w-[180px] px-6 py-4 font-semibold transition text-center',
+               activeTab === 'prebuilt'
+                 ? 'text-black border-b-2 border-black bg-gray-50'
+                 : 'text-gray-600 hover:text-gray-900'
+             ]"
+           >
+             🧩 Quản lý cấu hình
+           </button>
+           <button
+             @click="activeTab = 'orders'"
+             :class="[
+               'flex-1 min-w-[180px] px-6 py-4 font-semibold transition text-center',
+               activeTab === 'orders'
+                 ? 'text-black border-b-2 border-black bg-gray-50'
+                 : 'text-gray-600 hover:text-gray-900'
+             ]"
+           >
+             📋 Quản lý đơn hàng
+           </button>
         </div>
 
         <div class="p-6">

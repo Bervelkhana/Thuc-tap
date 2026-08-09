@@ -39,7 +39,7 @@ Route::get('/admin/stats', [AdminOrderController::class, 'stats']);
 Route::get('/admin/orders', [AdminOrderController::class, 'index']);
 Route::get('/admin/orders/{order}', [AdminOrderController::class, 'show']);
 Route::patch('/admin/orders/{order}/status', [AdminOrderController::class, 'updateStatus']);
-Route::delete('/admin/orders/{order}', [AdminOrderController::class, 'cancel']);
+Route::delete('/admin/orders/{order}', [AdminOrderController::class, 'destroy']);
 
 // PC Builder routes
 Route::get('/pc-builder/components', [PCBuilderController::class, 'getComponentsByCategory']);

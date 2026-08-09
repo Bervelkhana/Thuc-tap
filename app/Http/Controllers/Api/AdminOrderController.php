@@ -103,12 +103,38 @@ class AdminOrderController extends Controller
         $order = Order::findOrFail($id);
 
         try {
-            $this->orderService->cancelOrder($order);
+            $this->orderService->cancelOrder($order->id);
 
             return response()->json([
                 'status' => 'success',
                 'message' => 'Huỷ đơn hàng thành công',
                 'data' => $order->refresh(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
+     * Xóa đơn hàng hoàn toàn
+     */
+    public function destroy($id)
+    {
+        try {
+            $order = Order::findOrFail($id);
+            
+            // Xóa các order items trước
+            $order->items()->delete();
+            
+            // Xóa order
+            $order->delete();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Xóa đơn hàng thành công',
             ]);
         } catch (\Exception $e) {
             return response()->json([
