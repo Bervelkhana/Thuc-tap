@@ -15,7 +15,7 @@ class GeminiChatService
 
     public function __construct(ProductService $productService, IntentAnalyzerService $intentAnalyzer)
     {
-        $this->apiKey = (string) config('services.gemini.api_key', env('GEMINI_API_KEY', ''));
+        $this->apiKey = (string) config('services.gemini.api_key', '');
         $this->productService = $productService;
         $this->intentAnalyzer = $intentAnalyzer;
     }

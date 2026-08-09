@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Services\AiBuildService;
+use App\Services\GroqBuildService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,11 +13,11 @@ use Throwable;
 
 final class AiBuilderController extends Controller
 {
-    private AiBuildService $aiBuildService;
+    private GroqBuildService $groqBuildService;
 
-    public function __construct(AiBuildService $aiBuildService)
+    public function __construct(GroqBuildService $groqBuildService)
     {
-        $this->aiBuildService = $aiBuildService;
+        $this->groqBuildService = $groqBuildService;
     }
 
     public function index(): View
@@ -39,7 +39,7 @@ final class AiBuilderController extends Controller
             $subPurpose = $validated['sub_purpose'] ?? null;
             $gamingType = $validated['gaming_type'] ?? null;
 
-            $result = $this->aiBuildService->buildConfiguration(
+            $result = $this->groqBuildService->buildConfiguration(
                 budget: (int) $validated['budget'],
                 purpose: $purpose,
                 subPurpose: $subPurpose !== null ? (string) $subPurpose : null,

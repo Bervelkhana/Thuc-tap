@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
-final class AiBuildService
+final class GroqBuildService
 {
     /**
      * @var array<string, array<int, Product>>
@@ -30,70 +30,106 @@ final class AiBuildService
         $prompt = $this->buildPrompt($budget, $purpose, $subPurpose, $this->productPool);
 
         try {
-            $apiKey = (string) config('services.gemini.api_key');
+            $apiKey = (string) config('services.groq.api_key');
             if ($apiKey === '') {
-                throw new RuntimeException('GEMINI_API_KEY is missing.');
+                throw new RuntimeException('GROQ_API_KEY is missing.');
             }
 
-            $endpoint = $this->geminiEndpoint($apiKey);
-            Log::debug('Gemini build request prepared', [
+            $apiUrl = (string) config('services.groq.api_url');
+            $model = (string) config('services.groq.model');
+
+            Log::debug('Groq build request prepared', [
                 'api_key_preview' => $this->maskApiKey($apiKey),
-                'endpoint' => $endpoint,
+                'api_url' => $apiUrl,
+                'model' => $model,
                 'prompt_length' => strlen($prompt),
             ]);
 
             $response = Http::timeout(45)
                 ->connectTimeout(15)
                 ->acceptJson()
-                ->withHeaders(['Content-Type' => 'application/json'])
-                ->post($endpoint, [
-                    'contents' => [
+                ->withHeaders([
+                    'Content-Type' => 'application/json; charset=utf-8',
+                    'Authorization' => 'Bearer ' . $apiKey,
+                ])
+                ->post($apiUrl . '/chat/completions', [
+                    'model' => $model,
+                    'messages' => [
                         [
-                            'parts' => [
-                                [
-                                    'text' => $prompt,
-                                ],
-                            ],
+                            'role' => 'user',
+                            'content' => $prompt,
                         ],
                     ],
-                    'generationConfig' => [
-                        'temperature' => 0.4,
-                        'maxOutputTokens' => 1200,
-                        'responseMimeType' => 'application/json',
-                    ],
+                    'temperature' => 0.4,
+                    'max_tokens' => 2048,
                 ]);
 
             if ($response->failed()) {
                 $body = trim($response->body());
-                Log::error('Gemini API request failed', [
+                Log::error('Groq API request failed', [
                     'status' => $response->status(),
                     'body' => $body,
-                    'endpoint' => $endpoint,
+                    'api_url' => $apiUrl,
                 ]);
 
                 throw new RuntimeException(sprintf(
-                    'Gemini API request failed (%d): %s',
+                    'Groq API request failed (%d): %s',
                     $response->status(),
                     $body !== '' ? $body : 'Empty response body'
                 ));
             }
 
-            $responseData = $response->json();
-            Log::debug('Gemini raw response received', [
-                'response_data_keys' => is_array($responseData) ? array_keys($responseData) : null,
-                'has_candidates' => is_array($responseData) ? array_key_exists('candidates', $responseData) : false,
+            // Lấy raw body
+            $responseBody = $response->body();
+            
+            Log::debug('Raw response body from Groq', [
+                'length' => strlen($responseBody),
+                'first_200_bytes' => bin2hex(substr($responseBody, 0, 200)),
+                'first_100_chars' => substr($responseBody, 0, 100),
             ]);
+            
+            // Cố gắng parse JSON trực tiếp trước
+            $responseData = @json_decode($responseBody, true, 512, JSON_UNESCAPED_UNICODE);
+            
+            if ($responseData === null) {
+                // Nếu thất bại, thử convert encoding
+                Log::info('Direct JSON parse failed, trying encoding conversion');
+                
+                // Thử ISO-8859-1 -> UTF-8
+                $responseBody = mb_convert_encoding($responseBody, 'UTF-8', 'ISO-8859-1');
+                $responseData = @json_decode($responseBody, true, 512, JSON_UNESCAPED_UNICODE);
+                
+                if ($responseData === null) {
+                    Log::error('JSON parse still failed after encoding conversion', [
+                        'error' => json_last_error_msg(),
+                        'error_code' => json_last_error(),
+                        'body_hex' => bin2hex(substr($responseBody, 0, 200)),
+                    ]);
+                    throw new RuntimeException('Failed to parse JSON response: ' . json_last_error_msg());
+                }
+            }
+            Log::debug('Groq raw response received', [
+                'response_data_keys' => is_array($responseData) ? array_keys($responseData) : null,
+                'has_choices' => is_array($responseData) ? array_key_exists('choices', $responseData) : false,
+            ]);
+
             if (!is_array($responseData)) {
-                throw new RuntimeException('Gemini API returned invalid JSON response: ' . $response->body());
+                throw new RuntimeException('Groq API returned invalid JSON response: ' . $response->body());
             }
 
-            $rawText = (string) data_get($responseData, 'candidates.0.content.parts.0.text', '');
+            $rawText = (string) data_get($responseData, 'choices.0.message.content', '');
             if ($rawText === '') {
-                Log::error('Gemini response missing text payload', [
+                Log::error('Groq response missing content', [
                     'response' => $responseData,
-                    'endpoint' => $endpoint,
+                    'api_url' => $apiUrl,
                 ]);
-                throw new RuntimeException('Gemini API response missing candidates[0].content.parts[0].text. Raw: ' . $response->body());
+                throw new RuntimeException('Groq API response missing choices[0].message.content. Raw: ' . $response->body());
+            }
+
+            // Handle encoding issues: if response contains non-UTF8, convert from ISO-8859-1
+            if (!mb_check_encoding($rawText, 'UTF-8')) {
+                $rawText = iconv('ISO-8859-1', 'UTF-8//IGNORE', $rawText);
+                Log::info('Converted response from ISO-8859-1 to UTF-8');
             }
 
             $decoded = $this->decodeAiPayload($rawText);
@@ -109,7 +145,7 @@ final class AiBuildService
                 'ai_payload' => $decoded,
             ];
         } catch (\Throwable $e) {
-            Log::error('Gemini build failed', [
+            Log::error('Groq build failed', [
                 'message' => $e->getMessage(),
                 'budget' => $budget,
                 'purpose' => $purpose,
@@ -120,27 +156,6 @@ final class AiBuildService
 
             throw $e;
         }
-    }
-
-    private function buildFallbackResult(int $budget, string $purpose, ?string $subPurpose, string $prompt, string $errorMessage): array
-    {
-        $fallback = $this->buildFallbackConfiguration($budget, $purpose, $subPurpose);
-
-        return [
-            'status' => 'fallback',
-            'budget' => $budget,
-            'purpose' => $purpose,
-            'sub_purpose' => $subPurpose,
-            'prompt' => $prompt,
-            'raw_response' => $errorMessage,
-            'configuration' => $fallback['configuration'],
-            'ai_payload' => $fallback['ai_payload'],
-        ];
-    }
-
-    private function geminiEndpoint(string $apiKey): string
-    {
-        return 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' . urlencode($apiKey);
     }
 
     private function maskApiKey(string $apiKey): string
@@ -159,21 +174,23 @@ final class AiBuildService
      */
     private function loadProductPool(): array
     {
-        $categoryMap = [
-            'cpu' => ['CPU'],
-            'mainboard' => ['Mainboard', 'Motherboard'],
-            'ram' => ['RAM', 'Memory'],
-            'vga' => ['VGA', 'GPU', 'Graphics Card'],
-            'ssd' => ['SSD', 'Storage'],
-            'psu' => ['PSU', 'Power Supply'],
-            'case' => ['Case', 'PC Case'],
-        ];
-
         $pool = [];
+        $categoryKeys = ['cpu', 'mainboard', 'ram', 'vga', 'ssd', 'psu', 'case'];
 
-        foreach ($categoryMap as $key => $names) {
+        foreach ($categoryKeys as $key) {
+            $names = match ($key) {
+                'cpu' => ['CPU', 'Processor'],
+                'mainboard' => ['Mainboard', 'Motherboard'],
+                'ram' => ['RAM', 'Memory'],
+                'vga' => ['VGA', 'Graphics Card', 'GPU'],
+                'ssd' => ['SSD', 'Storage'],
+                'psu' => ['PSU', 'Power Supply'],
+                'case' => ['Case', 'Chassis'],
+                default => [],
+            };
+
             $categoryIds = Category::query()
-                ->whereIn('name', $names)
+                ->where('name', $names)
                 ->orWhere(function ($query) use ($names): void {
                     foreach ($names as $name) {
                         $query->orWhere('slug', 'like', '%' . str($name)->slug() . '%');
@@ -272,14 +289,49 @@ PROMPT;
 
     private function decodeAiPayload(string $rawText): array
     {
-        $json = trim($rawText);
-        $json = preg_replace('/^```json\s*/i', '', $json) ?? $json;
-        $json = preg_replace('/^```\s*/i', '', $json) ?? $json;
-        $json = preg_replace('/\s*```$/', '', $json) ?? $json;
-        $decoded = json_decode(trim($json), true);
-
-        if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
-            throw new RuntimeException('Gemini returned invalid JSON: ' . json_last_error_msg() . '. Raw: ' . $rawText);
+        $json = $rawText;
+        
+        // XỬ LÝ ENCODING: Force convert ISO-8859-1 -> UTF-8 tại raw bytes level
+        // Sử dụng iconv thay vì mb_convert vì iconv xử lý bytes level tốt hơn
+        $json = @iconv('ISO-8859-1', 'UTF-8//IGNORE', $json);
+        if ($json === false) {
+            $json = $rawText; // Fallback nếu iconv fail
+        }
+        
+        $json = trim($json);
+        
+        Log::debug('Payload after encoding fix', [
+            'length' => strlen($json),
+            'first_80_chars' => substr($json, 0, 80),
+        ]);
+        
+        // Làm sạch Markdown
+        $json = preg_replace('/^\s*```json\s*/i', '', $json);
+        $json = preg_replace('/^\s*```\s*/i', '', $json);
+        $json = preg_replace('/\s*```\s*$/i', '', $json);
+        $json = trim($json);
+        
+        // Kiểm tra trống
+        if (empty($json) || strlen($json) < 2) {
+            Log::error('JSON is empty after cleanup');
+            throw new RuntimeException('JSON response is empty');
+        }
+        
+        // Parse JSON
+        $decoded = json_decode($json, true, 512, JSON_UNESCAPED_UNICODE);
+        
+        if ($decoded === null) {
+            $error = json_last_error_msg();
+            Log::error('JSON decode failed', [
+                'error' => $error,
+                'code' => json_last_error(),
+                'json_preview' => substr($json, 0, 200),
+            ]);
+            throw new RuntimeException('JSON parse error: ' . $error);
+        }
+        
+        if (!is_array($decoded)) {
+            throw new RuntimeException('JSON is not an array');
         }
 
         return $decoded;
@@ -290,12 +342,12 @@ PROMPT;
         $items = data_get($payload, 'items', []);
         $result = [];
 
-        foreach (['cpu', 'mainboard', 'ram', 'vga', 'ssd', 'psu', 'case'] as $key) {
-            $aiItem = data_get($items, $key);
-            $resolved = $this->resolveSingleItem($key, is_array($aiItem) ? $aiItem : []);
+        foreach (['cpu', 'mainboard', 'ram', 'vga', 'ssd', 'psu', 'case'] as $categoryKey) {
+            $aiItem = is_array($items) ? ($items[$categoryKey] ?? []) : [];
+            $resolved = $this->resolveSingleItem($categoryKey, $aiItem);
 
             $result[] = [
-                'category' => strtoupper($key),
+                'category' => strtoupper($categoryKey),
                 'id' => $resolved['product']?->id,
                 'name' => $resolved['product']?->name,
                 'price' => $resolved['product'] ? (int) round((float) $resolved['product']->price) : 0,
@@ -307,51 +359,10 @@ PROMPT;
         }
 
         return [
-            'summary' => (string) data_get($payload, 'summary', ''),
+            'summary' => (string) ($payload['summary'] ?? ''),
             'total_price' => (int) data_get($payload, 'total_price', 0),
             'notes' => array_values(array_filter((array) data_get($payload, 'notes', []), static fn ($note) => is_string($note) && $note !== '')),
             'items' => $result,
-        ];
-    }
-
-    private function buildFallbackConfiguration(int $budget, string $purpose, ?string $subPurpose): array
-    {
-        $items = [];
-        $total = 0;
-
-        foreach (['cpu', 'mainboard', 'ram', 'vga', 'ssd', 'psu', 'case'] as $key) {
-            $product = $this->pickFallbackProduct($this->productPool[$key] ?? [], $key);
-            $price = $product ? (int) round((float) $product->price) : 0;
-            $total += $price;
-
-            $items[] = [
-                'category' => strtoupper($key),
-                'id' => $product?->id,
-                'name' => $product?->name,
-                'price' => $price,
-                'reason' => $product ? 'Fallback theo DB vì AI hoặc kết nối AI bị lỗi.' : 'Không tìm thấy sản phẩm phù hợp.',
-                'matched' => $product !== null,
-                'match_source' => 'fallback',
-                'matched_text' => '',
-            ];
-        }
-
-        return [
-            'configuration' => [
-                'summary' => 'Đây là cấu hình dự phòng được tạo từ dữ liệu DB do AI trả lỗi hoặc phản hồi không hợp lệ.',
-                'total_price' => $total,
-                'notes' => [
-                    'Hệ thống đang dùng cấu hình dự phòng để đảm bảo trang không bị lỗi.',
-                    'Bạn nên kiểm tra lại API key hoặc kết nối Gemini sau.',
-                ],
-                'items' => $items,
-            ],
-            'ai_payload' => [
-                'error' => 'fallback_used',
-                'purpose' => $purpose,
-                'sub_purpose' => $subPurpose,
-                'budget' => $budget,
-            ],
         ];
     }
 
@@ -434,10 +445,6 @@ PROMPT;
             }
         }
 
-        if ($best === null || $best['score'] < 0.42) {
-            return null;
-        }
-
         return $best;
     }
 
@@ -446,61 +453,28 @@ PROMPT;
      */
     private function pickFallbackProduct(array $pool, string $categoryKey): ?Product
     {
-        if ($pool === []) {
-            return null;
-        }
-
-        return match ($categoryKey) {
-            'vga' => $this->pickCheapestWithKeyword($pool, ['rtx', 'gtx', 'rx', 'vga', 'graphics']) ?? $pool[0],
-            'psu' => $this->pickCheapestWithKeyword($pool, ['80', 'power', 'psu']) ?? $pool[0],
-            'case' => $this->pickCheapestWithKeyword($pool, ['case', 'mid', 'mini']) ?? $pool[0],
-            default => $pool[0],
-        };
+        return $pool[0] ?? null;
     }
 
-    /**
-     * @param array<int, Product> $pool
-     * @param array<int, string> $keywords
-     */
-    private function pickCheapestWithKeyword(array $pool, array $keywords): ?Product
+    private function normalizeText(string $text): string
     {
-        $filtered = array_values(array_filter($pool, function (Product $product) use ($keywords): bool {
-            $text = $this->normalizeText($product->name . ' ' . ($product->description ?? ''));
-            foreach ($keywords as $keyword) {
-                if (str_contains($text, $this->normalizeText($keyword))) {
-                    return true;
-                }
-            }
-
-            return false;
-        }));
-
-        if ($filtered === []) {
-            return null;
-        }
-
-        usort($filtered, static fn (Product $a, Product $b): int => (int) round((float) $a->price) <=> (int) round((float) $b->price));
-
-        return $filtered[0];
-    }
-
-    private function normalizeText(string $value): string
-    {
-        $value = mb_strtolower($value, 'UTF-8');
-        $value = preg_replace('/[^\p{L}\p{N}\s]+/u', ' ', $value) ?? $value;
-        $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
-
-        return trim($value);
+        return mb_strtolower(preg_replace('/[^a-z0-9\s]/i', '', $text) ?? '', 'UTF-8');
     }
 
     private function similarityScore(string $a, string $b): float
     {
-        if ($a === '' || $b === '') {
-            return 0.0;
+        $a = str_split($a);
+        $b = str_split($b);
+        $matches = 0;
+
+        foreach ($a as $char) {
+            if (in_array($char, $b, true)) {
+                $matches++;
+            }
         }
 
-        similar_text($a, $b, $percent);
+        $maxLen = max(count($a), count($b));
 
-        return $percent / 100;
+        return $maxLen === 0 ? 0 : $matches / $maxLen;
     }
 }
