@@ -93,7 +93,7 @@
                     <aside class="border-t border-gray-100 bg-gray-50 p-6 sm:p-8 lg:border-l lg:border-t-0">
                         <h2 class="text-lg font-semibold text-gray-900">Kết quả AI build</h2>
                         <p class="mt-2 text-sm text-gray-600">
-                            Kết quả sẽ trả về trực tiếp từ Gemini. Nếu có lỗi, hệ thống sẽ hiển thị thông báo rõ ràng thay vì cấu hình dự phòng.
+                            Kết quả sẽ trả về trực tiếp từ NVIDIA NIM. Nếu có lỗi, hệ thống sẽ hiển thị thông báo rõ ràng thay vì cấu hình dự phòng.
                         </p>
 
                         <div id="ai-build-result" class="mt-6 rounded-2xl border border-dashed border-gray-300 bg-white p-6 text-sm text-gray-500">

@@ -38,7 +38,7 @@
 
                             @if (!empty(data_get($result, 'error')))
                                 <div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-                                    <div class="font-semibold text-red-900">Lỗi Gemini</div>
+                                    <div class="font-semibold text-red-900">Lỗi NVIDIA NIM</div>
                                     <p class="mt-2 leading-6">{{ data_get($result, 'error') }}</p>
                                 </div>
                             @endif

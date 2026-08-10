@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Services\GroqBuildService;
+use App\Services\NvidiaNimBuildService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,11 +13,11 @@ use Throwable;
 
 final class AiBuilderController extends Controller
 {
-    private GroqBuildService $groqBuildService;
+    private NvidiaNimBuildService $buildService;
 
-    public function __construct(GroqBuildService $groqBuildService)
+    public function __construct(NvidiaNimBuildService $buildService)
     {
-        $this->groqBuildService = $groqBuildService;
+        $this->buildService = $buildService;
     }
 
     public function index(): View
@@ -34,46 +34,47 @@ final class AiBuilderController extends Controller
             'gaming_type' => ['nullable', 'required_if:purpose,gaming', 'in:esports_co_ban,aaa_do_hoa_nang'],
         ]);
 
-        try {
-            $purpose = (string) $validated['purpose'];
-            $subPurpose = $validated['sub_purpose'] ?? null;
-            $gamingType = $validated['gaming_type'] ?? null;
+        $purpose = (string) $validated['purpose'];
+        $subPurpose = $validated['sub_purpose'] ?? null;
+        $gamingType = $validated['gaming_type'] ?? null;
 
-            $result = $this->groqBuildService->buildConfiguration(
-                budget: (int) $validated['budget'],
-                purpose: $purpose,
-                subPurpose: $subPurpose !== null ? (string) $subPurpose : null,
-            );
+        $result = $this->buildService->buildConfiguration(
+            budget: (int) $validated['budget'],
+            purpose: $purpose,
+            subPurpose: $subPurpose !== null ? (string) $subPurpose : null,
+        );
 
-            $payload = $this->normalizeAiResult($result);
-            $payload['input'] = [
-                'budget' => (int) $validated['budget'],
-                'purpose' => $purpose,
-                'sub_purpose' => $subPurpose,
-                'gaming_type' => $gamingType,
-            ];
-
-            Session::put('ai_build_result', $payload);
-            Session::put('ai_build_input', $payload['input']);
+        // Handle error states gracefully
+        if ($result['status'] !== 'success') {
+            $errorMessage = $result['error'] ?? 'Có lỗi xảy ra. Vui lòng thử lại sau.';
 
             if ($request->expectsJson()) {
-                return $this->successResponse($payload);
+                return $this->successResponse([
+                    'success' => false,
+                    'error' => $errorMessage,
+                    'status' => $result['status'],
+                ], 200);
             }
 
-            return redirect()->route('ai-build.result');
-        } catch (Throwable $e) {
-            report($e);
-
-            if ($request->expectsJson()) {
-                return $this->errorResponse($e->getMessage(), 500);
-            }
-
-            return back()
-                ->withInput()
-                ->withErrors([
-                    'ai_build' => $e->getMessage(),
-                ]);
+            return back()->withInput()->withErrors(['ai_build' => $errorMessage]);
         }
+
+        $payload = $this->normalizeAiResult($result);
+        $payload['input'] = [
+            'budget' => (int) $validated['budget'],
+            'purpose' => $purpose,
+            'sub_purpose' => $subPurpose,
+            'gaming_type' => $gamingType,
+        ];
+
+        Session::put('ai_build_result', $payload);
+        Session::put('ai_build_input', $payload['input']);
+
+        if ($request->expectsJson()) {
+            return $this->successResponse($payload);
+        }
+
+        return redirect()->route('ai-build.result');
     }
 
     private function normalizeAiResult(array $result): array

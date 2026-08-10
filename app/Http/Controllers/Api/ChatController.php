@@ -3,17 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Services\GroqChatService;
+use App\Services\NvidiaNimChatService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class ChatController extends Controller
 {
-    protected $groqChatService;
+    protected $chatService;
 
-    public function __construct(GroqChatService $groqChatService)
+    public function __construct(NvidiaNimChatService $chatService)
     {
-        $this->groqChatService = $groqChatService;
+        $this->chatService = $chatService;
     }
 
     public function sendMessage(Request $request)
@@ -24,14 +24,12 @@ class ChatController extends Controller
                 'history' => 'nullable|array',
             ]);
 
-            $aiResponse = $this->groqChatService->chat(
+            $result = $this->chatService->chat(
                 $validated['message'],
                 $validated['history'] ?? []
             );
 
-            return $this->successResponse([
-                'reply' => $aiResponse,
-            ]);
+            return $this->successResponse($result, 200);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->errorResponse('Dữ liệu đầu vào không hợp lệ.', 422, $e->errors());
         } catch (\Throwable $e) {
@@ -40,8 +38,12 @@ class ChatController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return $this->errorResponse($e->getMessage(), 500);
+            return $this->successResponse([
+                'success' => false,
+                'reply' => 'Có lỗi xảy ra. Vui lòng thử lại sau.',
+            ], 200);
         }
     }
 }
+
 

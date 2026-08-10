@@ -6,11 +6,14 @@ namespace App\Services;
 
 use App\Models\Category;
 use App\Models\Product;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\TimeoutException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
-final class GroqBuildService
+final class NvidiaNimBuildService
 {
     /**
      * @var array<string, array<int, Product>>
@@ -30,23 +33,23 @@ final class GroqBuildService
         $prompt = $this->buildPrompt($budget, $purpose, $subPurpose, $this->productPool);
 
         try {
-            $apiKey = (string) config('services.groq.api_key');
+            $apiKey = (string) config('services.nvidia_nim.api_key');
             if ($apiKey === '') {
-                throw new RuntimeException('GROQ_API_KEY is missing.');
+                throw new RuntimeException('NVIDIA_NIM_API_KEY is missing.');
             }
 
-            $apiUrl = (string) config('services.groq.api_url');
-            $model = (string) config('services.groq.model');
+            $apiUrl = (string) config('services.nvidia_nim.base_url', 'https://integrate.api.nvidia.com/v1');
+            $model = (string) config('services.nvidia_nim.model', 'meta/llama-3.1-70b-instruct');
 
-            Log::debug('Groq build request prepared', [
+            Log::debug('NVIDIA NIM build request prepared', [
                 'api_key_preview' => $this->maskApiKey($apiKey),
                 'api_url' => $apiUrl,
                 'model' => $model,
                 'prompt_length' => strlen($prompt),
             ]);
 
-            $response = Http::timeout(45)
-                ->connectTimeout(15)
+            $response = Http::timeout(120)
+                ->connectTimeout(30)
                 ->acceptJson()
                 ->withHeaders([
                     'Content-Type' => 'application/json; charset=utf-8',
@@ -66,44 +69,39 @@ final class GroqBuildService
 
             if ($response->failed()) {
                 $body = trim($response->body());
-                Log::error('Groq API request failed', [
+                Log::error('NVIDIA NIM API request failed', [
                     'status' => $response->status(),
                     'body' => $body,
                     'api_url' => $apiUrl,
                 ]);
 
                 throw new RuntimeException(sprintf(
-                    'Groq API request failed (%d): %s',
+                    'NVIDIA NIM API request failed (%d): %s',
                     $response->status(),
                     $body !== '' ? $body : 'Empty response body'
                 ));
             }
 
-            // Lấy raw body
             $responseBody = $response->body();
-            
-            Log::debug('Raw response body from Groq', [
+
+            Log::debug('Raw response body from NVIDIA NIM', [
                 'length' => strlen($responseBody),
                 'first_200_bytes' => bin2hex(substr($responseBody, 0, 200)),
                 'first_100_chars' => substr($responseBody, 0, 100),
             ]);
-            
-            // Đảm bảo body là UTF-8
+
             if (!mb_check_encoding($responseBody, 'UTF-8')) {
                 $responseBody = mb_convert_encoding($responseBody, 'UTF-8', 'UTF-8,ISO-8859-1,CP1252');
             }
-            
-            // Cố gắng parse JSON trực tiếp trước
+
             $responseData = @json_decode($responseBody, true, 512, JSON_UNESCAPED_UNICODE);
-            
+
             if ($responseData === null) {
-                // Nếu thất bại, thử convert encoding
                 Log::info('Direct JSON parse failed, trying encoding conversion');
-                
-                // Thử ISO-8859-1 -> UTF-8
+
                 $responseBody = mb_convert_encoding($responseBody, 'UTF-8', 'ISO-8859-1');
                 $responseData = @json_decode($responseBody, true, 512, JSON_UNESCAPED_UNICODE);
-                
+
                 if ($responseData === null) {
                     Log::error('JSON parse still failed after encoding conversion', [
                         'error' => json_last_error_msg(),
@@ -113,25 +111,25 @@ final class GroqBuildService
                     throw new RuntimeException('Failed to parse JSON response: ' . json_last_error_msg());
                 }
             }
-            Log::debug('Groq raw response received', [
+
+            Log::debug('NVIDIA NIM raw response received', [
                 'response_data_keys' => is_array($responseData) ? array_keys($responseData) : null,
                 'has_choices' => is_array($responseData) ? array_key_exists('choices', $responseData) : false,
             ]);
 
             if (!is_array($responseData)) {
-                throw new RuntimeException('Groq API returned invalid JSON response: ' . $response->body());
+                throw new RuntimeException('NVIDIA NIM API returned invalid JSON response: ' . $response->body());
             }
 
             $rawText = (string) data_get($responseData, 'choices.0.message.content', '');
             if ($rawText === '') {
-                Log::error('Groq response missing content', [
+                Log::error('NVIDIA NIM response missing content', [
                     'response' => $responseData,
                     'api_url' => $apiUrl,
                 ]);
-                throw new RuntimeException('Groq API response missing choices[0].message.content. Raw: ' . $response->body());
+                throw new RuntimeException('NVIDIA NIM API response missing choices[0].message.content. Raw: ' . $response->body());
             }
 
-            // Handle encoding issues: if response contains non-UTF8, convert from ISO-8859-1
             if (!mb_check_encoding($rawText, 'UTF-8')) {
                 $rawText = iconv('ISO-8859-1', 'UTF-8//IGNORE', $rawText);
                 Log::info('Converted response from ISO-8859-1 to UTF-8');
@@ -149,8 +147,36 @@ final class GroqBuildService
                 'configuration' => $this->resolveConfigurationFromProducts($decoded),
                 'ai_payload' => $decoded,
             ];
+        } catch (TimeoutException $e) {
+            Log::warning('NVIDIA NIM request timeout', [
+                'message' => $e->getMessage(),
+                'budget' => $budget,
+                'purpose' => $purpose,
+            ]);
+
+            return [
+                'status' => 'timeout',
+                'budget' => $budget,
+                'purpose' => $purpose,
+                'sub_purpose' => $subPurpose,
+                'error' => 'Server AI đang bận xử lý. Vui lòng thử lại sau 1-2 phút.',
+            ];
+        } catch (ConnectException|RequestException $e) {
+            Log::warning('NVIDIA NIM connection error', [
+                'message' => $e->getMessage(),
+                'budget' => $budget,
+                'purpose' => $purpose,
+            ]);
+
+            return [
+                'status' => 'unavailable',
+                'budget' => $budget,
+                'purpose' => $purpose,
+                'sub_purpose' => $subPurpose,
+                'error' => 'Không thể kết nối tới server AI. Vui lòng thử lại sau.',
+            ];
         } catch (\Throwable $e) {
-            Log::error('Groq build failed', [
+            Log::error('NVIDIA NIM build failed', [
                 'message' => $e->getMessage(),
                 'budget' => $budget,
                 'purpose' => $purpose,
@@ -159,7 +185,329 @@ final class GroqBuildService
                 'exception_class' => get_class($e),
             ]);
 
-            throw $e;
+            return [
+                'status' => 'error',
+                'budget' => $budget,
+                'purpose' => $purpose,
+                'sub_purpose' => $subPurpose,
+                'error' => 'Có lỗi xảy ra trong quá trình xử lý. Vui lòng thử lại sau.',
+            ];
+        }
+    }
+
+    private function maskApiKey(string $apiKey): string
+    {
+        $length = strlen($apiKey);
+        if ($length <= 8) {
+            return str_repeat('*', max($length, 4));
+        }
+
+        return substr($apiKey, 0, 4) . str_repeat('*', max(0, $length - 8)) . substr($apiKey, -4);
+    }
+
+    private function ensureUtf8(?string $text): ?string
+    {
+        if ($text === null) {
+            return null;
+        }
+
+        if (!mb_check_encoding($text, 'UTF-8')) {
+            $text = @iconv('ISO-8859-1', 'UTF-8//IGNORE', $text);
+            if ($text === false) {
+                $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8,ISO-8859-1,CP1252');
+            }
+        }
+
+        return $text;
+    }
+
+    /** @return array<string, array<int, Product>> */
+    private function loadProductPool(): array
+    {
+        $pool = [];
+        $categoryKeys = ['cpu', 'mainboard', 'ram', 'vga', 'ssd', 'psu', 'case'];
+
+        foreach ($categoryKeys as $key) {
+            $names = match ($key) {
+                'cpu' => ['CPU', 'Processor'],
+                'mainboard' => ['Mainboard', 'Motherboard'],
+                'ram' => ['RAM', 'Memory'],
+                'vga' => ['VGA', 'Graphics Card', 'GPU'],
+                'ssd' => ['SSD', 'Storage'],
+                'psu' => ['PSU', 'Power Supply'],
+                'case' => ['Case', 'Chassis'],
+                default => [],
+            };
+
+            $categoryIds = Category::query()->where('name', $names)->orWhere(function ($query) use ($names): void {
+                foreach ($names as $name) {
+                    $query->orWhere('slug', 'like', '%' . str($name)->slug() . '%');
+                }
+            })->pluck('id');
+
+            $products = Product::query()
+                ->with('category')
+                ->whereIn('category_id', $categoryIds)
+                ->where('stock_quantity', '>', 0)
+                ->orderBy('price')
+                ->get()
+                ->values()
+                ->all();
+
+            $pool[$key] = $products;
+        }
+
+        return $pool;
+    }
+
+    private function buildPrompt(int $budget, string $purpose, ?string $subPurpose, array $products): string
+    {
+        $purposeLabel = match ($purpose) {
+            'hoc_tap' => 'Learning/Education',
+            'lam_viec' => 'Work/Office',
+            'gaming' => 'Gaming',
+            default => $purpose,
+        };
+
+        $subPurposeLabel = match ($subPurpose) {
+            'lam_viec_van_phong' => 'Basic office work',
+            'dung_video_do_hoa' => 'Video editing / Graphic design',
+            'esports_co_ban' => 'Basic esports games',
+            'aaa_do_hoa_nang' => 'AAA games / Heavy graphics',
+            default => 'Not applicable',
+        };
+
+        $context = '';
+        foreach ($products as $categoryKey => $items) {
+            $context .= strtoupper($categoryKey) . "\n";
+            foreach ($items as $product) {
+                $price = (int) round((float) $product->price);
+                $context .= sprintf(
+                    "- ID: %d | NAME: %s | PRICE: %d | STOCK: %d | DESC: %s\n",
+                    $product->id,
+                    $product->name,
+                    $price,
+                    $product->stock_quantity,
+                    $this->ensureUtf8($product->description) ?? ''
+                );
+            }
+            $context .= "\n";
+        }
+
+        return <<<PROMPT
+Bạn là chuyên gia tư vấn cấu hình PC của TechGear.
+
+Ngân sách: {$budget}
+Mục đích: {$purposeLabel}
+Mục đích phụ: {$subPurposeLabel}
+
+Dữ liệu linh kiện:
+{$context}
+
+Hãy trả về JSON hợp lệ với các trường: summary, total_price, notes, items.
+PROMPT;
+    }
+
+    private function decodeAiPayload(string $rawText): array
+    {
+        $decoded = json_decode($rawText, true);
+
+        if (!is_array($decoded)) {
+            throw new RuntimeException('JSON parse error: ' . json_last_error_msg());
+        }
+
+        return $decoded;
+    }
+
+    private function resolveConfigurationFromProducts(array $decoded): array
+    {
+        return [
+            'summary' => (string) ($decoded['summary'] ?? ''),
+            'total_price' => (int) ($decoded['total_price'] ?? 0),
+            'notes' => array_values($decoded['notes'] ?? []),
+            'items' => array_values($decoded['items'] ?? []),
+        ];
+    }
+}
+
+final class NvidiaNimBuildService
+{
+    /**
+     * @var array<string, array<int, Product>>
+     */
+    private array $productPool = [];
+
+    private ProductService $productService;
+
+    public function __construct(ProductService $productService)
+    {
+        $this->productService = $productService;
+    }
+
+    public function buildConfiguration(int $budget, string $purpose, ?string $subPurpose = null): array
+    {
+        $this->productPool = $this->loadProductPool();
+        $prompt = $this->buildPrompt($budget, $purpose, $subPurpose, $this->productPool);
+
+        try {
+            $apiKey = (string) config('services.nvidia_nim.api_key');
+            if ($apiKey === '') {
+                throw new RuntimeException('NVIDIA_NIM_API_KEY is missing.');
+            }
+
+            $apiUrl = (string) config('services.nvidia_nim.base_url', 'https://integrate.api.nvidia.com/v1');
+            $model = (string) config('services.nvidia_nim.model', 'meta/llama-3.1-70b-instruct');
+
+            Log::debug('NVIDIA NIM build request prepared', [
+                'api_key_preview' => $this->maskApiKey($apiKey),
+                'api_url' => $apiUrl,
+                'model' => $model,
+                'prompt_length' => strlen($prompt),
+            ]);
+
+            $response = Http::timeout(120)
+                ->connectTimeout(30)
+                ->acceptJson()
+                ->withHeaders([
+                    'Content-Type' => 'application/json; charset=utf-8',
+                    'Authorization' => 'Bearer ' . $apiKey,
+                ])
+                ->post($apiUrl . '/chat/completions', [
+                    'model' => $model,
+                    'messages' => [
+                        [
+                            'role' => 'user',
+                            'content' => $prompt,
+                        ],
+                    ],
+                    'temperature' => 0.4,
+                    'max_tokens' => 2048,
+                ]);
+
+            if ($response->failed()) {
+                $body = trim($response->body());
+                Log::error('NVIDIA NIM API request failed', [
+                    'status' => $response->status(),
+                    'body' => $body,
+                    'api_url' => $apiUrl,
+                ]);
+
+                throw new RuntimeException(sprintf(
+                    'NVIDIA NIM API request failed (%d): %s',
+                    $response->status(),
+                    $body !== '' ? $body : 'Empty response body'
+                ));
+            }
+
+            $responseBody = $response->body();
+
+            Log::debug('Raw response body from NVIDIA NIM', [
+                'length' => strlen($responseBody),
+                'first_200_bytes' => bin2hex(substr($responseBody, 0, 200)),
+                'first_100_chars' => substr($responseBody, 0, 100),
+            ]);
+
+            if (!mb_check_encoding($responseBody, 'UTF-8')) {
+                $responseBody = mb_convert_encoding($responseBody, 'UTF-8', 'UTF-8,ISO-8859-1,CP1252');
+            }
+
+            $responseData = @json_decode($responseBody, true, 512, JSON_UNESCAPED_UNICODE);
+
+            if ($responseData === null) {
+                Log::info('Direct JSON parse failed, trying encoding conversion');
+
+                $responseBody = mb_convert_encoding($responseBody, 'UTF-8', 'ISO-8859-1');
+                $responseData = @json_decode($responseBody, true, 512, JSON_UNESCAPED_UNICODE);
+
+                if ($responseData === null) {
+                    Log::error('JSON parse still failed after encoding conversion', [
+                        'error' => json_last_error_msg(),
+                        'error_code' => json_last_error(),
+                        'body_hex' => bin2hex(substr($responseBody, 0, 200)),
+                    ]);
+                    throw new RuntimeException('Failed to parse JSON response: ' . json_last_error_msg());
+                }
+            }
+            Log::debug('NVIDIA NIM raw response received', [
+                'response_data_keys' => is_array($responseData) ? array_keys($responseData) : null,
+                'has_choices' => is_array($responseData) ? array_key_exists('choices', $responseData) : false,
+            ]);
+
+            if (!is_array($responseData)) {
+                throw new RuntimeException('NVIDIA NIM API returned invalid JSON response: ' . $response->body());
+            }
+
+            $rawText = (string) data_get($responseData, 'choices.0.message.content', '');
+            if ($rawText === '') {
+                Log::error('NVIDIA NIM response missing content', [
+                    'response' => $responseData,
+                    'api_url' => $apiUrl,
+                ]);
+                throw new RuntimeException('NVIDIA NIM API response missing choices[0].message.content. Raw: ' . $response->body());
+            }
+
+            if (!mb_check_encoding($rawText, 'UTF-8')) {
+                $rawText = iconv('ISO-8859-1', 'UTF-8//IGNORE', $rawText);
+                Log::info('Converted response from ISO-8859-1 to UTF-8');
+            }
+
+            $decoded = $this->decodeAiPayload($rawText);
+
+            return [
+                'status' => 'success',
+                'budget' => $budget,
+                'purpose' => $purpose,
+                'sub_purpose' => $subPurpose,
+                'prompt' => $prompt,
+                'raw_response' => $rawText,
+                'configuration' => $this->resolveConfigurationFromProducts($decoded),
+                'ai_payload' => $decoded,
+            ];
+        } catch (TimeoutException $e) {
+            Log::warning('NVIDIA NIM request timeout', [
+                'message' => $e->getMessage(),
+                'budget' => $budget,
+                'purpose' => $purpose,
+            ]);
+
+            return [
+                'status' => 'timeout',
+                'budget' => $budget,
+                'purpose' => $purpose,
+                'sub_purpose' => $subPurpose,
+                'error' => 'Server AI đang bận xử lý. Vui lòng thử lại sau 1-2 phút.',
+            ];
+        } catch (ConnectException|RequestException $e) {
+            Log::warning('NVIDIA NIM connection error', [
+                'message' => $e->getMessage(),
+                'budget' => $budget,
+                'purpose' => $purpose,
+            ]);
+
+            return [
+                'status' => 'unavailable',
+                'budget' => $budget,
+                'purpose' => $purpose,
+                'sub_purpose' => $subPurpose,
+                'error' => 'Không thể kết nối tới server AI. Vui lòng thử lại sau.',
+            ];
+        } catch (\Throwable $e) {
+            Log::error('NVIDIA NIM build failed', [
+                'message' => $e->getMessage(),
+                'budget' => $budget,
+                'purpose' => $purpose,
+                'sub_purpose' => $subPurpose,
+                'prompt' => $prompt,
+                'exception_class' => get_class($e),
+            ]);
+
+            return [
+                'status' => 'error',
+                'budget' => $budget,
+                'purpose' => $purpose,
+                'sub_purpose' => $subPurpose,
+                'error' => 'Có lỗi xảy ra trong quá trình xử lý. Vui lòng thử lại sau.',
+            ];
         }
     }
 
