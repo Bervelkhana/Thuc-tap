@@ -49,7 +49,7 @@ final class AiBuilderController extends Controller
             $errorMessage = $result['error'] ?? 'Có lỗi xảy ra. Vui lòng thử lại sau.';
 
             if ($request->expectsJson()) {
-                return $this->successResponse([
+                return response()->json([
                     'success' => false,
                     'error' => $errorMessage,
                     'status' => $result['status'],
@@ -71,7 +71,7 @@ final class AiBuilderController extends Controller
         Session::put('ai_build_input', $payload['input']);
 
         if ($request->expectsJson()) {
-            return $this->successResponse($payload);
+            return $this->successResponse($payload, 'Tạo cấu hình thành công');
         }
 
         return redirect()->route('ai-build.result');
@@ -80,15 +80,61 @@ final class AiBuilderController extends Controller
     private function normalizeAiResult(array $result): array
     {
         $configuration = $result['configuration'] ?? [];
-        $items = array_values($configuration['items'] ?? []);
+        $items = $configuration['items'] ?? [];
+
+        // Map items array to object with category keys (cpu, mainboard, ram, etc)
+        // This matches what Frontend expects
+        $itemsByCategory = [
+            'cpu' => null,
+            'mainboard' => null,
+            'ram' => null,
+            'vga' => null,
+            'ssd' => null,
+            'psu' => null,
+            'case' => null,
+        ];
+
+        // Populate the categories from items array
+        foreach ($items as $item) {
+            if (isset($item['category'])) {
+                $category = strtolower($item['category']);
+                $itemsByCategory[$category] = [
+                    'id' => $item['id'] ?? null,
+                    'name' => $item['name'] ?? 'Không có dữ liệu',
+                    'price' => (int) ($item['price'] ?? 0),
+                    'category' => $item['category'] ?? '',
+                ];
+            }
+        }
+
+        // Calculate total price from individual items
+        $totalPrice = 0;
+        foreach ($items as $item) {
+            $totalPrice += (int) ($item['price'] ?? 0);
+        }
+
+        // Format items for display (alternative structure)
+        $formattedItems = array_filter(array_map(function ($cat) use ($itemsByCategory) {
+            return $itemsByCategory[$cat];
+        }, ['cpu', 'mainboard', 'ram', 'vga', 'ssd', 'psu', 'case']));
 
         return [
             'status' => $result['status'] ?? 'success',
-            'summary' => (string) ($configuration['summary'] ?? $result['summary'] ?? ''),
-            'total_price' => (int) ($configuration['total_price'] ?? $result['total_price'] ?? 0),
-            'notes' => array_values($configuration['notes'] ?? $result['notes'] ?? []),
+            'summary' => (string) ($configuration['summary'] ?? $configuration['ai_advice'] ?? 'Cấu hình được đề xuất'),
+            'total_price' => $totalPrice,
+            'notes' => is_array($configuration['notes'] ?? null) ? $configuration['notes'] : [],
+            'ai_advice' => (string) ($configuration['ai_advice'] ?? ''),
+            // Legacy structure for backward compatibility
             'configuration' => [
-                'items' => $items,
+                'items' => $formattedItems,
+                // Also include category-keyed structure
+                'cpu' => $itemsByCategory['cpu'],
+                'mainboard' => $itemsByCategory['mainboard'],
+                'ram' => $itemsByCategory['ram'],
+                'vga' => $itemsByCategory['vga'],
+                'ssd' => $itemsByCategory['ssd'],
+                'psu' => $itemsByCategory['psu'],
+                'case' => $itemsByCategory['case'],
             ],
             'raw_response' => $result['raw_response'] ?? null,
             'ai_payload' => $result['ai_payload'] ?? null,

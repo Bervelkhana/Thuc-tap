@@ -151,21 +151,23 @@
             const renderResult = (data) => {
                 if (!resultBox) return
 
-                const items = Array.isArray(data.configuration?.items) ? data.configuration.items : []
-                const itemMap = items.reduce((acc, item) => {
-                    acc[String(item.category || '').toLowerCase()] = item
-                    return acc
-                }, {})
-
-                const cpu = itemMap.cpu
-                const mainboard = itemMap.mainboard
-                const ram = itemMap.ram
-                const vga = itemMap.vga
-                const ssd = itemMap.ssd
-                const psu = itemMap.psu
-                const pcCase = itemMap.case
-                const totalPrice = Number(data.configuration?.items?.reduce?.((sum, item) => sum + Number(item.price || 0), 0) || data.total_price || 0)
+                // Handle response structure: data.configuration contains cpu, mainboard, ram, vga, ssd, psu, case
+                const config = data.configuration || {}
+                
+                const cpu = config.cpu && config.cpu.id ? config.cpu : null
+                const mainboard = config.mainboard && config.mainboard.id ? config.mainboard : null
+                const ram = config.ram && config.ram.id ? config.ram : null
+                const vga = config.vga && config.vga.id ? config.vga : null
+                const ssd = config.ssd && config.ssd.id ? config.ssd : null
+                const psu = config.psu && config.psu.id ? config.psu : null
+                const pcCase = config.case && config.case.id ? config.case : null
+                
+                // Total price from response
+                const totalPrice = Number(data.total_price || 0)
+                
+                // Notes/advice from response
                 const notes = Array.isArray(data.notes) && data.notes.length > 0 ? data.notes : []
+                const advice = data.ai_advice || data.summary || 'Cấu hình đã được tối ưu theo ngân sách và nhu cầu.'
 
                 const row = (icon, label, value) => `
                     <div class="flex items-start gap-3 rounded-2xl border border-gray-200 bg-white p-4">
@@ -179,7 +181,7 @@
 
                 const formatVnd = (value) => Number(value || 0).toLocaleString('vi-VN') + ' VNĐ'
                 const ramText = ram
-                    ? `${ram.name || 'RAM'}${ram.reason ? ` · ${ram.reason}` : ''}`
+                    ? `${ram.name || 'RAM'}`
                     : 'Không có dữ liệu'
 
                 resultBox.className = 'mt-6 space-y-4'
@@ -213,7 +215,7 @@
                         </div>
                         <div class="mt-3 rounded-xl bg-gray-50 p-4 text-sm text-gray-700">
                             <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-400">💡 Lời khuyên từ chuyên gia</div>
-                            <div class="mt-2 leading-relaxed">${notes.length ? notes.join('<br>') : (data.summary || 'Cấu hình đã được tối ưu theo ngân sách và nhu cầu.')}</div>
+                            <div class="mt-2 leading-relaxed">${notes.length ? notes.join('<br>') : advice}</div>
                         </div>
                     </div>
                 `
@@ -249,7 +251,9 @@
                         throw new Error(data?.error || data?.message || 'Có lỗi xảy ra.')
                     }
 
-                    renderResult(data)
+                    // Extract the actual data from response wrapper
+                    const actualData = data.data || data
+                    renderResult(actualData)
                 } catch (error) {
                     if (resultBox) {
                         resultBox.className = 'mt-6 rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-700'

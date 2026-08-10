@@ -29,7 +29,7 @@ class ChatController extends Controller
                 $validated['history'] ?? []
             );
 
-            return $this->successResponse($result, 200);
+            return response()->json($result, 200);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return $this->errorResponse('Dữ liệu đầu vào không hợp lệ.', 422, $e->errors());
         } catch (\Throwable $e) {
@@ -38,7 +38,7 @@ class ChatController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return $this->successResponse([
+            return response()->json([
                 'success' => false,
                 'reply' => 'Có lỗi xảy ra. Vui lòng thử lại sau.',
             ], 200);
