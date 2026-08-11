@@ -4,7 +4,8 @@
     "scripts": {
         "dev": "vite",
         "build": "vite build",
-        "serve": "php artisan serve --port=8001"
+        "serve": "php artisan serve --host=127.0.0.1 --port=8000",
+        "dev:all": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\run-dev.ps1"
     },
     "devDependencies": {
         "@vitejs/plugin-vue": "^4.6.2",

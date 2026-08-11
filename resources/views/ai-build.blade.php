@@ -31,7 +31,6 @@
                                 <label class="mb-2 block text-sm font-medium text-gray-700">Ngân sách</label>
                                 <select name="budget" class="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black">
                                     <option value="">Chọn mức ngân sách</option>
-                                    <option value="8000000">Dưới 10 triệu</option>
                                     <option value="15000000">10 - 20 triệu</option>
                                     <option value="25000000">20 - 30 triệu</option>
                                     <option value="40000000">Trên 30 triệu</option>
@@ -40,13 +39,9 @@
 
                             <div>
                                 <label class="mb-2 block text-sm font-medium text-gray-700">Mục đích sử dụng chính</label>
-                                <div class="grid gap-3 sm:grid-cols-3">
+                                <div class="grid gap-3 sm:grid-cols-2">
                                     <label class="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition has-[:checked]:border-black has-[:checked]:bg-gray-50">
-                                        <input type="radio" name="purpose" value="hoc_tap" class="h-4 w-4" x-model="purpose">
-                                        <span class="text-sm font-medium">Học tập</span>
-                                    </label>
-                                    <label class="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition has-[:checked]:border-black has-[:checked]:bg-gray-50">
-                                        <input type="radio" name="purpose" value="lam_viec" class="h-4 w-4" x-model="purpose">
+                                        <input type="radio" name="purpose" value="lam_viec" class="h-4 w-4" x-model="purpose" checked>
                                         <span class="text-sm font-medium">Làm việc</span>
                                     </label>
                                     <label class="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition has-[:checked]:border-black has-[:checked]:bg-gray-50">

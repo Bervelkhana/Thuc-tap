@@ -111,7 +111,7 @@ final class NvidiaNimBuildService
             // Tính khoảng ngân sách để truyền vào prompt
             $budgetRange = $this->analyzeBudgetRange($budget);
 
-            $systemPrompt = $this->buildSystemPrompt($budgetRange);
+            $systemPrompt = $this->buildSystemPrompt($purpose, $subPurpose, $budgetRange);
             $userPrompt = $this->buildUserPrompt($budget, $purpose, $subPurpose, $productContextData, $budgetRange);
 
             Log::debug('NVIDIA NIM build request prepared', [
@@ -229,26 +229,44 @@ final class NvidiaNimBuildService
                 $productContextData
             );
 
-            // ========== CHỐT CHẶN: Validate Mandatory Components ==========
-            $finalConfiguration = $this->validateAndFillMandatoryComponents(
-                $finalConfiguration,
-                $productContextData,
-                $budget
-            );
+        // ========== CHỐT CHẶN: Validate Mandatory Components ==========
+        $finalConfiguration = $this->validateAndFillMandatoryComponents(
+            $finalConfiguration,
+            $productContextData,
+            $budget
+        );
 
-            Log::info('FINAL_CONFIGURATION_AFTER_ALL_VALIDATION', [
-                'total_price' => $finalConfiguration['total_price'],
-                'items_count' => count($finalConfiguration['items']),
-                'is_valid_price' => $finalConfiguration['total_price'] <= $hardMaxBudget,
-                'has_ssd' => !empty($finalConfiguration['ssd']['id']),
-            ]);
+        Log::info('FINAL_CONFIGURATION_AFTER_ALL_VALIDATION', [
+            'total_price' => $finalConfiguration['total_price'],
+            'items_count' => count($finalConfiguration['items']),
+            'is_valid_price' => $finalConfiguration['total_price'] <= $hardMaxBudget,
+            'has_ssd' => !empty($finalConfiguration['ssd']['id']),
+        ]);
 
-            // ========== FINAL GUARDRAIL: Kiểm tra + Bù đắp + Downgrade ==========
-            $finalConfiguration = $this->finalizeConfigurationWithGuardrails(
-                $finalConfiguration,
-                $purpose,
-                $subPurpose
-            );
+        // ========== CHỐT CHẶN: Kiểm tra 1M Tolerance & Downgrade ==========
+        $finalConfiguration = $this->enforceStrictBudgetTolerance(
+            $finalConfiguration,
+            $budget,
+            $purpose,
+            $subPurpose,
+            $productContextData
+        );
+
+        // ========== FINAL GUARDRAIL: Kiểm tra + Bù đắp + Downgrade ==========
+        $finalConfiguration = $this->finalizeConfigurationWithGuardrails(
+            $finalConfiguration,
+            $purpose,
+            $subPurpose
+        );
+
+        // ========== FINAL MANDATORY: Bắt buộc RAM, SSD, VGA (nếu cần) ==========
+        $finalConfiguration = $this->finalMandatoryComponentCheck(
+            $finalConfiguration,
+            $budget,
+            $purpose,
+            $subPurpose,
+            $productContextData
+        );
 
             Log::info('CONFIGURATION_READY_FOR_FRONTEND', [
                 'total_price' => $finalConfiguration['total_price'],
@@ -332,7 +350,7 @@ final class NvidiaNimBuildService
         $budgetRange = $this->analyzeBudgetRange($budget);
         $minPrice = $budgetRange['min'];
         $maxPrice = $budgetRange['max'];
-        $tolerance = $budgetRange['tolerance'] ?? 2000000;
+        $tolerance = $budgetRange['tolerance'] ?? 1000000;
         $hardMaxPrice = $maxPrice + $tolerance;
         $maxAllowedPrice = $budgetRange['max_allowed'] ?? $hardMaxPrice;
         
@@ -371,82 +389,9 @@ final class NvidiaNimBuildService
                 })
                 ->pluck('id');
 
-            // ========== LỚP 2: Lọc kho hàng theo Sub-Purpose + Tier-Matching ==========
-            
+            // ========== BASE QUERY: Query sản phẩm từ DB ==========
             $categoryMinPrice = max(0, $minPrice * 0.1);
-            $categoryMaxPrice = $maxAllowedPrice * 0.4;
-            $excludeKeywords = [];
-            $maxStorageCapacity = 500;  // Default 500GB
-
-            // Storage Tier: Giới hạn dung lượng SSD theo budget
-            if ($key === 'ssd') {
-                if ($budget < 20000000) {
-                    // Dưới 20M: Max 1TB
-                    $maxStorageCapacity = 1000;
-                    $excludeKeywords = ['2TB', '4TB', '8TB'];
-                } elseif ($budget < 30000000) {
-                    // 20-30M: Max 1TB
-                    $maxStorageCapacity = 1000;
-                    $excludeKeywords = ['2TB', '4TB', '8TB'];
-                } else {
-                    // Trên 30M: Cho phép 2TB
-                    $maxStorageCapacity = 2000;
-                }
-                Log::info("STORAGE_TIER_LIMIT", ['budget' => $budget, 'max_capacity_gb' => $maxStorageCapacity]);
-            }
-
-            // Làm việc văn phòng: Không card rời, RAM DDR5, Mainboard Z/X, Storage 1TB max
-            if ($subPurpose === 'lam_viec_van_phong') {
-                if ($key === 'vga') {
-                    $context[$key] = [];
-                    Log::info("SKIPPED_VGA_FOR_OFFICE", ['sub_purpose' => $subPurpose]);
-                    continue;
-                }
-                
-                $categoryMaxPrice = min($categoryMaxPrice, $maxAllowedPrice * 0.2);
-                if ($key === 'ssd') {
-                    $maxStorageCapacity = 500;  // Office: Max 500GB
-                    $excludeKeywords = ['2TB', '4TB', '8TB', '1TB'];
-                } else {
-                    $excludeKeywords = match ($key) {
-                        'mainboard' => ['Z790', 'Z890', 'X870', 'X670', 'ROG', 'MEG'],
-                        'ram' => ['DDR5', '64GB', '48GB', '32GB'],
-                        'psu' => ['750W', '850W', '1000W', '1200W', '1600W', '2000W', 'Platinum', 'Gold'],  // Only 400-500W
-                        'cpu' => ['Ryzen 9', 'Core i9', 'Core i7', 'Ryzen 7'],
-                        default => [],
-                    };
-                }
-            }
-
-            // Esports: Giới hạn VGA ở tầm trung, SSD max 1TB
-            if ($subPurpose === 'esports_co_ban') {
-                if ($key === 'vga') {
-                    $categoryMaxPrice = min($categoryMaxPrice, $maxAllowedPrice * 0.25);
-                    $excludeKeywords = ['RTX 4090', 'RTX 4080', 'RTX 4070', 'RTX 40', 'RTX 39'];
-                } elseif ($key === 'ssd') {
-                    $maxStorageCapacity = 1000;
-                    $excludeKeywords = ['2TB', '4TB', '8TB'];
-                } else {
-                    $excludeKeywords = ['RTX 4090', 'RTX 4080', 'Core i9', 'Ryzen 9'];
-                }
-            }
-
-            // Học tập: Loại card đồ họa đắt, mainboard high-end, SSD max 500GB
-            if ($purpose === 'hoc_tap') {
-                if ($key === 'vga') {
-                    $categoryMaxPrice = min($categoryMaxPrice, $hardMaxPrice * 0.25);
-                }
-                if ($key === 'ssd') {
-                    $maxStorageCapacity = 500;
-                    $excludeKeywords = array_merge($excludeKeywords, ['2TB', '4TB', '8TB', '1TB']);
-                } else {
-                    $excludeKeywords = array_merge($excludeKeywords, ['RTX 40', 'RTX 39', 'RTX 4090', 'RTX 4080', 'Ryzen 9', 'Core i9', 'Z790', 'Z890']);
-                }
-            }
-
-            if ($key === 'vga' && $subPurpose === 'lam_viec_van_phong') {
-                continue;
-            }
+            $categoryMaxPrice = $maxAllowedPrice * 0.5;
 
             $query = Product::query()
                 ->whereIn('category_id', $categoryIds)
@@ -454,52 +399,9 @@ final class NvidiaNimBuildService
                 ->where('price', '>=', $categoryMinPrice)
                 ->where('price', '<=', $categoryMaxPrice);
 
-            // Filter storage capacity by tier
-            if ($key === 'ssd' && $maxStorageCapacity > 0) {
-                // Exclude large storage if budget tier is low
-                if ($budget < 30000000) {
-                    $query->where('name', 'not like', '%2TB%')
-                          ->where('name', 'not like', '%4TB%')
-                          ->where('name', 'not like', '%8TB%');
-                }
-            }
-
-            // ========== PSU SIZING RULE: Filter theo VGA tier ==========
-            if ($key === 'psu') {
-                // PSU Tier 1: No VGA (iGPU only) - max 500W
-                if ($subPurpose === 'lam_viec_van_phong' || $purpose === 'hoc_tap') {
-                    // Office/Learning: No VGA, only 400-500W
-                    $query->where('name', 'not like', '%750W%')
-                          ->where('name', 'not like', '%850W%')
-                          ->where('name', 'not like', '%1000W%')
-                          ->where('name', 'not like', '%1200W%')
-                          ->where('name', 'not like', '%1600W%')
-                          ->where('name', 'not like', '%2000W%')
-                          ->where('name', 'not like', '%Platinum%')
-                          ->where('name', 'not like', '%Gold%');
-                    Log::info("PSU_FILTERED_FOR_NO_VGA", ['sub_purpose' => $subPurpose, 'purpose' => $purpose]);
-                }
-                // PSU Tier 2: Esports (Entry VGA) - 550-650W
-                elseif ($subPurpose === 'esports_co_ban') {
-                    $query->where('name', 'not like', '%1000W%')
-                          ->where('name', 'not like', '%1200W%')
-                          ->where('name', 'not like', '%1600W%')
-                          ->where('name', 'not like', '%2000W%');
-                    Log::info("PSU_FILTERED_FOR_ESPORTS", ['psu_max' => '650W']);
-                }
-                // PSU Tier 3: Gaming (Mid-High VGA) - 750W+
-                // (No extra filtering, allow all)
-            }
-
-            if (!empty($excludeKeywords)) {
-                foreach ($excludeKeywords as $keyword) {
-                    $query->where('name', 'not like', '%' . $keyword . '%');
-                }
-            }
-
-            $products = $query
+            $rawProducts = $query
                 ->orderBy('price', 'desc')
-                ->limit(25)
+                ->limit(50)
                 ->get(['id', 'name', 'price', 'category_id'])
                 ->map(function (Product $product) {
                     return [
@@ -510,21 +412,27 @@ final class NvidiaNimBuildService
                 })
                 ->toArray();
 
-            $context[$key] = $products;
-            
-            Log::info("PRODUCTS_FILTERED_FOR_CATEGORY", [
+            // ========== SMART FILTER: Lọc sạch dữ liệu không phù hợp ==========
+            $filteredProducts = SmartProductFilter::filterProductsByBudgetAndPurpose(
+                $rawProducts,
+                $budget,
+                $purpose,
+                $subPurpose,
+                $key
+            );
+
+            $context[$key] = !empty($filteredProducts) ? $filteredProducts : [];
+
+            Log::info("PRODUCTS_FILTERED_FOR_{$key}", [
                 'category' => $key,
-                'sub_purpose' => $subPurpose,
+                'purpose' => $purpose,
                 'budget' => $budget,
-                'category_min_price' => $categoryMinPrice,
-                'category_max_price' => $categoryMaxPrice,
-                'max_storage_capacity_gb' => ($key === 'ssd') ? $maxStorageCapacity : null,
-                'products_count' => count($products),
-                'excluded_keywords' => !empty($excludeKeywords) ? $excludeKeywords : null,
-                'price_range' => count($products) > 0 ? [
-                    'min' => min(array_column($products, 'price')),
-                    'max' => max(array_column($products, 'price')),
-                ] : 'N/A',
+                'raw_count' => count($rawProducts),
+                'filtered_count' => count($filteredProducts),
+                'price_range' => [
+                    'min' => $categoryMinPrice,
+                    'max' => $categoryMaxPrice,
+                ],
             ]);
         }
 
@@ -536,39 +444,26 @@ final class NvidiaNimBuildService
      */
     private function getMaxAllowedPrice(int $budget): int
     {
-        if ($budget <= 8000000) {
-            return 11000000;  // Dưới 10M → Max 11M
-        } elseif ($budget <= 15000000) {
-            return 22000000;  // 10-20M → Max 22M
+        if ($budget <= 15000000) {
+            return 21000000;  // 10-20M → Max 21M (20M + 1M tolerance)
         } elseif ($budget <= 25000000) {
-            return 33000000;  // 20-30M → Max 33M
+            return 31000000;  // 20-30M → Max 31M (30M + 1M tolerance)
         } else {
-            return 999000000; // Trên 30M → Không giới hạn
+            return 999000000; // Trên 30M → Không giới hạn (tùy ngân sách)
         }
     }
 
     private function analyzeBudgetRange(int $budget): array
     {
-        // Xác định chính xác Min/Max theo khoảng budget user chọn
-        // Cho phép dung sai vượt tối đa 2,000,000 VNĐ cho cận trên
-        
+        // Quy tắc mới: Dung sai tối đa 1,000,000 VNĐ
         $maxAllowed = $this->getMaxAllowedPrice($budget);
         
-        if ($budget <= 8000000) {
-            return [
-                'name' => 'Dưới 10 triệu',
-                'min' => 0,
-                'max' => 10000000,
-                'tolerance' => 2000000,
-                'max_allowed' => $maxAllowed,
-                'target' => 8000000,
-            ];
-        } elseif ($budget <= 15000000) {
+        if ($budget <= 15000000) {
             return [
                 'name' => '10-20 triệu',
                 'min' => 10000000,
                 'max' => 20000000,
-                'tolerance' => 2000000,
+                'tolerance' => 1000000,  // 1M tolerance
                 'max_allowed' => $maxAllowed,
                 'target' => 18000000,
             ];
@@ -577,7 +472,7 @@ final class NvidiaNimBuildService
                 'name' => '20-30 triệu',
                 'min' => 20000000,
                 'max' => 30000000,
-                'tolerance' => 2000000,
+                'tolerance' => 1000000,  // 1M tolerance
                 'max_allowed' => $maxAllowed,
                 'target' => 27000000,
             ];
@@ -593,92 +488,427 @@ final class NvidiaNimBuildService
         }
     }
 
-    private function buildSystemPrompt(array $budgetRange = []): string
+    private function buildSystemPrompt(string $purpose, ?string $subPurpose, array $budgetRange = []): string
     {
         $min = $budgetRange['min'] ?? 0;
         $max = $budgetRange['max'] ?? 0;
-        $tolerance = $budgetRange['tolerance'] ?? 2000000;
+        $tolerance = $budgetRange['tolerance'] ?? 1000000;
         $hardMax = $max + $tolerance;
         $name = $budgetRange['name'] ?? 'không xác định';
+
+        // Get rule for this purpose + subpurpose + budget
+        $specs = PcBuildRuleConfig::getSpecsRule($purpose, $subPurpose, (int)$max);
+
+        $purposeLabel = match ($purpose) {
+            'lam_viec' => 'Làm việc chuyên nghiệp',
+            'gaming' => 'Gaming',
+            default => $purpose,
+        };
+
+        $subPurposeLabel = match ($subPurpose) {
+            'lam_viec_van_phong' => 'Văn phòng cơ bản',
+            'dung_video_do_hoa' => 'Dựng video / Đồ họa',
+            'esports_co_ban' => 'Esports cơ bản',
+            'aaa_do_hoa_nang' => 'Game AAA / Đồ họa nặng',
+            default => '',
+        };
+
+        $ramSpec = "RAM {$specs['ram_min_gb']}GB - {$specs['ram_max_gb']}GB";
+        $vgaSpec = $specs['vga_required'] ? "VGA ({$specs['vga_tier']} tier)" : "VGA tùy chọn";
+        $cpuSpec = "CPU ({$specs['cpu_tier']} tier)";
+        $ssdSpec = "SSD {$specs['ssd_min_gb']}GB - {$specs['ssd_max_gb']}GB";
 
         return <<<PROMPT
 Bạn là chuyên gia tư vấn xây dựng cấu hình PC cho TechGear.
 
-NGÂN SÁCH KHÁCH HÀNG (CỨNG):
+NGÂN SÁCH KHÁCH HÀNG:
+- Mục đích: {$purposeLabel} {$subPurposeLabel}
 - Phân khúc: {$name}
 - Khoảng ngân sách: từ {$min} VNĐ đến {$max} VNĐ
 - HARD LIMIT (tối đa cho phép): {$hardMax} VNĐ
+- ⚠️ TUYỆT ĐỐI: Không được vượt quá {$hardMax} VNĐ
 
-QUY TẮC TƯƠNG THÍCH PHẦN CỨNG (BẮTBUỘC):
+QUY TẮC CHUYÊN BIỆT CHO MỤC ĐÍCH & NGÂN SÁCH:
 
-1. CPU & MAINBOARD PHẢI PHỐI HỢP ĐÚNG TIER:
-   - CPU budget tier (i3, Ryzen 3): CHỈ dùng Mainboard dòng H/B/A (phổ thông/tầm trung)
-     ❌ TUYỆT ĐỐI CẤMGHÉP i3 với Mainboard Z790, X870, Z890
-   - CPU mainstream tier (i5, Ryzen 5): dùng Mainboard H/B dòng phổ thông
-   - CPU high tier (i7, Ryzen 7): dùng Mainboard Z hoặc X dòng cao cấp
-   - CPU extreme tier (i9, Ryzen 9): dùng Mainboard Z hoặc X dòng cao cấp
+SPEC YÊU CẦU CHÍNH:
+- {$ramSpec}
+- {$vgaSpec} (Bắt buộc nếu dùng cho graphics/gaming)
+- {$cpuSpec}
+- {$ssdSpec}
+- PSU: {$specs['psu_wattage']}
+- Mainboard: ({$specs['mainboard_tier']} tier, phù hợp với CPU tier)
 
-2. SSD CAPACITY PHẢI PHẢN ÁNH NGÂN SÁCH:
-   - Ngân sách dưới 20 triệu: SSD tối đa 1TB (CẤMCHỌN 2TB, 4TB, 8TB)
-   - Ngân sách 20-30 triệu: SSD tối đa 1TB
-   - Ngân sách trên 30 triệu: Cho phép SSD 2TB+ nếu phù hợp
-   - Đặc biệt: Máy Văn phòng CHỈ 500GB, máy Esports 1TB max
+NGUYÊN TẮC TƯƠNG THÍCH PHẦN CỨNG:
+1. CPU & MAINBOARD PHẢI PHỐI HỢP TIER:
+   - CPU Low tier (i3, Ryzen 3): Mainboard H/B/A tier
+   - CPU Mid tier (i5, Ryzen 5): Mainboard H/B/Mid tier
+   - CPU High tier (i7, Ryzen 7, i9, Ryzen 9): Mainboard Z/X/High tier
 
-3. PSU SIZING PHẢI ĐÚNG THEO PHẦN CỨNG:
-   ⚠️ BẮTBUỘC: Công suất PSU phải tương xứng với phần cứng thực tế (TDP)
-   - Không VGA rời (iGPU: i3, i5-F): 400-500W (CẤMCHỌN 750W+)
-     VD: Đừng chọn 1000W cho máy i3 văn phòng!
-   - VGA Entry (GTX 1650, RTX 3050/4060): 550-650W
-   - VGA Mid (RTX 3060, RTX 4070): 650-850W
-   - VGA High (RTX 4080, 4090): 850-1200W
-   - TUYỆT ĐỐI CẤM dùng Platinum/Gold PSU cho cấu hình phổ thông
+2. VGA SIZING THEO MỤC ĐÍCH:
+   - Office: Không cần VGA rời (iGPU)
+   - Esports: ƯUTIÊN ĐẬP TIỀN VÀO VGA (45% ngân sách nếu có)
+   - AAA Gaming: VGA Mid-High tier để chạy game smooth
+   - Video/Graphic: VGA Mid-High tier cho render nhanh
 
-HƯỚNG DẪN TỐI QUAN TRỌNG:
+3. PSU SIZING THEO PHẦN CỨNG:
+   - Không VGA: 400-500W
+   - VGA Low: 550-650W
+   - VGA Mid: 650-850W
+   - VGA High: 850-1200W
+
+4. SSD CAPACITY THEO NGÂN SÁCH:
+   - Cấu hình có dư tiền → ƯUTIÊN NÂNG CẤP SSD (500GB→1TB→2TB)
+   - {$ssdSpec} là khoảng cho phép
+
+HƯỚNG DẪN BẮTBUỘC - TUYỆT ĐỐI PHẢI TUÂN THỦ:
+
+⚠️ CẤM TUYỆT ĐỐI BỎ TRỐNG RAM VÀ SSD TRONG BẤT KỲ TRƯỜNG HỢP NÀO!
+Mọi máy tính đều PHẢI có RAM và SSD để hoạt động.
+
+✓ RAM: BẮTBUỘC PHẢI CÓ trong mọi cấu hình (không được null)
+✓ SSD: BẮTBUỘC PHẢI CÓ trong mọi cấu hình (không được null)
+✓ VGA: 
+  - Máy Văn phòng ngân sách < 20M: Tùy chọn (có thể dùng iGPU)
+  - Máy Văn phòng ngân sách >= 20M: BẮTBUỘC chọn VGA Low/Mid tier (không null)
+  - Máy Gaming/Video: BẮTBUỘC chọn theo tier yêu cầu
+
 1. Trả về ĐÚNG MỘT mảng JSON duy nhất
 2. Không có markdown, không có lời chào, không có giải thích
- 3. ⚠️ BẮTBUỘC: Cấu hình PHẢI bao gồm đầy đủ các linh kiện sau:
-   - CPU (cpu_id) ✓ BẮTBUỘC
-   - Mainboard (mainboard_id) ✓ BẮTBUỘC
-   - RAM (ram_id) ✓ BẮTBUỘC 100% - TUYỆT ĐỐI KHÔNG ĐƯỢC THIẾU!
-   - SSD/HDD (ssd_id) ✓ BẮTBUỘC 100% - TUYỆT ĐỐI KHÔNG ĐƯỢC THIẾU!
-   - Nguồn PSU (psu_id) ✓ BẮTBUỘC
-   - Vỏ Case (case_id) ✓ BẮTBUỘC
-   - VGA (vga_id) ✓ [Có thể null nếu dùng iGPU, nhưng PHẢI chọn nếu có trong danh sách]
-   ❌ CẤMTUYỆT bỏ sót bất kỳ linh kiện nào!
-   ❌ ĐẶC BIỆT: RAM và SSD là BUỘC PHẢI CÓ trong mọi config!
-4. Bắt buộc bao gồm các key: cpu_id, mainboard_id, ram_id, vga_id, ssd_id, psu_id, case_id, ai_advice
-5. Nếu không tìm được linh kiện nhưng CÓ trong danh sách, HÃY CHỌN IT!
-   - RAM: PHẢI CHỌN (không được null)
-   - SSD: PHẢI CHỌN (không được null)
+3. BẮTBUỘC bao gồm: cpu_id, mainboard_id, ram_id, vga_id, ssd_id, psu_id, case_id, ai_advice
+4. ⚠️ Nếu ngân sách >= 20,000,000 VNĐ → BẮTBUỘC chọn VGA (không null)
+5. ⚠️ RAM & SSD TUYỆT ĐỐI KHÔNG ĐƯỢC NULL TRONG BẤT KỲ TRƯỜNG HỢP NÀO
 6. CHỈ ĐƯỢC PHÉP chọn từ danh sách sản phẩm JSON được cung cấp
-7. ⚠️ TUYỆT ĐỐI: Tổng giá tiền của cấu hình PHẢI nằm trong khoảng {$min} đến {$hardMax} VNĐ
-8. ⚠️ CẤMCHỌN các linh kiện quá đắt tiền làm vượt quá giới hạn {$hardMax} VNĐ
-9. ⚠️ KIỂM TRA KỸ: Tier-matching giữa CPU và Mainboard PHẢI đúng (i3 KHÔNG đi Z790!)
-10. ⚠️ RAM: BUỘC PHẢI CÓ - Kiểm tra dung lượng phù hợp (không 64GB cho gói dưới 20M)
-    - TUYỆT ĐỐI KHÔNG ĐƯỢC ĐỂ RAM_ID = NULL!
-11. ⚠️ SSD: BUỘC PHẢI CÓ - Kiểm tra dung lượng có phù hợp với ngân sách
-    - TUYỆT ĐỐI KHÔNG ĐƯỢC ĐỂ SSD_ID = NULL!
-12. ⚠️ PSU: CÔNG SUẤT PSU PHẢI XỨ HỨNG PHẦN CỨNG! (Không 1000W cho máy i3 văn phòng!)
-    - Máy không VGA: max 500W
-    - Máy Esports: max 650W
-    - Máy Gaming cao cấp: 750W+
-13. Nếu ngân sách cao, ưu tiên chọn linh kiện tốt hơn để tận dụng hết ngân sách
-14. Nếu ngân sách thấp, chọn linh kiện cân bằng nhất trong tầm giá
+7. ⚠️ TUYỆT ĐỐI: Tổng giá tiền của cấu hình PHẢI nằm trong {$min} VNĐ đến {$hardMax} VNĐ
 
-Cấu trúc JSON bắt buộc:
+JSON RETURN FORMAT:
 {
   "cpu_id": 123,
   "mainboard_id": 456,
   "ram_id": 789,
-  "vga_id": 101,
+  "vga_id": 101 hoặc null,
   "ssd_id": 102,
   "psu_id": 103,
   "case_id": 104,
-  "ai_advice": "Tôi đã chọn..."
+  "ai_advice": "Lý do chọn cấu hình này"
 }
 
 TRẢVỀ JSON ĐÚNG CẤU TRÚC, KHÔNG CÓ CHỮ KHÁC!
 PROMPT;
+    }
+
+    /**
+     * FINAL MANDATORY GUARDRAIL: Cấp buộc RAM, SSD, VGA (nếu ngân sách >= 20M)
+     * Chạy TRƯỚC khi return response
+     */
+    private function finalMandatoryComponentCheck(
+        array $configuration,
+        int $budget,
+        string $purpose,
+        ?string $subPurpose,
+        array $productContext
+    ): array {
+        Log::info('FINAL_MANDATORY_COMPONENT_CHECK_START', [
+            'total_price_before' => $configuration['total_price'],
+            'budget' => $budget,
+            'purpose' => $purpose,
+            'sub_purpose' => $subPurpose,
+        ]);
+
+        $priceDelta = 0;
+
+        // ========== 1️⃣ RAM: BẮTBUỘC PHẢI CÓ ==========
+        $ramId = $configuration['ram']['id'] ?? null;
+        if (empty($ramId) || is_null($ramId)) {
+            Log::warning('RAM_MISSING_AUTO_FILLING', [
+                'current_ram' => $configuration['ram'] ?? null,
+            ]);
+
+            $ramProducts = $productContext['ram'] ?? [];
+            if (!empty($ramProducts)) {
+                // Chọn RAM phù hợp: 16GB hoặc 32GB tùy ngân sách
+                $selectedRam = null;
+                foreach ($ramProducts as $ram) {
+                    if (preg_match('/32\s*GB/i', $ram['name'])) {
+                        if ($budget >= 20000000) {
+                            $selectedRam = $ram;
+                            break;
+                        }
+                    }
+                }
+                
+                if (!$selectedRam) {
+                    // Fallback: lấy RAM 16GB hoặc sản phẩm đầu tiên
+                    foreach ($ramProducts as $ram) {
+                        if (preg_match('/16\s*GB/i', $ram['name'])) {
+                            $selectedRam = $ram;
+                            break;
+                        }
+                    }
+                }
+                
+                if (!$selectedRam && !empty($ramProducts)) {
+                    $selectedRam = reset($ramProducts);
+                }
+
+                if ($selectedRam) {
+                    $ramPrice = (int) $selectedRam['price'];
+                    $configuration['ram'] = [
+                        'id' => (int) $selectedRam['id'],
+                        'name' => (string) $selectedRam['name'],
+                        'price' => $ramPrice,
+                        'category' => 'RAM',
+                    ];
+                    $priceDelta += $ramPrice;
+
+                    Log::info('RAM_AUTO_FILLED', [
+                        'ram_name' => $selectedRam['name'],
+                        'ram_price' => $ramPrice,
+                    ]);
+                }
+            }
+        }
+
+        // ========== 2️⃣ SSD: BẮTBUỘC PHẢI CÓ ==========
+        $ssdId = $configuration['ssd']['id'] ?? null;
+        if (empty($ssdId) || is_null($ssdId)) {
+            Log::warning('SSD_MISSING_AUTO_FILLING', [
+                'current_ssd' => $configuration['ssd'] ?? null,
+            ]);
+
+            $ssdProducts = $productContext['ssd'] ?? [];
+            if (!empty($ssdProducts)) {
+                // Chọn SSD phù hợp: 1TB cho ngân sách cao, 500GB cho thấp
+                $selectedSsd = null;
+                if ($budget >= 20000000) {
+                    foreach ($ssdProducts as $ssd) {
+                        if (preg_match('/1\s*TB|1000\s*GB/i', $ssd['name'])) {
+                            $selectedSsd = $ssd;
+                            break;
+                        }
+                    }
+                }
+
+                if (!$selectedSsd) {
+                    // Fallback: 500GB hoặc sản phẩm đầu tiên
+                    foreach ($ssdProducts as $ssd) {
+                        if (preg_match('/500\s*GB/i', $ssd['name'])) {
+                            $selectedSsd = $ssd;
+                            break;
+                        }
+                    }
+                }
+
+                if (!$selectedSsd && !empty($ssdProducts)) {
+                    $selectedSsd = reset($ssdProducts);
+                }
+
+                if ($selectedSsd) {
+                    $ssdPrice = (int) $selectedSsd['price'];
+                    $configuration['ssd'] = [
+                        'id' => (int) $selectedSsd['id'],
+                        'name' => (string) $selectedSsd['name'],
+                        'price' => $ssdPrice,
+                        'category' => 'SSD',
+                    ];
+                    $priceDelta += $ssdPrice;
+
+                    Log::info('SSD_AUTO_FILLED', [
+                        'ssd_name' => $selectedSsd['name'],
+                        'ssd_price' => $ssdPrice,
+                    ]);
+                }
+            }
+        }
+
+        // ========== 3️⃣ VGA: BẮTBUỘC cho Văn phòng ngân sách >= 20M ==========
+        $vgaId = $configuration['vga']['id'] ?? null;
+        $isOfficeHighBudget = ($purpose === 'lam_viec' && $subPurpose === 'lam_viec_van_phong' && $budget >= 20000000);
+
+        if ($isOfficeHighBudget && (empty($vgaId) || is_null($vgaId) || $vgaId === 0)) {
+            Log::warning('VGA_MISSING_FOR_OFFICE_HIGH_BUDGET_AUTO_FILLING', [
+                'budget' => $budget,
+                'current_vga' => $configuration['vga'] ?? null,
+            ]);
+
+            $vgaProducts = $productContext['vga'] ?? [];
+            if (!empty($vgaProducts)) {
+                // Chọn VGA Low/Mid tier (rẻ nhất)
+                $selectedVga = reset($vgaProducts);  // Chọn sản phẩm rẻ nhất
+
+                if ($selectedVga) {
+                    $vgaPrice = (int) $selectedVga['price'];
+                    $configuration['vga'] = [
+                        'id' => (int) $selectedVga['id'],
+                        'name' => (string) $selectedVga['name'],
+                        'price' => $vgaPrice,
+                        'category' => 'VGA',
+                    ];
+                    $priceDelta += $vgaPrice;
+
+                    Log::info('VGA_AUTO_FILLED_FOR_HIGH_BUDGET_OFFICE', [
+                        'vga_name' => $selectedVga['name'],
+                        'vga_price' => $vgaPrice,
+                    ]);
+                }
+            }
+        }
+
+        // ========== 4️⃣ Cập nhật total_price ==========
+        $configuration['total_price'] += $priceDelta;
+
+        Log::info('FINAL_MANDATORY_COMPONENT_CHECK_COMPLETE', [
+            'total_price_before' => $configuration['total_price'] - $priceDelta,
+            'total_price_after' => $configuration['total_price'],
+            'price_delta' => $priceDelta,
+            'has_ram' => !empty($configuration['ram']['id']),
+            'has_ssd' => !empty($configuration['ssd']['id']),
+            'has_vga' => !empty($configuration['vga']['id']) && $configuration['vga']['id'] !== 0,
+        ]);
+
+        return $configuration;
+    }
+    private function enforceStrictBudgetTolerance(
+        array $configuration,
+        int $budget,
+        string $purpose,
+        ?string $subPurpose,
+        array $productContext
+    ): array {
+        $budgetRange = $this->analyzeBudgetRange($budget);
+        $hardLimit = $budgetRange['max'] + $budgetRange['tolerance'];  // 1M tolerance
+        $totalPrice = (int) $configuration['total_price'];
+
+        Log::info('STRICT_BUDGET_CHECK_START', [
+            'total_price' => $totalPrice,
+            'hard_limit' => $hardLimit,
+            'is_over' => $totalPrice > $hardLimit,
+            'overage' => $totalPrice - $hardLimit,
+        ]);
+
+        // ========== Kiểm tra: Có vượt quá 1M không? ==========
+        if ($totalPrice <= $hardLimit) {
+            Log::info('BUDGET_WITHIN_TOLERANCE');
+            
+            // ========== Tối ưu hóa: Nâng cấp SSD nếu còn dư ==========
+            $remainingBudget = $hardLimit - $totalPrice;
+            if ($remainingBudget > 1000000 && !empty($productContext['ssd'])) {
+                $configuration = $this->upgradeStorageIfBudgetRemains(
+                    $configuration,
+                    $productContext['ssd'],
+                    $remainingBudget
+                );
+            }
+            
+            return $configuration;
+        }
+
+        // ========== ĐẬP: Vượt quá 1M, phải downgrade ==========
+        Log::warning('BUDGET_EXCEEDED_DOWNGRADING', [
+            'overage' => $totalPrice - $hardLimit,
+        ]);
+
+        // Priority downgrade: Mainboard → Case → RAM
+        $downgradeAttempts = [
+            ['component' => 'mainboard', 'productContext' => $productContext['mainboard'] ?? []],
+            ['component' => 'case', 'productContext' => $productContext['case'] ?? []],
+            ['component' => 'ram', 'productContext' => $productContext['ram'] ?? []],
+        ];
+
+        foreach ($downgradeAttempts as $attempt) {
+            $component = $attempt['component'];
+            $products = $attempt['productContext'];
+
+            if (empty($products)) continue;
+
+            $currentPrice = $configuration[$component]['price'] ?? 0;
+            
+            // Tìm sản phẩm rẻ hơn
+            foreach ($products as $product) {
+                if ((int) $product['price'] < $currentPrice) {
+                    $oldPrice = $configuration[$component]['price'] ?? 0;
+                    $newPrice = (int) $product['price'];
+                    $savings = $oldPrice - $newPrice;
+
+                    $configuration[$component] = [
+                        'id' => (int) $product['id'],
+                        'name' => (string) $product['name'],
+                        'price' => $newPrice,
+                        'category' => strtoupper($component),
+                    ];
+
+                    $configuration['total_price'] -= $savings;
+
+                    Log::info('DOWNGRADE_COMPONENT', [
+                        'component' => $component,
+                        'old_price' => $oldPrice,
+                        'new_price' => $newPrice,
+                        'savings' => $savings,
+                        'new_total' => $configuration['total_price'],
+                    ]);
+
+                    // Kiểm tra lại có trong budget không
+                    if ($configuration['total_price'] <= $hardLimit) {
+                        Log::info('DOWNGRADE_SUCCESS_WITHIN_BUDGET');
+                        return $configuration;
+                    }
+                }
+            }
+        }
+
+        Log::error('DOWNGRADE_FAILED_STILL_OVER_BUDGET', [
+            'final_total' => $configuration['total_price'],
+            'hard_limit' => $hardLimit,
+        ]);
+
+        return $configuration;
+    }
+
+    /**
+     * Nâng cấp SSD nếu còn dư ngân sách
+     */
+    private function upgradeStorageIfBudgetRemains(
+        array $configuration,
+        array $ssdProducts,
+        int $remainingBudget
+    ): array {
+        $currentSsdPrice = (int) ($configuration['ssd']['price'] ?? 0);
+        $targetPrice = $currentSsdPrice + $remainingBudget;
+
+        // Tìm SSD đắt hơn nhưng không vượt targetPrice
+        $bestUpgrade = null;
+        $bestPrice = $currentSsdPrice;
+
+        foreach ($ssdProducts as $product) {
+            $productPrice = (int) $product['price'];
+            if ($productPrice > $bestPrice && $productPrice <= $targetPrice) {
+                $bestUpgrade = $product;
+                $bestPrice = $productPrice;
+            }
+        }
+
+        if ($bestUpgrade) {
+            $oldPrice = $configuration['ssd']['price'];
+            $newPrice = (int) $bestUpgrade['price'];
+            $upcharge = $newPrice - $oldPrice;
+
+            $configuration['ssd'] = [
+                'id' => (int) $bestUpgrade['id'],
+                'name' => (string) $bestUpgrade['name'],
+                'price' => $newPrice,
+                'category' => 'SSD',
+            ];
+
+            $configuration['total_price'] += $upcharge;
+
+            Log::info('SSD_UPGRADED_BUDGET_OPTIMIZATION', [
+                'old_ssd' => $oldPrice,
+                'new_ssd' => $newPrice,
+                'upcharge' => $upcharge,
+                'new_total' => $configuration['total_price'],
+            ]);
+        }
+
+        return $configuration;
     }
 
     /**
@@ -1076,7 +1306,7 @@ PROMPT;
         $vgaData = $configuration['vga'] ?? [];
         $vgaId = $vgaData['id'] ?? null;
 
-        if (($subPurpose === 'lam_viec_van_phong' || $purpose === 'hoc_tap') && empty($vgaId)) {
+        if (($subPurpose === 'lam_viec_van_phong') && empty($vgaId)) {
             Log::info('VGA_OFFICE_CONFIG_ASSIGNING_IGPU', [
                 'sub_purpose' => $subPurpose,
                 'purpose' => $purpose,
@@ -1103,7 +1333,7 @@ PROMPT;
 
         // Nếu config văn phòng/học tập hoặc không có VGA rời, PSU không được > 650W
         $vgaIdCheck = $configuration['vga']['id'] ?? null;
-        $isOfficeConfig = ($subPurpose === 'lam_viec_van_phong' || $purpose === 'hoc_tap');
+        $isOfficeConfig = ($subPurpose === 'lam_viec_van_phong');
         $hasDiscreteVga = !empty($vgaIdCheck) && $vgaIdCheck !== 0;
 
         if (($isOfficeConfig || !$hasDiscreteVga) && $psuWattage > 650) {
@@ -1211,7 +1441,6 @@ PROMPT;
     private function buildUserPrompt(int $budget, string $purpose, ?string $subPurpose, array $productContext, array $budgetRange = []): string
     {
         $purposeLabel = match ($purpose) {
-            'hoc_tap' => 'Học tập / Làm việc cơ bản',
             'lam_viec' => 'Làm việc chuyên nghiệp',
             'gaming' => 'Gaming',
             default => $purpose,
@@ -1246,8 +1475,9 @@ HƯỚNG DẪN CHỌN LINH KIỆN (QUAN TRỌNG):
 2. TUYỆT ĐỐI KHÔNG được vượt quá $maxBudget VND
 3. KHÔNG được chọn cấu hình quá thấp (dưới $minBudget VND)
 4. Mục tiêu: Tận dụng ngân sách ($targetBudget VND) để chọn linh kiện tốt nhất
-5. Ưu tiên chọn CPU/VGA/RAM cấp cao hơn nếu ngân sách cho phép
+5. Nếu còn dư ngân sách → ƯUTIÊN NÂNG CẤP SSD (500GB→1TB, 1TB→2TB, vv)
 6. CHỈ chọn từ danh sách sản phẩm được cung cấp ở trên, KHÔNG tự bịa
+7. Đặc biệt chú ý quy tắc specs cho mục đích này (xem System Prompt)
 
 TRẢVỀ JSON theo cấu trúc bắt buộc, KHÔNG CÓ CHỮ KHÁC!
 PROMPT;

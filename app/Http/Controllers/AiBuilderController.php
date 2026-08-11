@@ -29,7 +29,7 @@ final class AiBuilderController extends Controller
     {
         $validated = $request->validate([
             'budget' => ['required', 'integer', 'min:1000000'],
-            'purpose' => ['required', 'in:hoc_tap,lam_viec,gaming'],
+            'purpose' => ['required', 'in:lam_viec,gaming'],
             'sub_purpose' => ['nullable', 'required_if:purpose,lam_viec', 'in:lam_viec_van_phong,dung_video_do_hoa'],
             'gaming_type' => ['nullable', 'required_if:purpose,gaming', 'in:esports_co_ban,aaa_do_hoa_nang'],
         ]);
