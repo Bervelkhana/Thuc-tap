@@ -255,13 +255,6 @@ final class NvidiaNimBuildService
         // ========== FINAL GUARDRAIL: Kiểm tra + Bù đắp + Downgrade ==========
         $finalConfiguration = $this->finalizeConfigurationWithGuardrails(
             $finalConfiguration,
-            $purpose,
-            $subPurpose
-        );
-
-        // ========== FINAL MANDATORY: Bắt buộc RAM, SSD, VGA (nếu cần) ==========
-        $finalConfiguration = $this->finalMandatoryComponentCheck(
-            $finalConfiguration,
             $budget,
             $purpose,
             $subPurpose,
@@ -324,7 +317,8 @@ final class NvidiaNimBuildService
                 'sub_purpose' => $subPurpose,
                 'error' => 'Không thể kết nối tới server AI. Vui lòng thử lại sau.',
             ];
-        } catch (\Throwable $e) {
+        } catch (\Exception $e) {
+            Log::error('AI Build Error: ' . $e->getMessage() . ' at line ' . $e->getLine());
             Log::error('NVIDIA NIM build failed (llama-3.1-8b)', [
                 'message' => $e->getMessage(),
                 'budget' => $budget,
@@ -393,11 +387,53 @@ final class NvidiaNimBuildService
             $categoryMinPrice = max(0, $minPrice * 0.1);
             $categoryMaxPrice = $maxAllowedPrice * 0.5;
 
+            if ($subPurpose === 'lam_viec_van_phong' && $key === 'vga') {
+                $context[$key] = [];
+                Log::info("OFFICE_VGA_HIDDEN", [
+                    'sub_purpose' => $subPurpose,
+                    'budget' => $budget,
+                ]);
+                continue;
+            }
+
             $query = Product::query()
                 ->whereIn('category_id', $categoryIds)
                 ->where('stock_quantity', '>', 0)
                 ->where('price', '>=', $categoryMinPrice)
                 ->where('price', '<=', $categoryMaxPrice);
+
+            // Hard filters theo ngân sách trước khi gửi cho AI
+            if ($budget < 20000000) {
+                if ($key === 'ssd') {
+                    $query->where(function ($q) {
+                        $q->where('name', 'like', '%500GB%')
+                          ->orWhere('name', 'like', '%1TB%')
+                          ->orWhere('name', 'like', '%1000GB%');
+                    })->where(function ($q) {
+                        $q->where('name', 'not like', '%2TB%')
+                          ->where('name', 'not like', '%4TB%')
+                          ->where('name', 'not like', '%8TB%');
+                    });
+                }
+                if ($key === 'psu') {
+                    $query->whereRaw("(name NOT LIKE '%700W%' AND name NOT LIKE '%750W%' AND name NOT LIKE '%850W%' AND name NOT LIKE '%1000W%' AND name NOT LIKE '%1200W%')");
+                }
+                if ($key === 'mainboard') {
+                    $query->whereRaw("(name NOT LIKE '%Z690%' AND name NOT LIKE '%Z790%' AND name NOT LIKE '%X670%' AND name NOT LIKE '%X870%')");
+                }
+                if ($key === 'cpu') {
+                    $query->whereRaw("(name LIKE '%i3%' OR name LIKE '%i5%' OR name LIKE '%Ryzen 3%' OR name LIKE '%Ryzen 5%')");
+                }
+            } elseif ($budget >= 20000000) {
+                if ($key === 'psu') {
+                    $query->where(function ($q) {
+                        $q->where('name', 'like', '%600W%')
+                          ->orWhere('name', 'like', '%650W%')
+                          ->orWhere('name', 'like', '%700W%')
+                          ->orWhere('name', 'like', '%750W%');
+                    });
+                }
+            }
 
             $rawProducts = $query
                 ->orderBy('price', 'desc')
@@ -412,6 +448,29 @@ final class NvidiaNimBuildService
                 })
                 ->toArray();
 
+            if ($key === 'vga' && empty($rawProducts) && $budget < 20000000) {
+                $rawProducts = Product::query()
+                    ->where('stock_quantity', '>', 0)
+                    ->where(function ($q) {
+                        $q->where('name', 'like', '%GTX 1650%')
+                          ->orWhere('name', 'like', '%RTX 3050%')
+                          ->orWhere('name', 'like', '%RTX 4060%')
+                          ->orWhere('name', 'like', '%RX 6600%')
+                          ->orWhere('name', 'like', '%RX 7600%');
+                    })
+                    ->orderBy('price', 'asc')
+                    ->limit(25)
+                    ->get(['id', 'name', 'price', 'category_id'])
+                    ->map(function (Product $product) {
+                        return [
+                            'id' => (int) $product->id,
+                            'name' => (string) $product->name,
+                            'price' => (int) round((float) $product->price),
+                        ];
+                    })
+                    ->toArray();
+            }
+
             // ========== SMART FILTER: Lọc sạch dữ liệu không phù hợp ==========
             $filteredProducts = SmartProductFilter::filterProductsByBudgetAndPurpose(
                 $rawProducts,
@@ -420,6 +479,10 @@ final class NvidiaNimBuildService
                 $subPurpose,
                 $key
             );
+
+            if ($key === 'vga' && empty($filteredProducts)) {
+                $filteredProducts = $rawProducts;
+            }
 
             $context[$key] = !empty($filteredProducts) ? $filteredProducts : [];
 
@@ -1196,8 +1259,10 @@ PROMPT;
      */
     private function finalizeConfigurationWithGuardrails(
         array $configuration,
+        int $budget,
         string $purpose,
-        ?string $subPurpose = null
+        ?string $subPurpose = null,
+        array $productContext = []
     ): array {
         Log::info('FINAL_GUARDRAIL_START', [
             'purpose' => $purpose,
@@ -1205,219 +1270,213 @@ PROMPT;
             'current_total' => $configuration['total_price'] ?? 0,
         ]);
 
-        // ========== 1️⃣ Check & Fill RAM (BẮTBUỘC) ==========
+        // ========== 1️⃣ Check & Fill RAM (from Context Pool) ==========
         $ramData = $configuration['ram'] ?? [];
         $ramId = $ramData['id'] ?? null;
-
         if (empty($ramId) || empty($ramData['name'])) {
-            Log::warning('RAM_MISSING_FILLING_NOW', ['ram_data' => $ramData]);
+            $ramBudgetMin = $budget < 20000000 ? 16 : 32;
+            $availableRams = $productContext['ram'] ?? [];
+            $selectedRam = null;
 
-            // Query random RAM từ DB (8GB or 16GB)
-            $ramProduct = Product::query()
-                ->whereIn('name', ['8GB', '16GB'])
-                ->where('stock_quantity', '>', 0)
-                ->where('name', 'like', '%RAM%')
-                ->orderBy('price', 'asc')
-                ->first();
-
-            if ($ramProduct) {
-                $configuration['ram'] = [
-                    'id' => (int) $ramProduct->id,
-                    'name' => (string) $ramProduct->name,
-                    'price' => (int) round((float) $ramProduct->price),
-                    'category' => 'RAM',
-                ];
-
-                if (!isset($configuration['items'])) {
-                    $configuration['items'] = [];
+            foreach ($availableRams as $ram) {
+                $name = (string) ($ram['name'] ?? '');
+                if ($ramBudgetMin >= 32) {
+                    if (preg_match('/(32\s*GB|64\s*GB)/i', $name)) {
+                        $selectedRam = $ram;
+                        break;
+                    }
+                } else {
+                    if (preg_match('/(16\s*GB|32\s*GB)/i', $name)) {
+                        $selectedRam = $ram;
+                        break;
+                    }
                 }
-                $configuration['items'][] = $configuration['ram'];
-                $configuration['total_price'] += $configuration['ram']['price'];
+            }
 
-                Log::info('RAM_AUTO_FILLED', [
-                    'ram_id' => $ramProduct->id,
-                    'ram_name' => $ramProduct->name,
-                    'ram_price' => $ramProduct->price,
-                    'new_total' => $configuration['total_price'],
-                ]);
-            } else {
-                // Fallback RAM object
+            if ($selectedRam === null && !empty($availableRams)) {
+                $selectedRam = reset($availableRams);
+            }
+
+            if ($selectedRam !== null) {
                 $configuration['ram'] = [
-                    'id' => 0,
-                    'name' => '8GB RAM DDR4',
-                    'price' => 1000000,  // Default estimate
+                    'id' => (int) $selectedRam['id'],
+                    'name' => (string) $selectedRam['name'],
+                    'price' => (int) $selectedRam['price'],
                     'category' => 'RAM',
                 ];
-                Log::error('RAM_FALLBACK_USED_NO_DB_MATCH');
             }
         }
 
-        // ========== 2️⃣ Check & Fill SSD (BẮTBUỘC) ==========
+        // ========== 2️⃣ Check & Fill SSD (from Context Pool) ==========
         $ssdData = $configuration['ssd'] ?? [];
         $ssdId = $ssdData['id'] ?? null;
-
         if (empty($ssdId) || empty($ssdData['name'])) {
-            Log::warning('SSD_MISSING_FILLING_NOW', ['ssd_data' => $ssdData]);
+            $availableSsds = $productContext['ssd'] ?? [];
+            $selectedSsd = null;
 
-            // Query SSD 500GB hoặc 1TB
-            $ssdProduct = Product::query()
-                ->where('stock_quantity', '>', 0)
-                ->where(function ($query) {
-                    $query->where('name', 'like', '%500GB%')
-                          ->orWhere('name', 'like', '%1TB%');
-                })
-                ->where('name', 'like', '%SSD%')
-                ->orderBy('price', 'asc')
-                ->first();
-
-            if ($ssdProduct) {
-                $configuration['ssd'] = [
-                    'id' => (int) $ssdProduct->id,
-                    'name' => (string) $ssdProduct->name,
-                    'price' => (int) round((float) $ssdProduct->price),
-                    'category' => 'SSD',
-                ];
-
-                if (!isset($configuration['items'])) {
-                    $configuration['items'] = [];
+            foreach ($availableSsds as $ssd) {
+                $name = (string) ($ssd['name'] ?? '');
+                if ($budget < 20000000) {
+                    if (preg_match('/(500\s*GB|1\s*TB|1000\s*GB)/i', $name)) {
+                        $selectedSsd = $ssd;
+                        break;
+                    }
+                } else {
+                    if (preg_match('/(1\s*TB|2\s*TB|1000\s*GB|2000\s*GB)/i', $name)) {
+                        $selectedSsd = $ssd;
+                        break;
+                    }
                 }
-                $configuration['items'][] = $configuration['ssd'];
-                $configuration['total_price'] += $configuration['ssd']['price'];
+            }
 
-                Log::info('SSD_AUTO_FILLED', [
-                    'ssd_id' => $ssdProduct->id,
-                    'ssd_name' => $ssdProduct->name,
-                    'ssd_price' => $ssdProduct->price,
-                    'new_total' => $configuration['total_price'],
-                ]);
-            } else {
-                // Fallback SSD object
+            if ($selectedSsd === null && !empty($availableSsds)) {
+                $selectedSsd = reset($availableSsds);
+            }
+
+            if ($selectedSsd !== null) {
                 $configuration['ssd'] = [
-                    'id' => 0,
-                    'name' => 'SSD 500GB NVMe',
-                    'price' => 1200000,  // Default estimate
+                    'id' => (int) $selectedSsd['id'],
+                    'name' => (string) $selectedSsd['name'],
+                    'price' => (int) $selectedSsd['price'],
                     'category' => 'SSD',
                 ];
-                Log::error('SSD_FALLBACK_USED_NO_DB_MATCH');
             }
         }
 
-        // ========== 3️⃣ Handle VGA Văn phòng (iGPU) ==========
+        // ========== 3️⃣ Check & Fill VGA (from Context Pool) ==========
         $vgaData = $configuration['vga'] ?? [];
         $vgaId = $vgaData['id'] ?? null;
+        $needVga = in_array($purpose, ['dung_video_do_hoa', 'gaming', 'esports_co_ban', 'aaa_do_hoa_nang'], true)
+            || ($subPurpose === 'lam_viec_van_phong' && $budget >= 20000000);
 
-        if (($subPurpose === 'lam_viec_van_phong') && empty($vgaId)) {
-            Log::info('VGA_OFFICE_CONFIG_ASSIGNING_IGPU', [
-                'sub_purpose' => $subPurpose,
-                'purpose' => $purpose,
-            ]);
+        $invalidVgaCategory = in_array(strtoupper((string) ($vgaData['category'] ?? '')), ['PSU', 'POWER SUPPLY'], true)
+            || str_contains(strtoupper((string) ($vgaData['name'] ?? '')), 'PSU')
+            || str_contains(strtoupper((string) ($vgaData['name'] ?? '')), 'POWER SUPPLY');
 
+        if ($needVga && (empty($vgaId) || empty($vgaData['name']) || $invalidVgaCategory)) {
+            $availableVgas = $productContext['vga'] ?? [];
+            $selectedVga = null;
+
+            foreach ($availableVgas as $vga) {
+                $name = (string) ($vga['name'] ?? '');
+                if (preg_match('/(GTX 1650|RTX 3050|RTX 4060|RX 6600|RX 7600|VGA)/i', $name)) {
+                    $selectedVga = $vga;
+                    break;
+                }
+            }
+
+            if ($selectedVga === null && !empty($availableVgas)) {
+                $selectedVga = reset($availableVgas);
+            }
+
+            if ($selectedVga !== null) {
+                $configuration['vga'] = [
+                    'id' => (int) $selectedVga['id'],
+                    'name' => (string) $selectedVga['name'],
+                    'price' => (int) $selectedVga['price'],
+                    'category' => 'VGA',
+                ];
+            } elseif ($subPurpose === 'lam_viec_van_phong') {
+                $configuration['vga'] = [
+                    'id' => 0,
+                    'name' => 'Đồ họa tích hợp',
+                    'price' => 0,
+                    'category' => 'VGA',
+                ];
+            }
+        } elseif ($subPurpose === 'lam_viec_van_phong' && $budget < 20000000 && empty($vgaId)) {
             $configuration['vga'] = [
                 'id' => 0,
-                'name' => 'Đồ họa tích hợp theo CPU (Onboard)',
+                'name' => 'Đồ họa tích hợp',
                 'price' => 0,
                 'category' => 'VGA',
             ];
         }
 
-        // ========== 4️⃣ Downgrade PSU nếu quá cao cấp ==========
-        $psuData = $configuration['psu'] ?? [];
-        $psuName = $psuData['name'] ?? '';
-        $psuPrice = $psuData['price'] ?? 0;
-
-        // Detect PSU wattage
-        $psuWattage = 500;
-        if (preg_match('/(\d+)\s*W/i', $psuName, $matches)) {
-            $psuWattage = (int) $matches[1];
+        // ========== 4️⃣ Cross-check CPU ↔ Mainboard ==========
+        $cpuName = (string) ($configuration['cpu']['name'] ?? '');
+        $mainboardName = (string) ($configuration['mainboard']['name'] ?? '');
+        if ($cpuName !== '' && $mainboardName !== '') {
+            $isLowCpu = preg_match('/(i3|ryzen\s*3)/i', $cpuName) === 1;
+            $hasHighBoard = preg_match('/(z690|z790|x670|x870)/i', $mainboardName) === 1;
+            if ($isLowCpu && $hasHighBoard) {
+                $fallbackMainboards = $productContext['mainboard'] ?? [];
+                $selectedMainboard = null;
+                foreach ($fallbackMainboards as $mainboard) {
+                    $name = (string) ($mainboard['name'] ?? '');
+                    if (preg_match('/(B760|B660|H610|H510)/i', $name)) {
+                        $selectedMainboard = $mainboard;
+                        break;
+                    }
+                }
+                if ($selectedMainboard === null && !empty($fallbackMainboards)) {
+                    $selectedMainboard = reset($fallbackMainboards);
+                }
+                if ($selectedMainboard !== null) {
+                    $configuration['mainboard'] = [
+                        'id' => (int) $selectedMainboard['id'],
+                        'name' => (string) $selectedMainboard['name'],
+                        'price' => (int) $selectedMainboard['price'],
+                        'category' => 'MAINBOARD',
+                    ];
+                }
+            }
         }
 
-        // Nếu config văn phòng/học tập hoặc không có VGA rời, PSU không được > 650W
-        $vgaIdCheck = $configuration['vga']['id'] ?? null;
-        $isOfficeConfig = ($subPurpose === 'lam_viec_van_phong');
-        $hasDiscreteVga = !empty($vgaIdCheck) && $vgaIdCheck !== 0;
+        // ========== 5️⃣ Final category/type safety pass ==========
+        foreach (['cpu', 'mainboard', 'ram', 'vga', 'ssd', 'psu', 'case'] as $cat) {
+            $category = strtoupper((string) ($configuration[$cat]['category'] ?? ''));
+            if ($category !== '' && $category !== strtoupper($cat)) {
+                $fallback = $this->fallbackProductForCategory($cat, $productContext);
+                if ($fallback !== null) {
+                    $configuration[$cat] = $fallback;
+                }
+            }
+        }
 
-        if (($isOfficeConfig || !$hasDiscreteVga) && $psuWattage > 650) {
-            Log::warning('PSU_TOO_HIGH_DOWNGRADING', [
-                'current_wattage' => $psuWattage,
-                'is_office' => $isOfficeConfig,
-                'has_discrete_vga' => $hasDiscreteVga,
-            ]);
+        // ========== 6️⃣ Recalculate totals ==========
+        $configuration['items'] = [];
+        $configuration['total_price'] = 0;
+        foreach (['cpu', 'mainboard', 'ram', 'vga', 'ssd', 'psu', 'case'] as $cat) {
+            if (!empty($configuration[$cat]['id'])) {
+                $configuration['items'][] = $configuration[$cat];
+            }
+            $configuration['total_price'] += (int) ($configuration[$cat]['price'] ?? 0);
+        }
 
-            // Query PSU 500W từ DB
-            $psuProduct = Product::query()
-                ->where('stock_quantity', '>', 0)
-                ->where('name', 'like', '%500W%')
-                ->where('name', 'like', '%PSU%')
-                ->orderBy('price', 'asc')
-                ->first();
+        // ========== 7️⃣ Budget tolerance + emergency downgrade ==========
+        $tolerance = 1000000;
+        $maxAllowed = $budget + $tolerance;
+        if ($configuration['total_price'] > $maxAllowed) {
+            $downgradeOrder = ['mainboard', 'psu', 'case', 'ram'];
+            foreach ($downgradeOrder as $cat) {
+                $currentPrice = (int) ($configuration[$cat]['price'] ?? 0);
+                if ($currentPrice <= 0) {
+                    continue;
+                }
 
-            if ($psuProduct) {
-                $psuPriceOld = $configuration['psu']['price'] ?? 0;
-                $psuPriceNew = (int) round((float) $psuProduct->price);
-                $priceDifference = $psuPriceOld - $psuPriceNew;  // Savings
-
-                $configuration['psu'] = [
-                    'id' => (int) $psuProduct->id,
-                    'name' => (string) $psuProduct->name,
-                    'price' => $psuPriceNew,
-                    'category' => 'PSU',
-                ];
-
-                // Update items array
-                $found = false;
-                foreach ($configuration['items'] as $key => $item) {
-                    if (strtoupper($item['category'] ?? '') === 'PSU') {
-                        $configuration['items'][$key] = $configuration['psu'];
-                        $found = true;
+                $candidate = null;
+                foreach (($productContext[$cat] ?? []) as $product) {
+                    if ((int) $product['price'] < $currentPrice) {
+                        $candidate = $product;
                         break;
                     }
                 }
 
-                // Adjust total price (subtract savings)
-                $configuration['total_price'] -= $priceDifference;
-
-                Log::info('PSU_DOWNGRADED', [
-                    'old_psu' => $psuName,
-                    'old_price' => $psuPriceOld,
-                    'new_psu' => $psuProduct->name,
-                    'new_price' => $psuPriceNew,
-                    'savings' => $priceDifference,
-                    'new_total' => $configuration['total_price'],
-                ]);
-            } else {
-                Log::warning('PSU_DOWNGRADE_FAILED_NO_500W_FOUND');
+                if ($candidate !== null) {
+                    $configuration['total_price'] = max(0, $configuration['total_price'] - $currentPrice + (int) $candidate['price']);
+                    $configuration[$cat] = [
+                        'id' => (int) $candidate['id'],
+                        'name' => (string) $candidate['name'],
+                        'price' => (int) $candidate['price'],
+                        'category' => strtoupper($cat),
+                    ];
+                    if ($configuration['total_price'] <= $maxAllowed) {
+                        break;
+                    }
+                }
             }
         }
-
-        // ========== 5️⃣ Recalculate Total Price (Safety) ==========
-        $recalculatedTotal = 0;
-        $categories = ['cpu', 'mainboard', 'ram', 'ssd', 'vga', 'psu', 'case'];
-
-        foreach ($categories as $cat) {
-            $price = $configuration[$cat]['price'] ?? 0;
-            $recalculatedTotal += (int) $price;
-        }
-
-        $priceDiff = abs($configuration['total_price'] - $recalculatedTotal);
-        
-        if ($priceDiff > 100) {  // Allow small rounding difference
-            Log::warning('TOTAL_PRICE_MISMATCH_FIXING', [
-                'old_total' => $configuration['total_price'],
-                'recalculated_total' => $recalculatedTotal,
-                'difference' => $priceDiff,
-            ]);
-
-            $configuration['total_price'] = $recalculatedTotal;
-        }
-
-        // ========== Final Validation ==========
-        Log::info('FINAL_GUARDRAIL_COMPLETE', [
-            'has_ram' => !empty($configuration['ram']['id']),
-            'has_ssd' => !empty($configuration['ssd']['id']),
-            'has_vga' => isset($configuration['vga']['name']),
-            'final_total' => $configuration['total_price'],
-            'items_count' => count($configuration['items'] ?? []),
-        ]);
 
         return $configuration;
     }
@@ -1455,7 +1514,6 @@ PROMPT;
         };
 
         $productJson = json_encode($productContext, JSON_UNESCAPED_UNICODE);
-        
         $minBudget = $budgetRange['min'] ?? $budget * 0.8;
         $maxBudget = $budgetRange['max'] ?? $budget;
         $targetBudget = $budgetRange['target'] ?? ($minBudget + ($maxBudget - $minBudget) * 0.85);
@@ -1478,6 +1536,7 @@ HƯỚNG DẪN CHỌN LINH KIỆN (QUAN TRỌNG):
 5. Nếu còn dư ngân sách → ƯUTIÊN NÂNG CẤP SSD (500GB→1TB, 1TB→2TB, vv)
 6. CHỈ chọn từ danh sách sản phẩm được cung cấp ở trên, KHÔNG tự bịa
 7. Đặc biệt chú ý quy tắc specs cho mục đích này (xem System Prompt)
+8. Khi trả về JSON, BẠN BẮT BUỘC PHẢI ĐẢM BẢO id của linh kiện phải tương ứng chính xác với field đó. vga_id CHỈ ĐƯỢC PHÉP chứa id của danh mục Card màn hình (VGA). psu_id CHỈ ĐƯỢC PHÉP chứa id của danh mục Nguồn (PSU). Tuyệt đối cấm tráo đổi id giữa các danh mục.
 
 TRẢVỀ JSON theo cấu trúc bắt buộc, KHÔNG CÓ CHỮ KHÁC!
 PROMPT;
@@ -1571,7 +1630,6 @@ PROMPT;
 
         foreach ($categoryMap as $configKey => $categoryKey) {
             $productId = $aiConfig[$configKey] ?? null;
-
             if ($productId === null || $productId === '') {
                 Log::info("CATEGORY_SKIPPED: $categoryKey has no ID");
                 continue;
@@ -1595,38 +1653,82 @@ PROMPT;
                     'price' => (int) $matchedProduct['price'],
                     'category' => strtoupper($categoryKey),
                 ];
-
-                $result['items'][] = [
-                    'id' => (int) $matchedProduct['id'],
-                    'name' => (string) $matchedProduct['name'],
-                    'price' => (int) $matchedProduct['price'],
-                    'category' => strtoupper($categoryKey),
-                ];
-
+                $result['items'][] = $result[$categoryKey];
                 $result['total_price'] += (int) $matchedProduct['price'];
-
-                Log::info("PRODUCT_MAPPED", [
-                    'category' => $categoryKey,
-                    'product_id' => $matchedProduct['id'],
-                    'product_name' => $matchedProduct['name'],
-                    'price' => $matchedProduct['price'],
-                ]);
-            } else {
-                Log::warning("PRODUCT_NOT_FOUND", [
-                    'category' => $categoryKey,
-                    'requested_id' => $productId,
-                    'available_ids' => array_map(fn($p) => $p['id'], $products),
-                ]);
             }
         }
 
-        // Validation: Kiểm tra xem tổng giá có phù hợp với ngân sách hay không
+        // Cross-validation: nếu AI map sai category thì fallback sang đúng category
+        foreach (['cpu', 'mainboard', 'ram', 'vga', 'ssd', 'psu', 'case'] as $cat) {
+            $current = $result[$cat] ?? ['id' => null, 'name' => '', 'price' => 0, 'category' => strtoupper($cat)];
+            $currentCategory = strtoupper((string) ($current['category'] ?? ''));
+            $expectedCategory = strtoupper($cat);
+
+            if ($currentCategory !== '' && $currentCategory !== $expectedCategory) {
+                Log::warning('CATEGORY_MISMATCH_DETECTED', [
+                    'component' => $cat,
+                    'current_category' => $currentCategory,
+                    'expected_category' => $expectedCategory,
+                    'current_name' => $current['name'] ?? null,
+                ]);
+                $result[$cat] = ['id' => null, 'name' => '', 'price' => 0, 'category' => $expectedCategory];
+            }
+
+            if (empty($result[$cat]['id'])) {
+                $fallback = $this->fallbackProductForCategory($cat, $productContext);
+                if ($fallback !== null) {
+                    $result[$cat] = $fallback;
+                }
+            }
+        }
+
+        $result['items'] = [];
+        $result['total_price'] = 0;
+        foreach (['cpu', 'mainboard', 'ram', 'vga', 'ssd', 'psu', 'case'] as $cat) {
+            if (!empty($result[$cat]['id'])) {
+                $result['items'][] = $result[$cat];
+                $result['total_price'] += (int) ($result[$cat]['price'] ?? 0);
+            }
+        }
+
         Log::info('POST_MAPPING_VALIDATION', [
             'total_price' => $result['total_price'],
             'budget_range' => $this->analyzeBudgetRange($result['total_price'] > 0 ? $result['total_price'] : 1),
         ]);
 
         return $result;
+    }
+
+    private function fallbackProductForCategory(string $category, array $productContext): ?array
+    {
+        $products = $productContext[$category] ?? [];
+        if (empty($products)) {
+            return null;
+        }
+
+        $selected = null;
+        foreach ($products as $product) {
+            $categoryName = strtoupper((string) ($product['category'] ?? $category));
+            if ($categoryName === strtoupper($category)) {
+                $selected = $product;
+                break;
+            }
+        }
+
+        if ($selected === null) {
+            $selected = reset($products);
+        }
+
+        if ($selected === false || $selected === null) {
+            return null;
+        }
+
+        return [
+            'id' => (int) $selected['id'],
+            'name' => (string) $selected['name'],
+            'price' => (int) $selected['price'],
+            'category' => strtoupper($category),
+        ];
     }
 
     /**
