@@ -2,171 +2,230 @@
 import { ref, computed, onMounted } from 'vue'
 
 const configs = ref([])
-const products = ref([])
 const loading = ref(false)
 const showForm = ref(false)
 const isEditing = ref(false)
 const searchQuery = ref('')
 const formErrors = ref({})
 
+// ─── Component definitions ────────────────────────────────────────────
+const COMPONENTS = [
+  { key: 'cpu',        label: 'CPU',         slug: 'cpu',        placeholder: 'Nhập tên CPU để tìm kiếm...' },
+  { key: 'mainboard',  label: 'Mainboard',   slug: 'mainboard',  placeholder: 'Nhập tên Mainboard để tìm kiếm...' },
+  { key: 'ram',        label: 'RAM',         slug: 'ram',        placeholder: 'Nhập tên RAM để tìm kiếm...' },
+  { key: 'vga',        label: 'VGA',         slug: 'vga',        placeholder: 'Nhập tên VGA để tìm kiếm...' },
+  { key: 'ssd',        label: 'SSD',         slug: 'ssd',        placeholder: 'Nhập tên SSD để tìm kiếm...' },
+  { key: 'psu',        label: 'PSU (Nguồn)', slug: 'psu',        placeholder: 'Nhập tên PSU để tìm kiếm...' },
+  { key: 'case',       label: 'Case (Vỏ)',   slug: 'case',       placeholder: 'Nhập tên Case để tìm kiếm...' },
+]
+
+const icons = {
+  cpu:    '🧠',
+  mainboard: '🔲',
+  ram:    '💾',
+  vga:    '🎮',
+  ssd:    '⚡',
+  psu:    '🔌',
+  case:   '🖥️',
+}
+
+// ─── selectedComponents: one product object per component slot ────────
+const selectedComponents = ref({})
+COMPONENTS.forEach(c => { selectedComponents.value[c.key] = null })
+
+// ─── Per-component search state ───────────────────────────────────────
+const searchState = ref({})
+COMPONENTS.forEach(c => {
+  searchState.value[c.key] = {
+    query: '',
+    results: [],
+    open: false,
+    loading: false,
+  }
+})
+
+// ─── Click-outside: close any open dropdown ───────────────────────────
+function closeAllDropdowns() {
+  COMPONENTS.forEach(c => {
+    searchState.value[c.key].open = false
+    searchState.value[c.key].results = []
+  })
+}
+
+function handleClickOutside(e) {
+  if (!showForm.value) return
+  const el = e.target.closest('[data-search-block]')
+  if (!el) {
+    closeAllDropdowns()
+  }
+}
+
+// ─── fetchConfigs / formData ──────────────────────────────────────────
 const formData = ref({
-  id: null,
-  name: '',
-  slug: '',
-  price: '',
-  description: '',
-  thumbnail_url: '',
-  is_featured: false,
-  is_active: true,
-  sort_order: 0,
-  product_ids: [],
-  product_quantities: {},
+  id: null, name: '', slug: '', price: '', description: '',
+  thumbnail_url: '', is_featured: false, is_active: true, sort_order: 0,
 })
 
 const filteredConfigs = computed(() => {
   if (!searchQuery.value) return configs.value
-  const query = searchQuery.value.toLowerCase()
-  return configs.value.filter((item) => item.name.toLowerCase().includes(query))
+  const q = searchQuery.value.toLowerCase()
+  return configs.value.filter((item) => item.name.toLowerCase().includes(q))
 })
 
 const totalPrice = computed(() => {
   let total = 0
-  formData.value.product_ids.forEach(productId => {
-    const product = products.value.find(p => p.id === productId)
-    const quantity = formData.value.product_quantities[productId] || 1
-    if (product) {
-      total += parseFloat(product.price) * quantity
-    }
+  Object.values(selectedComponents.value).forEach(p => {
+    if (p) total += parseFloat(p.price) || 0
   })
   return total
 })
 
-const productGroups = computed(() => {
-  const groups = {}
-
-  products.value.forEach((product) => {
-    const categoryId = product.category_id ?? 'uncategorized'
-    const categoryName = product.category?.name || 'Khác'
-    const categoryLabel = product.category?.name || 'Khác'
-
-    if (!groups[categoryId]) {
-      groups[categoryId] = {
-        id: categoryId,
-        name: categoryName,
-        label: categoryLabel,
-        products: [],
-      }
-    }
-
-    groups[categoryId].products.push(product)
-  })
-
-  return Object.values(groups).sort((a, b) => a.name.localeCompare(b.name, 'vi'))
+const selectedCount = computed(() => {
+  return Object.values(selectedComponents.value).filter(Boolean).length
 })
 
-function getCategoryIcon(categoryName) {
-  const icons = {
-    CPU: '🧠',
-    RAM: '💾',
-    Mainboard: '🔲',
-    VGA: '🎮',
-    SSD: '⚡',
-    HDD: '💽',
-    PSU: '🔌',
-    Case: '🖥️',
-    'Tản nhiệt': '🌬️',
-    'Fan': '🌀',
+// ─── Async search per component with debounce ─────────────────────────
+async function searchProduct(componentKey, query) {
+  const state = searchState.value[componentKey]
+  if (!state) return
+
+  // Only fire search when there is at least 1 character typed
+  if (!query || query.trim() === '') {
+    state.results = []
+    state.loading = false
+    return
   }
 
-  return icons[categoryName] || '📦'
-}
+  const trimmedQ = query.trim()
 
-async function fetchConfigs() {
-  loading.value = true
+  state.loading = true
+  state.open = true
+
   try {
-    const response = await fetch('/api/prebuilt-configs?all=true')
+    const catInfo = COMPONENTS.find(c => c.key === componentKey)
+
+    console.log(`[Search ${componentKey}] Calling API with:`, {
+      category_slug: catInfo.slug,
+      q: trimmedQ,
+    })
+
+    const url = `/api/products/search?category_slug=${encodeURIComponent(catInfo.slug)}&q=${encodeURIComponent(trimmedQ)}&per_page=10`
+
+    console.log(`[Search ${componentKey}] Full URL:`, url)
+
+    const response = await fetch(url, {
+      headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    })
+
+    console.log(`[Search ${componentKey}] Response status:`, response.status)
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+
     const result = await response.json()
-    if (result.status === 'success') {
-      configs.value = result.data || []
+
+    console.log(`[Search ${componentKey}] Raw JSON response:`, result)
+
+    // Flexible parsing — handle multiple response shapes
+    let products = []
+    if (Array.isArray(result.data)) {
+      products = result.data
+    } else if (result.data && Array.isArray(result.data.data)) {
+      products = result.data.data
+    } else if (result.data && Array.isArray(result.data.items)) {
+      products = result.data.items
+    } else if (Array.isArray(result)) {
+      products = result
     }
+
+    console.log(`[Search ${componentKey}] Extracted ${products.length} products`, products)
+
+    state.results = products
+    state.loading = false
   } catch (err) {
-    console.error('Error fetching prebuilt configs:', err)
-    alert('Lỗi khi tải cấu hình xây sẵn')
-  } finally {
-    loading.value = false
+    console.error(`[Search ${componentKey}] Error:`, err.message)
+    state.results = []
+    state.loading = false
   }
 }
 
-  async function fetchProducts() {
-    try {
-      const response = await fetch('/api/products?per_page=100', {
-        headers: {
-          Accept: 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-      })
+function debouncedSearch(componentKey, query) {
+  clearTimeout(searchState.value[componentKey]._timer)
+  searchState.value[componentKey]._timer = setTimeout(() => {
+    searchProduct(componentKey, query)
+  }, 350)
+}
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
+function selectProduct(componentKey, product) {
+  selectedComponents.value[componentKey] = product
+  searchState.value[componentKey].query = ''
+  searchState.value[componentKey].results = []
+  searchState.value[componentKey].open = false
+}
 
-      const result = await response.json()
-      if (result.status === 'success' && result.data) {
-        products.value = Array.isArray(result.data) ? result.data : result.data.data || []
-      } else {
-        products.value = []
-      }
-    } catch (err) {
-      console.error('Error fetching products:', err)
-    }
+function deselectProduct(componentKey) {
+  selectedComponents.value[componentKey] = null
+}
+
+function toggleDropdown(componentKey) {
+  const s = searchState.value[componentKey]
+  s.open = !s.open
+  if (!s.open) {
+    s.results = []
+  } else if (!s.query) {
+    s.results = []
   }
+}
 
+// ─── Form helpers ─────────────────────────────────────────────────────
 function validateForm() {
   formErrors.value = {}
-  
+
   if (!formData.value.name || formData.value.name.trim() === '') {
     formErrors.value.name = 'Tên cấu hình không được để trống'
   }
-  
-  if (formData.value.product_ids.length === 0) {
-    formErrors.value.products = 'Phải chọn ít nhất 1 sản phẩm'
+
+  if (selectedCount.value === 0) {
+    formErrors.value.components = 'Phải chọn ít nhất 1 sản phẩm'
   }
-  
-  for (const productId of formData.value.product_ids) {
-    const quantity = formData.value.product_quantities[productId]
-    if (!quantity || quantity < 1) {
-      formErrors.value[`qty_${productId}`] = 'Số lượng phải >= 1'
-    }
-  }
-  
+
   return Object.keys(formErrors.value).length === 0
 }
 
 function openAddForm() {
   isEditing.value = false
   formData.value = {
-    id: null,
-    name: '',
-    slug: '',
-    price: '',
-    description: '',
-    thumbnail_url: '',
-    is_featured: false,
-    is_active: true,
-    sort_order: 0,
-    product_ids: [],
-    product_quantities: {},
+    id: null, name: '', slug: '', price: '', description: '',
+    thumbnail_url: '', is_featured: false, is_active: true, sort_order: 0,
   }
   formErrors.value = {}
+  COMPONENTS.forEach(c => {
+    selectedComponents.value[c.key] = null
+    searchState.value[c.key].query = ''
+    searchState.value[c.key].results = []
+    searchState.value[c.key].open = false
+  })
   showForm.value = true
 }
 
 function openEditForm(config) {
   isEditing.value = true
-  const productQuantities = {}
-  config.products?.forEach(p => {
-    productQuantities[p.id] = p.pivot?.quantity || 1
+  COMPONENTS.forEach(c => {
+    searchState.value[c.key].query = ''
+    searchState.value[c.key].results = []
+    searchState.value[c.key].open = false
   })
+
+  config.products?.forEach(p => {
+    const comp = COMPONENTS.find(c => c.key === p.component_key || (p.category && p.category.slug === c.slug))
+    if (comp) {
+      selectedComponents.value[comp.key] = p
+    } else {
+      // Fallback: match by category_id
+      const slugKey = getCategoryKeyFromName(p.category?.name)
+      if (slugKey) selectedComponents.value[slugKey] = p
+    }
+  })
+
   formData.value = {
     id: config.id,
     name: config.name,
@@ -177,24 +236,39 @@ function openEditForm(config) {
     is_featured: config.is_featured,
     is_active: config.is_active,
     sort_order: config.sort_order,
-    product_ids: config.products?.map(p => p.id) || [],
-    product_quantities: productQuantities,
   }
   formErrors.value = {}
   showForm.value = true
 }
 
-async function saveConfig() {
-  if (!validateForm()) {
-    return
+function getCategoryKeyFromName(categoryName) {
+  const map = {
+    'CPU': 'cpu', 'Mainboard': 'mainboard', 'RAM': 'ram',
+    'VGA': 'vga', 'SSD': 'ssd', 'HDD': 'ssd',
+    'PSU': 'psu', 'Case': 'case',
   }
+  return map[categoryName] || null
+}
+
+async function saveConfig() {
+  if (!validateForm()) return
 
   loading.value = true
   try {
+    const productIds = []
+    const productQuantities = {}
+
+    Object.entries(selectedComponents.value).forEach(([key, product]) => {
+      if (product) {
+        productIds.push(product.id)
+        productQuantities[product.id] = 1
+      }
+    })
+
     const url = isEditing.value
       ? `/api/prebuilt-configs/${formData.value.id}`
       : '/api/prebuilt-configs'
-    
+
     const method = isEditing.value ? 'PUT' : 'POST'
 
     const response = await fetch(url, {
@@ -209,8 +283,8 @@ async function saveConfig() {
         is_featured: formData.value.is_featured,
         is_active: formData.value.is_active,
         sort_order: formData.value.sort_order,
-        product_ids: formData.value.product_ids,
-        product_quantities: formData.value.product_quantities,
+        product_ids: productIds,
+        product_quantities: productQuantities,
       }),
     })
 
@@ -235,9 +309,7 @@ async function deleteConfig(id, name) {
 
   loading.value = true
   try {
-    const response = await fetch(`/api/prebuilt-configs/${id}`, {
-      method: 'DELETE',
-    })
+    const response = await fetch(`/api/prebuilt-configs/${id}`, { method: 'DELETE' })
     const result = await response.json()
 
     if (result.status === 'success') {
@@ -256,11 +328,8 @@ async function deleteConfig(id, name) {
 
 async function toggleActive(id) {
   try {
-    const response = await fetch(`/api/prebuilt-configs/${id}/toggle-active`, {
-      method: 'PATCH',
-    })
+    const response = await fetch(`/api/prebuilt-configs/${id}/toggle-active`, { method: 'PATCH' })
     const result = await response.json()
-
     if (result.status === 'success') {
       alert(result.message)
       await fetchConfigs()
@@ -273,11 +342,8 @@ async function toggleActive(id) {
 
 async function toggleFeatured(id) {
   try {
-    const response = await fetch(`/api/prebuilt-configs/${id}/toggle-featured`, {
-      method: 'PATCH',
-    })
+    const response = await fetch(`/api/prebuilt-configs/${id}/toggle-featured`, { method: 'PATCH' })
     const result = await response.json()
-
     if (result.status === 'success') {
       alert(result.message)
       await fetchConfigs()
@@ -298,14 +364,31 @@ function getProductQuantityDetails(config) {
   return details.length > 50 ? details.substring(0, 47) + '...' : details
 }
 
+async function fetchConfigs() {
+  loading.value = true
+  try {
+    const response = await fetch('/api/prebuilt-configs?all=true')
+    const result = await response.json()
+    if (result.status === 'success') {
+      configs.value = result.data || []
+    }
+  } catch (err) {
+    console.error('Error fetching prebuilt configs:', err)
+    alert('Lỗi khi tải cấu hình xây sẵn')
+  } finally {
+    loading.value = false
+  }
+}
+
+// ─── Lifecycle ────────────────────────────────────────────────────────
 onMounted(() => {
   fetchConfigs()
-  fetchProducts()
 })
 </script>
 
 <template>
   <div class="space-y-6">
+    <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
         <h2 class="text-2xl font-bold text-gray-900">🧩 Quản lý cấu hình xây sẵn</h2>
@@ -316,10 +399,12 @@ onMounted(() => {
       </button>
     </div>
 
+    <!-- Search configs -->
     <div class="bg-white rounded-lg p-4 border border-gray-200">
       <input v-model="searchQuery" type="text" placeholder="Tìm kiếm cấu hình..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black" />
     </div>
 
+    <!-- Configs table -->
     <div v-if="!loading" class="overflow-x-auto bg-white rounded-lg border border-gray-200">
       <table class="w-full border-collapse">
         <thead>
@@ -358,22 +443,28 @@ onMounted(() => {
           </tr>
         </tbody>
       </table>
-      
-      <div v-if="filteredConfigs.length === 0" class="text-center py-8 text-gray-600">
-        Không tìm thấy cấu hình
-      </div>
-    </div>
 
+      <div v-if="filteredConfigs.length === 0" class="text-center py-8 text-gray-600">Không tìm thấy cấu hình</div>
+    </div>
     <div v-else class="text-center py-8 text-gray-600">Đang tải...</div>
 
-    <div v-if="showForm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div class="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-        <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+    <!-- ════════════════════════════════════════════════════════ -->
+    <!-- MODAL: Add / Edit Prebuilt Config                        -->
+    <!-- ════════════════════════════════════════════════════════ -->
+    <div v-if="showForm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+         @mousedown="handleClickOutside" @scroll.stop>
+      <!-- Prevent background scroll when modal is open -->
+      <div class="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+           @click.stop
+           @mousedown.stop>
+        <!-- Modal header -->
+        <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
           <h3 class="text-lg font-bold text-gray-900">{{ isEditing ? '✏️ Sửa cấu hình' : '➕ Thêm cấu hình xây sẵn' }}</h3>
           <button @click="showForm = false" class="text-2xl text-gray-400 hover:text-gray-600">✕</button>
         </div>
 
-        <div class="p-6 space-y-4">
+        <div class="p-6 space-y-5">
+          <!-- Basic info -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Tên cấu hình *</label>
@@ -386,13 +477,14 @@ onMounted(() => {
             </div>
           </div>
 
+          <!-- Price / Sort order / Thumbnail URL -->
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Giá tính tự động</label>
               <div class="px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 font-semibold">
                 {{ formatPrice(totalPrice) }}
               </div>
-              <p class="text-xs text-gray-500 mt-1">Dựa trên sản phẩm đã chọn</p>
+              <p class="text-xs text-gray-500 mt-0.5">Dựa trên sản phẩm đã chọn</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Thứ tự</label>
@@ -404,49 +496,98 @@ onMounted(() => {
             </div>
           </div>
 
+          <!-- Description -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
-            <textarea v-model="formData.description" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black" placeholder="Mô tả chi tiết cấu hình..."></textarea>
+            <textarea v-model="formData.description" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black" placeholder="Mô tả chi tiết cấu hình..."></textarea>
           </div>
 
+          <!-- ═══════════════════════════════════════════════════ -->
+          <!-- Product Selection (Inline Dropdown Version)         -->
+          <!-- ═══════════════════════════════════════════════════ -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Chọn sản phẩm cấu thành *</label>
-            <div v-if="formErrors.products" class="mb-2 text-xs text-red-600 bg-red-50 px-3 py-2 rounded">{{ formErrors.products }}</div>
+            <div v-if="formErrors.components" class="mb-2 text-xs text-red-600 bg-red-50 px-3 py-2 rounded">{{ formErrors.components }}</div>
+            <div v-if="selectedCount > 0" class="mb-2 text-xs text-gray-500">Đã chọn {{ selectedCount }}/{{ COMPONENTS.length }} linh kiện</div>
 
-            <div class="space-y-4 max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-3 bg-gray-50">
-              <div v-for="group in productGroups" :key="group.id" class="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-                <div class="flex items-center justify-between gap-3 border-b border-gray-100 bg-gray-50 px-4 py-3">
-                  <div>
-                    <h4 class="font-semibold text-gray-900">
-                      {{ getCategoryIcon(group.name) }} {{ group.name }} - Bộ linh kiện
-                    </h4>
-                    <p class="text-xs text-gray-500 mt-0.5">{{ group.products.length }} sản phẩm</p>
-                  </div>
+            <div class="space-y-3 border border-gray-200 rounded-xl p-4 bg-gray-50 max-h-[60vh] overflow-y-auto">
+              <div v-for="comp in COMPONENTS" :key="comp.key" data-search-block
+                   class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                <!-- Block header -->
+                <div class="flex items-center gap-2 border-b border-gray-100 bg-gray-50 px-4 py-2.5">
+                  <span class="text-lg">{{ icons[comp.key] || '📦' }}</span>
+                  <span class="font-semibold text-gray-900 text-sm">{{ comp.label }}</span>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-2 p-3">
-                  <div v-for="product in group.products" :key="product.id" class="flex items-center justify-between gap-2 p-2 rounded border border-gray-200 bg-white">
-                    <label class="flex items-center gap-2 cursor-pointer flex-1 min-w-0">
-                      <input v-model="formData.product_ids" :value="product.id" type="checkbox" class="rounded" />
-                      <div class="min-w-0">
-                        <span class="text-sm text-gray-700 block truncate">{{ product.name }}</span>
-                        <span class="text-xs text-gray-500 block">{{ formatPrice(product.price) }}</span>
+                <div class="p-4">
+                  <!-- Selected badge -->
+                  <div v-if="selectedComponents[comp.key]" class="mb-3">
+                    <div class="flex items-center justify-between gap-2 p-3 rounded-lg bg-emerald-50 border border-emerald-200">
+                      <div class="min-w-0 flex-1">
+                        <p class="text-sm font-medium text-gray-900 truncate">{{ selectedComponents[comp.key].name }}</p>
+                        <p class="text-xs text-gray-500">{{ formatPrice(selectedComponents[comp.key].price) }}</p>
                       </div>
-                    </label>
-
-                    <div v-if="formData.product_ids.includes(product.id)" class="flex items-center gap-1 shrink-0">
-                      <input v-model.number="formData.product_quantities[product.id]" type="number" min="1" class="w-12 px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:border-black" placeholder="1" />
-                      <span class="text-xs text-gray-500">x</span>
+                      <button @click="deselectProduct(comp.key)"
+                              class="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 text-sm font-bold transition"
+                              title="Bỏ chọn">
+                        ✕
+                      </button>
                     </div>
-                    <span v-if="formErrors[`qty_${product.id}`]" class="text-xs text-red-600">!</span>
+                  </div>
+
+                  <!-- Search area (only shown when nothing selected) -->
+                  <div v-else>
+                    <!-- Input -->
+                    <input
+                      v-model="searchState[comp.key].query"
+                      @focus="toggleDropdown(comp.key)"
+                      @input="debouncedSearch(comp.key, $event.target.value)"
+                      type="text"
+                      :placeholder="comp.placeholder"
+                      class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-black text-sm"
+                    />
+
+                    <!-- Loading indicator inside input area -->
+                    <div v-if="searchState[comp.key].loading" class="mt-1 text-xs text-gray-400 pl-1">
+                      Đang tìm kiếm...
+                    </div>
+
+                    <!-- Inline dropdown results (NOT absolute — avoids overflow clipping) -->
+                    <div v-if="searchState[comp.key].open && searchState[comp.key].results.length > 0 && !searchState[comp.key].loading"
+                         class="mt-1 border border-gray-200 rounded-lg bg-white shadow-sm max-h-48 overflow-y-auto">
+                      <div
+                        v-for="product in searchState[comp.key].results"
+                        :key="product.id"
+                        @click="selectProduct(comp.key, product)"
+                        class="flex items-center justify-between gap-2 px-4 py-2.5 cursor-pointer hover:bg-gray-50 transition border-b border-gray-100 last:border-b-0"
+                      >
+                        <div class="min-w-0 flex-1">
+                          <p class="text-sm text-gray-900 truncate">{{ product.name }}</p>
+                          <p class="text-xs text-gray-500">{{ formatPrice(product.price) }}</p>
+                        </div>
+                        <span class="shrink-0 text-xs text-gray-400">Chọn</span>
+                      </div>
+                    </div>
+
+                    <!-- No results message -->
+                    <div v-if="searchState[comp.key].open && !searchState[comp.key].loading && searchState[comp.key].query && searchState[comp.key].results.length === 0"
+                         class="mt-1 border border-gray-200 rounded-lg bg-white px-4 py-3 text-sm text-gray-500 text-center">
+                      Không tìm thấy kết quả nào cho "{{ searchState[comp.key].query }}"
+                    </div>
+
+                    <!-- Hint when input is focused but no query yet -->
+                    <div v-if="searchState[comp.key].open && !searchState[comp.key].loading && !searchState[comp.key].query"
+                         class="mt-1 text-xs text-gray-400 px-1">
+                      Gõ từ khóa để tìm kiếm sản phẩm {{ comp.label }}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-
-            <p v-if="formData.product_ids.length" class="text-sm text-gray-500 mt-2">Đã chọn {{ formData.product_ids.length }} sản phẩm</p>
           </div>
+          <!-- ═══════════════════════════════════════════════════ -->
 
+          <!-- Toggle flags -->
           <div class="flex gap-4 pt-2">
             <label class="flex items-center gap-2 cursor-pointer">
               <input v-model="formData.is_featured" type="checkbox" />
@@ -458,7 +599,8 @@ onMounted(() => {
             </label>
           </div>
 
-          <div class="flex gap-4 pt-6 border-t border-gray-200">
+          <!-- Actions -->
+          <div class="flex gap-4 pt-4 border-t border-gray-200">
             <button @click="saveConfig" :disabled="loading" class="flex-1 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition font-medium disabled:opacity-50">
               {{ loading ? 'Đang lưu...' : (isEditing ? 'Cập nhật' : 'Thêm') }}
             </button>

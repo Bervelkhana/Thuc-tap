@@ -18,9 +18,10 @@ Route::get('/test', function () {
 Route::get('/categories', [CategoryController::class, 'index']);
 
 // Products - Frontend (GET only)
-Route::get('/products', [ProductController::class, 'index']);
+Route::get('/products/search', [ProductController::class, 'search']);
 Route::get('/products/sales', [ProductController::class, 'sales']);
 Route::get('/products/newest', [ProductController::class, 'newest']);
+Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{product}', [ProductController::class, 'show']);
 
 // Products - Backend (CRUD)
