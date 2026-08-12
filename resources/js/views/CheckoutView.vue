@@ -84,9 +84,9 @@ async function handleCheckout() {
       orderData.value = result.data
       cartStore.clearCart()
       
-      // Redirect to browse after 3 seconds
+      // Redirect to pc-builder after 3 seconds
       setTimeout(() => {
-        router.push('/browse')
+        router.push('/pc-builder')
       }, 3000)
     } else {
       error.value = result.message || 'Failed to create order'
@@ -123,7 +123,7 @@ import { reactive } from 'vue'
       <!-- Success Message -->
       <transition name="fade">
         <div v-if="success" class="mb-8 bg-green-50 border border-green-200 rounded-lg p-6">
-          <h3 class="text-lg font-semibold text-green-900 mb-2">Order Created Successfully!</h3>
+          <h3 class="text-lg font-semibold text-green-900 mb-2">Đặt hàng thành công!</h3>
           <p class="text-sm text-green-700">
             Order ID: <span class="font-semibold">#{{ orderData.order_id }}</span>
           </p>
@@ -131,8 +131,14 @@ import { reactive } from 'vue'
             Estimated Delivery: {{ orderData.estimated_delivery }}
           </p>
           <p class="text-sm text-green-700 mt-4">
-            Redirecting to home page...
+            Đang chuyển về trang Xây dựng PC...
           </p>
+          <button
+            @click="router.push('/pc-builder')"
+            class="mt-4 bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition"
+          >
+            Quay lại Xây dựng PC
+          </button>
         </div>
       </transition>
 

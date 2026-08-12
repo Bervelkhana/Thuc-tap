@@ -1,8 +1,10 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useCartStore } from '../stores/cartStore'
+import { useRouter } from 'vue-router'
 
 const cart = useCartStore()
+const router = useRouter()
 
 const componentTypes = [
   { key: 'cpu', label: 'CPU', icon: '🖥️' },
@@ -225,6 +227,10 @@ const totalPrice = computed(() => {
   return componentTypes.reduce((sum, type) => sum + Number(selectedParts.value[type.key]?.price || 0), 0)
 })
 
+function goHome() {
+  router.push('/')
+}
+
 function addAllToCart() {
   componentTypes.forEach(({ key }) => {
     const product = selectedParts.value[key]
@@ -233,10 +239,7 @@ function addAllToCart() {
     }
   })
 
-  successMessage.value = '✅ Đã thêm toàn bộ cấu hình vào giỏ hàng'
-  setTimeout(() => {
-    successMessage.value = null
-  }, 2500)
+  router.push('/checkout-new')
 }
 
 function handleKeyDown(categoryKey, event) {
@@ -257,7 +260,15 @@ function handleGlobalKeyDown(event) {
 <template>
   <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
     <div class="max-w-4xl mx-auto px-4 py-8">
-      <h1 class="text-4xl font-bold text-gray-900 mb-2">🖥️ Xây dựng PC của bạn</h1>
+      <div class="flex items-center justify-between mb-6">
+        <button
+          @click="goHome"
+          class="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition font-medium"
+        >
+          🏠 Tech Gear
+        </button>
+        <h1 class="text-4xl font-bold text-gray-900 mb-2">🖥️ Xây dựng PC của bạn</h1>
+      </div>
       <p class="text-gray-600 mb-8">Tìm kiếm và chọn các linh kiện phù hợp. Nhập tên sản phẩm rồi nhấn Enter</p>
 
       <!-- Global Search Bar -->
@@ -440,120 +451,3 @@ input:focus {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 </style>
-  const warnings = []
-  
-  if (selectedParts.value.cpu && selectedParts.value.mainboard) {
-    const cpuSocket = extractSocket(selectedParts.value.cpu.name)
-    const mbSocket = extractSocket(selectedParts.value.mainboard.name)
-    
-    if (cpuSocket && mbSocket) {
-      if (mbSocket.includes(cpuSocket)) {
-        warnings.push({
-          type: 'success',
-          message: `✅ CPU socket ${cpuSocket} phù hợp với Mainboard`
-        })
-      } else {
-        warnings.push({
-          type: 'error',
-          message: `❌ CPU socket ${cpuSocket} KHÔNG phù hợp với Mainboard socket ${mbSocket}`
-        })
-      }
-    }
-  }
-  
-  return warnings
-})
-
-async function searchProducts(categoryKey) {
-  const query = searchInputs.value[categoryKey].trim()
-  
-  if (!query || query.length < 1) {
-    searchResults.value[categoryKey] = []
-    showResults.value[categoryKey] = false
-    return
-  }
-
-  loadingSearch.value[categoryKey] = true
-  error.value = null
-
-  try {
-    const params = new URLSearchParams({
-      category: categoryKey,
-      search: query
-    })
-
-    // Nếu tìm mainboard, thêm cpu_id để filter theo socket
-    if (categoryKey === 'mainboard' && selectedParts.value.cpu) {
-      params.append('cpu_id', selectedParts.value.cpu.id)
-    }
-
-    const response = await fetch(`/api/pc-builder/components?${params}`)
-    const result = await response.json()
-
-    if (result.status === 'success') {
-      searchResults.value[categoryKey] = result.data || []
-      showResults.value[categoryKey] = searchResults.value[categoryKey].length > 0
-    } else {
-      error.value = result.message || 'Lỗi tìm kiếm'
-    }
-  } catch (err) {
-    error.value = 'Lỗi kết nối tới server'
-    console.error(err)
-  } finally {
-    loadingSearch.value[categoryKey] = false
-  }
-}
-
-function selectProduct(categoryKey, product) {
-  selectedParts.value[categoryKey] = product
-  searchInputs.value[categoryKey] = ''
-  searchResults.value[categoryKey] = []
-  showResults.value[categoryKey] = false
-
-  // Nếu chọn CPU, reset mainboard search
-  if (categoryKey === 'cpu') {
-    selectedParts.value.mainboard = null
-    searchInputs.value.mainboard = ''
-  }
-
-  successMessage.value = `Đã chọn ${product.name}`
-  setTimeout(() => {
-    successMessage.value = null
-  }, 2000)
-}
-
-function removePart(categoryKey) {
-  selectedParts.value[categoryKey] = null
-  searchInputs.value[categoryKey] = ''
-  searchResults.value[categoryKey] = []
-  showResults.value[categoryKey] = false
-}
-
-function formatPrice(price) {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(price || 0))
-}
-
-const totalPrice = computed(() => {
-  return componentTypes.reduce((sum, type) => sum + Number(selectedParts.value[type.key]?.price || 0), 0)
-})
-
-function addAllToCart() {
-  componentTypes.forEach(({ key }) => {
-    const product = selectedParts.value[key]
-    if (product) {
-      cart.addToCart(product, 1)
-    }
-  })
-
-  successMessage.value = '✅ Đã thêm toàn bộ cấu hình vào giỏ hàng'
-  setTimeout(() => {
-    successMessage.value = null
-  }, 2500)
-}
-
-function handleKeyDown(categoryKey, event) {
-  if (event.key === 'Enter') {
-    event.preventDefault()
-    searchProducts(categoryKey)
-  }
-}

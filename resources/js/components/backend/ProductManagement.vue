@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 
 const products = ref([])
 const categories = ref([])
@@ -8,6 +8,11 @@ const showForm = ref(false)
 const isEditing = ref(false)
 const searchQuery = ref('')
 const selectedCategory = ref(null)
+
+const currentPage = ref(1)
+const perPage = ref(15)
+const total = ref(0)
+const lastPage = ref(1)
 
 const formData = ref({
   id: null,
@@ -20,51 +25,56 @@ const formData = ref({
   thumbnail_url: '',
 })
 
-const filteredProducts = computed(() => {
-  let result = products.value
-  
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    result = result.filter(p => 
-      p.name.toLowerCase().includes(query) || 
-      p.sku.toLowerCase().includes(query)
-    )
+const filteredProducts = computed(() => products.value)
+
+const pages = computed(() => {
+  const pages = []
+  const maxVisible = 5
+  let start = Math.max(1, currentPage.value - Math.floor(maxVisible / 2))
+  let end = Math.min(lastPage.value, start + maxVisible - 1)
+
+  if (end - start < maxVisible - 1) {
+    start = Math.max(1, end - maxVisible + 1)
   }
-  
-  if (selectedCategory.value) {
-    result = result.filter(p => p.category_id === selectedCategory.value)
+
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
   }
-  
-  return result
+  return pages
 })
 
-async function fetchProducts() {
-   loading.value = true
-   try {
-     const response = await fetch('/api/products?per_page=100')
-     
-     if (!response.ok) {
-       throw new Error(`HTTP error! status: ${response.status}`)
-     }
-     
-     const result = await response.json()
-     console.log('API Response:', result)
-     
-     if (result.status === 'success' && result.data) {
-       // Handle both array and paginated response
-       products.value = Array.isArray(result.data) ? result.data : result.data.data || []
-       console.log('Products loaded:', products.value.length)
-     } else {
-       console.warn('Unexpected response format:', result)
-       products.value = []
-     }
-   } catch (err) {
-     console.error('Error fetching products:', err)
-     alert(`Lỗi khi tải sản phẩm: ${err.message}`)
-   } finally {
-     loading.value = false
-   }
- }
+async function fetchProducts(page = 1) {
+  loading.value = true
+  try {
+    const params = new URLSearchParams({
+      page: String(page),
+      per_page: String(perPage.value),
+    })
+    if (searchQuery.value) params.set('search', searchQuery.value)
+    if (selectedCategory.value) params.set('category_id', String(selectedCategory.value))
+
+    const response = await fetch(`/api/products?${params.toString()}`)
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const result = await response.json()
+    if (result.status === 'success') {
+      products.value = Array.isArray(result.data) ? result.data : result.data.data || []
+      currentPage.value = result.meta?.current_page ?? page
+      perPage.value = result.meta?.per_page ?? perPage.value
+      total.value = result.meta?.total ?? 0
+      lastPage.value = result.meta?.last_page ?? 1
+    } else {
+      products.value = []
+    }
+  } catch (err) {
+    console.error('Error fetching products:', err)
+    alert(`Lỗi khi tải sản phẩm: ${err.message}`)
+  } finally {
+    loading.value = false
+  }
+}
 
 async function fetchCategories() {
   try {
@@ -77,6 +87,14 @@ async function fetchCategories() {
     console.error('Error fetching categories:', err)
   }
 }
+
+function goToPage(page) {
+  if (page < 1 || page > lastPage.value) return
+  fetchProducts(page)
+}
+
+watch(searchQuery, () => goToPage(1))
+watch(selectedCategory, () => goToPage(1))
 
 function openAddForm() {
   isEditing.value = false
@@ -107,12 +125,12 @@ async function saveProduct() {
 
   loading.value = true
   try {
-    const url = isEditing.value 
+    const url = isEditing.value
       ? `/api/products/${formData.value.id}`
       : '/api/products'
-    
+
     const method = isEditing.value ? 'PUT' : 'POST'
-    
+
     const response = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
@@ -128,11 +146,11 @@ async function saveProduct() {
     })
 
     const result = await response.json()
-    
+
     if (result.status === 'success') {
       alert(isEditing.value ? 'Cập nhật sản phẩm thành công' : 'Tạo sản phẩm thành công')
       showForm.value = false
-      await fetchProducts()
+      await fetchProducts(currentPage.value)
     } else {
       alert(result.message || 'Lỗi khi lưu sản phẩm')
     }
@@ -151,10 +169,10 @@ async function deleteProduct(id, name) {
   try {
     const response = await fetch(`/api/products/${id}`, { method: 'DELETE' })
     const result = await response.json()
-    
+
     if (result.status === 'success') {
       alert('Xóa sản phẩm thành công')
-      await fetchProducts()
+      await fetchProducts(currentPage.value)
     } else {
       alert(result.message || 'Lỗi khi xóa sản phẩm')
     }
@@ -208,7 +226,7 @@ onMounted(() => {
           </option>
         </select>
       </div>
-      <p class="text-sm text-gray-600">Tìm thấy {{ filteredProducts.length }} sản phẩm</p>
+      <p class="text-sm text-gray-600">Tìm thấy {{ total }} sản phẩm</p>
     </div>
 
     <!-- PRODUCTS TABLE -->
@@ -238,8 +256,8 @@ onMounted(() => {
             <td class="px-4 py-3 text-sm">
               <span :class="[
                 'px-3 py-1 rounded-lg text-xs font-semibold',
-                product.stock_quantity > 0 
-                  ? 'bg-green-100 text-green-800' 
+                product.stock_quantity > 0
+                  ? 'bg-green-100 text-green-800'
                   : 'bg-red-100 text-red-800'
               ]">
                 {{ product.stock_quantity }}
@@ -265,7 +283,7 @@ onMounted(() => {
           </tr>
         </tbody>
       </table>
-      
+
       <div v-if="filteredProducts.length === 0" class="text-center py-8 text-gray-600">
         Không tìm thấy sản phẩm
       </div>
@@ -273,6 +291,39 @@ onMounted(() => {
 
     <div v-else class="text-center py-8 text-gray-600">
       Đang tải...
+    </div>
+
+    <!-- PAGINATION -->
+    <div v-if="lastPage > 1" class="flex items-center justify-center gap-2">
+      <button
+        @click="goToPage(currentPage - 1)"
+        :disabled="currentPage === 1"
+        class="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+      >
+        ← Trước
+      </button>
+
+      <button
+        v-for="p in pages"
+        :key="p"
+        @click="goToPage(p)"
+        :class="[
+          'px-3 py-2 border rounded-lg min-w-[40px]',
+          p === currentPage
+            ? 'bg-black text-white border-black'
+            : 'border-gray-300 hover:bg-gray-50'
+        ]"
+      >
+        {{ p }}
+      </button>
+
+      <button
+        @click="goToPage(currentPage + 1)"
+        :disabled="currentPage === lastPage"
+        class="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+      >
+        Sau →
+      </button>
     </div>
 
     <!-- FORM MODAL -->

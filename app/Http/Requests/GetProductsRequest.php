@@ -19,7 +19,7 @@ class GetProductsRequest extends FormRequest
             'max_price' => 'nullable|integer|min:0',
             'search' => 'nullable|string|max:255',
             'sort' => 'nullable|string|in:price_asc,price_desc,name_asc,name_desc',
-            'per_page' => 'nullable|integer|min:1|max:100',
+            'per_page' => 'nullable|integer|min:1|max:1000',
         ];
     }
 }

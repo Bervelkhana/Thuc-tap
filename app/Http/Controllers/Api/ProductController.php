@@ -33,6 +33,12 @@ class ProductController extends Controller
             return response()->json([
                 'status' => 'success',
                 'data' => $products->items(),
+                'meta' => [
+                    'current_page' => $products->currentPage(),
+                    'last_page' => $products->lastPage(),
+                    'per_page' => $products->perPage(),
+                    'total' => $products->total(),
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
