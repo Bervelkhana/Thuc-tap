@@ -31,6 +31,12 @@ class ChatController extends Controller
                 $validated['history'] ?? []
             );
 
+            Log::info('Chat result', [
+                'success' => $result['success'] ?? null,
+                'reply_preview' => substr($result['reply'] ?? '', 0, 100),
+                'reply_length' => strlen($result['reply'] ?? ''),
+            ]);
+
             if (!$result['success'] || empty($result['reply'])) {
                 return response()->json([
                     'status' => 'error',
@@ -55,6 +61,7 @@ class ChatController extends Controller
         } catch (\Throwable $e) {
             Log::error('Chat Error', [
                 'message' => $e->getMessage(),
+                'exception_class' => get_class($e),
                 'trace' => $e->getTraceAsString(),
             ]);
 

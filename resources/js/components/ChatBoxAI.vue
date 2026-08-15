@@ -18,18 +18,25 @@ function toggleChat() {
   isOpen.value = !isOpen.value
 }
 
-function getCsrfToken() {
-  return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-}
-
-function extractBackendError(data) {
+function extractBackendMessage(data) {
   if (!data || typeof data !== 'object') return ''
-  return data.error || data.message || data?.data?.message || data?.data?.error || ''
+  return (
+    data.message ||
+    data.error ||
+    data?.data?.message ||
+    data?.data?.error ||
+    data?.data?.reply ||
+    ''
+  )
 }
 
 async function sendMessage() {
   const text = input.value.trim()
   if (!text || isLoading.value) return
+
+  const history = messages.value
+    .filter((m, index) => m.role !== 'assistant' || index > 0)
+    .map(m => ({ role: m.role, content: m.text }))
 
   messages.value.push({
     id: Date.now(),
@@ -40,17 +47,16 @@ async function sendMessage() {
   input.value = ''
   isLoading.value = true
 
-  try {
-    const history = messages.value
-      .filter(m => m.role !== 'assistant' || messages.value.indexOf(m) > 0)
-      .map(m => ({ role: m.role, content: m.text }))
+  let httpStatus = null
+  let responseText = ''
+  let parsedData = null
 
+  try {
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        ...(getCsrfToken() ? { 'X-CSRF-TOKEN': getCsrfToken() } : {})
       },
       credentials: 'same-origin',
       body: JSON.stringify({
@@ -59,33 +65,62 @@ async function sendMessage() {
       })
     })
 
-    const responseText = await response.text()
-    let data = null
+    httpStatus = response.status
+    responseText = await response.text()
 
     try {
-      data = responseText ? JSON.parse(responseText) : null
+      parsedData = responseText ? JSON.parse(responseText) : null
     } catch (parseError) {
-      console.error('Backend returned invalid JSON:', responseText)
-      throw new Error('Phản hồi từ máy chủ không hợp lệ.')
+      console.error('[Chat Debug] Backend returned invalid JSON:', responseText)
+      throw new Error('Phản hồi từ máy chủ không hợp lệ. Vui lòng thử lại.')
     }
 
     if (!response.ok) {
-      throw new Error(extractBackendError(data) || `HTTP ${response.status}`)
+      const backendMessage = extractBackendMessage(parsedData)
+      console.error('[Chat Debug] HTTP error detected', {
+        httpStatus,
+        ok: response.ok,
+        parsedData,
+        backendMessage
+      })
+      throw new Error(backendMessage || `HTTP ${httpStatus}` || 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.')
     }
 
-    if (data?.status === 'success') {
+    if (parsedData?.status === 'error') {
+      const backendMessage = extractBackendMessage(parsedData)
       messages.value.push({
         id: Date.now() + 1,
         role: 'assistant',
-        text: data.data.reply
+        text: backendMessage || 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.'
       })
       return
     }
 
-    throw new Error(extractBackendError(data) || 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.')
+    if (parsedData?.status === 'success') {
+      messages.value.push({
+        id: Date.now() + 1,
+        role: 'assistant',
+        text: parsedData.data?.reply || 'Không nhận được phản hồi từ AI.'
+      })
+      return
+    }
+
+    console.error('[Chat Debug] Unexpected response structure', {
+      httpStatus,
+      parsedData
+    })
+    throw new Error('Phản hồi không hợp lệ từ máy chủ.')
   } catch (error) {
+    console.error('[Chat Error] Full error details:', {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      httpStatus,
+      responseText,
+      parsedData
+    })
+
     if (error instanceof TypeError && String(error.message).toLowerCase().includes('failed to fetch')) {
-      console.error('Network error while calling /api/chat:', error)
       messages.value.push({
         id: Date.now() + 1,
         role: 'assistant',
@@ -94,7 +129,6 @@ async function sendMessage() {
       return
     }
 
-    console.error('Chat error:', error)
     messages.value.push({
       id: Date.now() + 1,
       role: 'assistant',
@@ -201,4 +235,3 @@ async function sendMessage() {
   animation: bounce 1.4s infinite;
 }
 </style>
-

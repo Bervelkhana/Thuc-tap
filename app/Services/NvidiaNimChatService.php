@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
-use GuzzleHttp\Exception\ConnectException;
-use GuzzleHttp\Exception\RequestException;
-use GuzzleHttp\Exception\TimeoutException;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\TimeoutException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -49,6 +49,18 @@ class NvidiaNimChatService
             // ========== TỐI ƯU: Giới hạn history để giảm payload ==========
             $trimmedHistory = $this->trimConversationHistory($conversationHistory, 6);
             $messages = $this->buildMessages($systemPrompt, $productContext, $userMessage, $trimmedHistory);
+
+            Log::info('--- BẮT ĐẦU DEBUG NVIDIA NIM API ---');
+            Log::info('1. Tổng quan Request:', [
+                'model' => $this->model,
+                'messages_count' => count($messages),
+                'payload_size_kb' => round(strlen(json_encode($messages)) / 1024, 2) . ' KB',
+            ]);
+
+            Log::info('2. Chi tiết Payload sẽ gửi đi:', [
+                'body_json' => json_encode($messages, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
+            ]);
+            Log::info('--- KẾT THÚC LOG DEBUG ---');
 
             // ========== GỌI API với timeout rõ ràng ==========
             $response = Http::timeout(60)
@@ -122,8 +134,11 @@ class NvidiaNimChatService
                 'reply' => 'AI trả về phản hồi không hợp lệ. Vui lòng thử lại.',
             ];
         } catch (TimeoutException $e) {
-            Log::warning('NVIDIA NIM chat timeout', [
+            Log::error('NVIDIA NIM chat timeout', [
+                'exception_class' => get_class($e),
                 'message' => $e->getMessage(),
+                'api_url' => $this->apiUrl,
+                'model' => $this->model,
                 'user_message_length' => strlen($userMessage),
             ]);
 
@@ -131,10 +146,12 @@ class NvidiaNimChatService
                 'success' => false,
                 'reply' => 'Server AI đang bận xử lý yêu cầu. Vui lòng thử lại sau 1-2 phút.',
             ];
-        } catch (ConnectException $e) {
-            Log::warning('NVIDIA NIM connection error', [
+        } catch (ConnectionException $e) {
+            Log::error('NVIDIA NIM connection error', [
+                'exception_class' => get_class($e),
                 'message' => $e->getMessage(),
                 'api_url' => $this->apiUrl,
+                'model' => $this->model,
             ]);
 
             return [
@@ -142,9 +159,11 @@ class NvidiaNimChatService
                 'reply' => 'Không thể kết nối tới server AI. Vui lòng kiểm tra mạng và thử lại.',
             ];
         } catch (RequestException $e) {
-            Log::warning('NVIDIA NIM request error', [
+            Log::error('NVIDIA NIM request error', [
+                'exception_class' => get_class($e),
                 'message' => $e->getMessage(),
                 'api_url' => $this->apiUrl,
+                'model' => $this->model,
             ]);
 
             return [
@@ -152,8 +171,11 @@ class NvidiaNimChatService
                 'reply' => 'Yêu cầu tới AI bị lỗi. Vui lòng thử lại sau.',
             ];
         } catch (\Throwable $e) {
-            Log::error('NVIDIA NIM Chat Exception: ' . $e->getMessage(), [
+            Log::error('NVIDIA NIM Chat Exception', [
                 'exception_class' => get_class($e),
+                'message' => $e->getMessage(),
+                'api_url' => $this->apiUrl,
+                'model' => $this->model,
                 'trace' => $e->getTraceAsString(),
             ]);
 
@@ -289,7 +311,46 @@ class NvidiaNimChatService
             'content' => $userMessage,
         ];
 
-        return $messages;
+        // ========== NORMALIZE: đảm bảo cấu trúc user/assistant xen kẽ, không lặp role liền kề ==========
+        $normalized = [];
+        foreach ($messages as $msg) {
+            if (empty($normalized)) {
+                $normalized[] = $msg;
+                continue;
+            }
+
+            $last = $normalized[count($normalized) - 1];
+
+            // Bỏ qua nếu trùng TỪNG BỘI role lẫn content (exact duplicate)
+            if ($last['role'] === $msg['role'] && $last['content'] === $msg['content']) {
+                continue;
+            }
+
+            // Bỏ qua nếu cùng role liền kề (trừ system, vì system có thể có nhiều block liên tiếp)
+            if ($last['role'] === $msg['role'] && $last['role'] !== 'system') {
+                // Nếu cùng role liền kề, giữ message mới hơn (bỏ message cũ)
+                $normalized[count($normalized) - 1] = $msg;
+                continue;
+            }
+
+            $normalized[] = $msg;
+        }
+
+        // Đảm bảo message cuối cùng là user message hiện tại (chỉ 1 lần)
+        // Nếu cuối đang là user nhưng khác nội dung hiện tại, thay thế bằng message hiện tại
+        if (!empty($normalized) && $normalized[count($normalized) - 1]['role'] === 'user') {
+            $normalized[count($normalized) - 1] = [
+                'role' => 'user',
+                'content' => $userMessage,
+            ];
+        } else {
+            $normalized[] = [
+                'role' => 'user',
+                'content' => $userMessage,
+            ];
+        }
+
+        return $normalized;
     }
 
     protected function getSystemPrompt(): string

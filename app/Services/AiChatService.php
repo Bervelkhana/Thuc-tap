@@ -2,7 +2,11 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\TimeoutException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class AiChatService
 {
@@ -15,60 +19,142 @@ class AiChatService
         $this->apiKey = config('services.openai.api_key');
     }
 
-    /**
-     * Send a message and get AI response
-     */
-    public function chat(string $userMessage, array $conversationHistory = []): string
+    public function chat(string $userMessage, array $conversationHistory = []): array
     {
-        // Build messages array with system prompt and conversation history
-        $messages = [
-            [
-                'role' => 'system',
-                'content' => $this->getSystemPrompt()
-            ]
-        ];
-
-        // Add conversation history
-        foreach ($conversationHistory as $msg) {
-            $messages[] = [
-                'role' => $msg['role'],
-                'content' => $msg['content']
-            ];
-        }
-
-        // Add current user message
-        $messages[] = [
-            'role' => 'user',
-            'content' => $userMessage
-        ];
-
         try {
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->apiKey,
-                'Content-Type' => 'application/json',
-            ])->post($this->apiUrl, [
-                'model' => $this->model,
-                'messages' => $messages,
-                'temperature' => 0.7,
-                'max_tokens' => 500,
-            ]);
+            $messages = [
+                [
+                    'role' => 'system',
+                    'content' => $this->getSystemPrompt()
+                ]
+            ];
+
+            foreach ($conversationHistory as $msg) {
+                $messages[] = [
+                    'role' => $msg['role'],
+                    'content' => $msg['content']
+                ];
+            }
+
+            $messages[] = [
+                'role' => 'user',
+                'content' => $userMessage
+            ];
+
+            $response = Http::timeout(60)
+                ->connectTimeout(10)
+                ->acceptJson()
+                ->withHeaders([
+                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Content-Type' => 'application/json',
+                ])
+                ->post($this->apiUrl, [
+                    'model' => $this->model,
+                    'messages' => $messages,
+                    'temperature' => 0.7,
+                    'max_tokens' => 500,
+                ]);
 
             if ($response->failed()) {
-                \Log::error('OpenAI API Error: ' . $response->body());
-                return 'Xin lỗi, tôi gặp sự cố kết nối. Vui lòng thử lại.';
+                $status = $response->status();
+                $body = trim($response->body() ?: 'Empty response');
+
+                Log::error('OpenAI API Error Response', [
+                    'status' => $status,
+                    'body' => $body,
+                    'api_url' => $this->apiUrl,
+                    'model' => $this->model,
+                ]);
+
+                if ($status === 401 || $status === 403) {
+                    return [
+                        'success' => false,
+                        'reply' => 'Lỗi xác thực API. Vui lòng liên hệ quản trị viên.',
+                    ];
+                }
+
+                if ($status === 429) {
+                    return [
+                        'success' => false,
+                        'reply' => 'Server AI đang quá tải. Vui lòng thử lại sau 30 giây.',
+                    ];
+                }
+
+                return [
+                    'success' => false,
+                    'reply' => 'Server AI phản hồi lỗi (' . $status . '). Vui lòng thử lại sau.',
+                ];
             }
 
             $data = $response->json();
-            return $data['choices'][0]['message']['content'] ?? 'Không có phản hồi từ AI.';
-        } catch (\Exception $e) {
-            \Log::error('AI Chat Error: ' . $e->getMessage());
-            return 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại sau.';
+            $reply = $data['choices'][0]['message']['content'] ?? 'Không có phản hồi từ AI.';
+
+            if (is_string($reply) && trim($reply) !== '') {
+                return [
+                    'success' => true,
+                    'reply' => trim($reply),
+                ];
+            }
+
+            Log::warning('Unexpected OpenAI response structure', ['response' => $data]);
+
+            return [
+                'success' => false,
+                'reply' => 'AI trả về phản hồi không hợp lệ. Vui lòng thử lại.',
+            ];
+        } catch (TimeoutException $e) {
+            Log::error('OpenAI chat timeout', [
+                'exception_class' => get_class($e),
+                'message' => $e->getMessage(),
+                'api_url' => $this->apiUrl,
+                'model' => $this->model,
+                'user_message_length' => strlen($userMessage),
+            ]);
+
+            return [
+                'success' => false,
+                'reply' => 'Server AI đang bận xử lý yêu cầu. Vui lòng thử lại sau 1-2 phút.',
+            ];
+        } catch (ConnectionException $e) {
+            Log::error('OpenAI connection error', [
+                'exception_class' => get_class($e),
+                'message' => $e->getMessage(),
+                'api_url' => $this->apiUrl,
+                'model' => $this->model,
+            ]);
+
+            return [
+                'success' => false,
+                'reply' => 'Không thể kết nối tới server AI. Vui lòng kiểm tra mạng và thử lại.',
+            ];
+        } catch (RequestException $e) {
+            Log::error('OpenAI request error', [
+                'exception_class' => get_class($e),
+                'message' => $e->getMessage(),
+                'api_url' => $this->apiUrl,
+                'model' => $this->model,
+            ]);
+
+            return [
+                'success' => false,
+                'reply' => 'Yêu cầu tới AI bị lỗi. Vui lòng thử lại sau.',
+            ];
+        } catch (\Throwable $e) {
+            Log::error('OpenAI Chat Exception', [
+                'exception_class' => get_class($e),
+                'message' => $e->getMessage(),
+                'api_url' => $this->apiUrl,
+                'model' => $this->model,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return [
+                'success' => false,
+                'reply' => 'Có lỗi xảy ra. Vui lòng thử lại sau.',
+            ];
         }
     }
 
-    /**
-     * System prompt for the AI
-     */
     protected function getSystemPrompt(): string
     {
         return <<<'PROMPT'

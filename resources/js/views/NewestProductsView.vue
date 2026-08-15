@@ -16,7 +16,7 @@ const addedToCart = ref(null)
 const showDetailModal = ref(false)
 const selectedProduct = ref(null)
 
-const displayedProducts = computed(() => {
+const filteredProducts = computed(() => {
   let result = products.value
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 
@@ -99,23 +99,6 @@ function updateSearch() {
 function selectCategory(categoryId) {
   selectedCategory.value = selectedCategory.value === categoryId ? null : categoryId
 }
-
-// Update filtered products dựa vào computed
-const displayedProducts = computed(() => {
-  let result = products.value
-    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-
-  if (selectedCategory.value) {
-    result = result.filter(p => p.category_id === selectedCategory.value)
-  }
-
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase()
-    result = result.filter(p => p.name.toLowerCase().includes(query))
-  }
-
-  return result.slice(0, 12)
-})
 
 function addToCart(product) {
   cartStore.addToCart(product, 1)
