@@ -148,6 +148,31 @@ class ProductService
     }
 
     /**
+     * Get products by name keyword
+     */
+    public function getProductsByNameContext(string $productName, int $limit = 5): string
+    {
+        $products = Product::where('name', 'like', '%' . $productName . '%')
+            ->with('category')
+            ->limit($limit)
+            ->get();
+
+        if ($products->isEmpty()) {
+            return "Khong tim thay san pham phu hop voi ten: " . $productName;
+        }
+
+        $context = "Ket qua tim kiem cho '{$productName}':\n";
+        foreach ($products as $product) {
+            $categoryName = $product->category?->name ?? 'N/A';
+            $price = number_format($product->price, 0, ',', '.');
+            $stock = $product->stock_quantity;
+            $context .= "- {$product->name} (SKU: {$product->sku}, Danh muc: {$categoryName}, Gia: {$price} VND, Ton kho: {$stock})\n";
+        }
+
+        return $context;
+    }
+
+    /**
      * Get product details
      */
     public function getProductDetailsContext(int $productId): string

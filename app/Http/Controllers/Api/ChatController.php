@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 
 class ChatController extends Controller
 {
-    protected $chatService;
+    protected NvidiaNimChatService $chatService;
 
     public function __construct(NvidiaNimChatService $chatService)
     {
@@ -19,6 +19,8 @@ class ChatController extends Controller
     public function sendMessage(Request $request)
     {
         try {
+            set_time_limit(120);
+
             $validated = $request->validate([
                 'message' => 'required|string|max:1000',
                 'history' => 'nullable|array',
@@ -29,21 +31,39 @@ class ChatController extends Controller
                 $validated['history'] ?? []
             );
 
-            return response()->json($result, 200);
+            if (!$result['success'] || empty($result['reply'])) {
+                return response()->json([
+                    'status' => 'error',
+                    'data' => [
+                        'reply' => $result['reply'] ?? 'Không nhận được phản hồi từ AI.',
+                    ],
+                ], 200);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'reply' => $result['reply'],
+                ],
+            ], 200);
         } catch (\Illuminate\Validation\ValidationException $e) {
-            return $this->errorResponse('Dữ liệu đầu vào không hợp lệ.', 422, $e->errors());
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Dữ liệu đầu vào không hợp lệ.',
+                'errors' => $e->errors(),
+            ], 422);
         } catch (\Throwable $e) {
-            Log::error('Chat Error in Controller', [
+            Log::error('Chat Error', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
-                'success' => false,
-                'reply' => 'Có lỗi xảy ra. Vui lòng thử lại sau.',
-            ], 200);
+                'status' => 'error',
+                'message' => config('app.debug')
+                    ? $e->getMessage()
+                    : 'Có lỗi xảy ra. Vui lòng thử lại sau.',
+            ], 500);
         }
     }
 }
-
-

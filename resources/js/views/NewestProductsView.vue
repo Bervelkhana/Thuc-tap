@@ -16,10 +16,9 @@ const addedToCart = ref(null)
 const showDetailModal = ref(false)
 const selectedProduct = ref(null)
 
-const filteredProductsList = computed(() => {
+const displayedProducts = computed(() => {
   let result = products.value
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-    .slice(0, 6)
 
   if (selectedCategory.value) {
     result = result.filter(p => p.category_id === selectedCategory.value)
@@ -30,7 +29,7 @@ const filteredProductsList = computed(() => {
     result = result.filter(p => p.name.toLowerCase().includes(query))
   }
 
-  return result
+  return result.slice(0, 12)
 })
 
 async function fetchCategories() {
@@ -102,10 +101,9 @@ function selectCategory(categoryId) {
 }
 
 // Update filtered products dựa vào computed
-const filteredProducts = computed(() => {
+const displayedProducts = computed(() => {
   let result = products.value
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-    .slice(0, 6)
 
   if (selectedCategory.value) {
     result = result.filter(p => p.category_id === selectedCategory.value)
@@ -116,7 +114,7 @@ const filteredProducts = computed(() => {
     result = result.filter(p => p.name.toLowerCase().includes(query))
   }
 
-  return result
+  return result.slice(0, 12)
 })
 
 function addToCart(product) {
@@ -165,12 +163,12 @@ onMounted(() => {
 <template>
   <div class="min-h-screen bg-white font-system">
     <!-- HEADER -->
-    <header class="sticky top-0 z-40 bg-white border-b border-gray-100 shadow-sm">
+    <header class="sticky top-0 z-50 relative bg-white border-b border-gray-100 shadow-sm">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
         <router-link to="/home" class="text-xl font-semibold text-gray-900 hover:text-gray-700 transition">
           ← TechGear
         </router-link>
-        
+
         <div class="flex items-center gap-4 sm:gap-6">
           <div class="hidden md:flex items-center bg-gray-100 rounded-lg px-4 py-2 flex-1 max-w-xs">
             <input
@@ -183,7 +181,7 @@ onMounted(() => {
             <span class="text-gray-400">🔍</span>
           </div>
 
-          <button @click="showCart = !showCart" class="relative group cursor-pointer transition-all duration-200">
+          <button @click="showCart = !showCart" class="relative group cursor-pointer pointer-events-auto transition-all duration-200">
             <span class="text-2xl group-hover:scale-110">🛒</span>
             <span v-if="cartCount > 0" class="absolute -top-2 -right-3 bg-black text-white text-xs font-bold px-2 py-1 rounded-full">
               {{ cartCount }}

@@ -13,13 +13,40 @@ const products = ref([])
 const loading = ref(false)
 const error = ref(null)
 const addedToCart = ref(null)
+const currentPage = ref(1)
+const perPage = ref(12)
+const total = ref(0)
+const lastPage = ref(1)
+
+const showingRange = computed(() => {
+  if (total.value === 0) return '0 sản phẩm'
+  const start = (currentPage.value - 1) * perPage.value + 1
+  const end = Math.min(currentPage.value * perPage.value, total.value)
+  return `${start}-${end} của ${total.value} sản phẩm`
+})
+
+const pages = computed(() => {
+  const pages = []
+  const maxVisible = 5
+  let start = Math.max(1, currentPage.value - Math.floor(maxVisible / 2))
+  let end = Math.min(lastPage.value, start + maxVisible - 1)
+
+  if (end - start < maxVisible - 1) {
+    start = Math.max(1, end - maxVisible + 1)
+  }
+
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
+  }
+  return pages
+})
 
 // Fetch products theo category từ API
-async function fetchCategoryProducts() {
+async function fetchCategoryProducts(page = 1) {
   loading.value = true
   error.value = null
   try {
-    const response = await fetch(`/api/products?category_id=${categoryId.value}&per_page=50`)
+    const response = await fetch(`/api/products?category_id=${categoryId.value}&per_page=12&page=${page}`)
     const result = await response.json()
     
     if (result.status === 'success') {
@@ -32,6 +59,10 @@ async function fetchCategoryProducts() {
         stock_quantity: product.stock_quantity,
       }))
       
+      currentPage.value = result.meta?.current_page ?? page
+      total.value = result.meta?.total ?? 0
+      lastPage.value = result.meta?.last_page ?? 1
+      
       // Get category name từ first product hoặc từ route params
       if (products.value.length > 0) {
         const categoryMap = {
@@ -43,7 +74,6 @@ async function fetchCategoryProducts() {
           'PSU': '⚡',
           'Case': '🖥️',
         }
-        // Fetch tất cả categories để lấy tên
         const catResponse = await fetch('/api/categories')
         const catResult = await catResponse.json()
         const cat = catResult.data.find(c => c.id === categoryId.value)
@@ -56,6 +86,12 @@ async function fetchCategoryProducts() {
   } finally {
     loading.value = false
   }
+}
+
+function goToPage(page) {
+  if (page < 1 || page > lastPage.value) return
+  fetchCategoryProducts(page)
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 function formatPrice(price) {
@@ -82,20 +118,20 @@ onMounted(() => {
 <template>
   <div class="min-h-screen bg-white font-system">
     <!-- HEADER -->
-    <header class="sticky top-0 z-40 bg-white border-b border-gray-100 shadow-sm">
+    <header class="sticky top-0 z-50 relative bg-white border-b border-gray-100 shadow-sm">
       <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        <button 
+        <button
           @click="goBack"
           class="text-xl font-semibold text-gray-900 hover:text-gray-700 transition flex items-center gap-2"
         >
           ← Quay lại
         </button>
-        
+
         <div class="flex items-center gap-6">
           <!-- Cart Icon -->
           <button
             @click="$router.push('/browse')"
-            class="relative group cursor-pointer transition-all duration-200"
+            class="relative group cursor-pointer pointer-events-auto transition-all duration-200"
           >
             <span class="text-2xl group-hover:scale-110">🛒</span>
             <span v-if="cartStore.cartCount > 0" class="absolute -top-2 -right-3 bg-black text-white text-xs font-bold px-2 py-1 rounded-full">
@@ -111,7 +147,7 @@ onMounted(() => {
       <!-- TITLE -->
       <div class="mb-12">
         <h1 class="text-4xl font-bold text-gray-900 mb-2">{{ categoryName }}</h1>
-        <p class="text-gray-600">{{ products.length }} sản phẩm</p>
+        <p class="text-gray-600">{{ showingRange }}</p>
       </div>
 
       <!-- Loading State -->
@@ -187,6 +223,39 @@ onMounted(() => {
             </button>
           </div>
         </div>
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="lastPage > 1" class="flex items-center justify-center gap-2 pt-8">
+        <button
+          @click="goToPage(currentPage - 1)"
+          :disabled="currentPage === 1"
+          class="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 text-sm"
+        >
+          ← Trước
+        </button>
+
+        <button
+          v-for="p in pages"
+          :key="p"
+          @click="goToPage(p)"
+          :class="[
+            'px-3 py-2 border rounded-lg min-w-[40px] text-sm',
+            p === currentPage
+              ? 'bg-black text-white border-black'
+              : 'border-gray-300 hover:bg-gray-50'
+          ]"
+        >
+          {{ p }}
+        </button>
+
+        <button
+          @click="goToPage(currentPage + 1)"
+          :disabled="currentPage === lastPage"
+          class="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 text-sm"
+        >
+          Sau →
+        </button>
       </div>
     </div>
   </div>

@@ -17,6 +17,40 @@ const addedToCart = ref(null)
 const showDetailModal = ref(false)
 const selectedProduct = ref(null)
 const activeCategoryName = ref('')
+const currentPage = ref(1)
+const perPage = ref(12)
+
+const totalPages = computed(() => Math.ceil(filteredProducts.value.length / perPage.value))
+
+const paginatedProducts = computed(() => {
+  const start = (currentPage.value - 1) * perPage.value
+  const end = start + perPage.value
+  return filteredProducts.value.slice(start, end)
+})
+
+const showingRange = computed(() => {
+  const total = filteredProducts.value.length
+  if (total === 0) return '0 sản phẩm'
+  const start = (currentPage.value - 1) * perPage.value + 1
+  const end = Math.min(currentPage.value * perPage.value, total)
+  return `${start}-${end} của ${total} sản phẩm`
+})
+
+const pages = computed(() => {
+  const pages = []
+  const maxVisible = 5
+  let start = Math.max(1, currentPage.value - Math.floor(maxVisible / 2))
+  let end = Math.min(totalPages.value, start + maxVisible - 1)
+
+  if (end - start < maxVisible - 1) {
+    start = Math.max(1, end - maxVisible + 1)
+  }
+
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
+  }
+  return pages
+})
 
 function applyCategorySelectionBySlug(slug) {
   if (!slug || categories.value.length === 0) {
@@ -27,9 +61,18 @@ function applyCategorySelectionBySlug(slug) {
   if (matchedCategory) {
     selectedCategory.value = matchedCategory.id
     activeCategoryName.value = matchedCategory.name
-    filterProducts()
+    fetchProducts(matchedCategory.id)
+    return
   }
+
+  selectedCategory.value = null
+  activeCategoryName.value = ''
+  fetchProducts()
 }
+
+watch([selectedCategory, searchQuery], () => {
+  currentPage.value = 1
+})
 
 function syncRouteCategory() {
   const slugFromRoute = typeof route.params.slug === 'string' ? route.params.slug : null
@@ -84,10 +127,15 @@ async function fetchCategories() {
   }
 }
 
-async function fetchProducts() {
+async function fetchProducts(categoryId = null) {
   loading.value = true
   try {
-    const response = await fetch('/api/products?per_page=100')
+    const params = new URLSearchParams({ per_page: '1000' })
+    if (categoryId) {
+      params.set('category_id', String(categoryId))
+    }
+
+    const response = await fetch(`/api/products?${params.toString()}`)
     const result = await response.json()
     if (result.status === 'success') {
       products.value = result.data.map(product => ({
@@ -126,6 +174,12 @@ function filterProducts() {
 
 const updateSearch = () => {
   filterProducts()
+}
+
+function goToPage(page) {
+  if (page < 1 || page > totalPages.value) return
+  currentPage.value = page
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 function addToCart(product) {
@@ -174,12 +228,12 @@ onMounted(() => {
 <template>
   <div class="min-h-screen bg-white font-system">
     <!-- HEADER -->
-    <header class="sticky top-0 z-40 bg-white border-b border-gray-100 shadow-sm">
+    <header class="sticky top-0 z-50 relative bg-white border-b border-gray-100 shadow-sm">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
         <router-link to="/home" class="text-xl font-semibold text-gray-900 hover:text-gray-700 transition">
           ← TechGear
         </router-link>
-        
+
         <div class="flex items-center gap-4 sm:gap-6">
           <div class="hidden md:flex items-center bg-gray-100 rounded-lg px-4 py-2 flex-1 max-w-xs">
             <input
@@ -192,7 +246,7 @@ onMounted(() => {
             <span class="text-gray-400">🔍</span>
           </div>
 
-          <button @click="showCart = !showCart" class="relative group cursor-pointer transition-all duration-200">
+          <button @click="showCart = !showCart" class="relative group cursor-pointer pointer-events-auto transition-all duration-200">
             <span class="text-2xl group-hover:scale-110">🛒</span>
             <span v-if="cartCount > 0" class="absolute -top-2 -right-3 bg-black text-white text-xs font-bold px-2 py-1 rounded-full">
               {{ cartCount }}
@@ -271,7 +325,7 @@ onMounted(() => {
                   <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-widest">
                     {{ activeCategoryName }}
                   </h2>
-                  <p class="text-sm text-gray-500 mt-2">{{ filteredProducts.length }} sản phẩm</p>
+                  <p class="text-sm text-gray-500 mt-2">{{ showingRange }}</p>
                 </div>
               </div>
             </div>
@@ -290,10 +344,9 @@ onMounted(() => {
               <p class="text-gray-600">Không tìm thấy sản phẩm phù hợp</p>
             </div>
 
-            <!-- Products Grid -->
             <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               <div
-                v-for="product in filteredProducts"
+                v-for="product in paginatedProducts"
                 :key="product.id"
                 class="group bg-white rounded-2xl border border-gray-200 overflow-hidden hover:border-gray-400 transition-all duration-300 hover:shadow-lg flex flex-col"
               >
@@ -341,6 +394,39 @@ onMounted(() => {
                     </button>
                   </div>
                 </div>
+              </div>
+
+              <!-- Pagination -->
+              <div v-if="totalPages > 1" class="col-span-1 sm:col-span-2 lg:col-span-3 flex items-center justify-center gap-2 pt-8">
+                <button
+                  @click="goToPage(currentPage - 1)"
+                  :disabled="currentPage === 1"
+                  class="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 text-sm"
+                >
+                  ← Trước
+                </button>
+
+                <button
+                  v-for="p in pages"
+                  :key="p"
+                  @click="goToPage(p)"
+                  :class="[
+                    'px-3 py-2 border rounded-lg min-w-[40px] text-sm',
+                    p === currentPage
+                      ? 'bg-black text-white border-black'
+                      : 'border-gray-300 hover:bg-gray-50'
+                  ]"
+                >
+                  {{ p }}
+                </button>
+
+                <button
+                  @click="goToPage(currentPage + 1)"
+                  :disabled="currentPage === totalPages"
+                  class="px-3 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 text-sm"
+                >
+                  Sau →
+                </button>
               </div>
             </div>
           </section>
