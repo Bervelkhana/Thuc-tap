@@ -21,6 +21,7 @@ Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/products/search', [ProductController::class, 'search']);
 Route::get('/products/sales', [ProductController::class, 'sales']);
 Route::get('/products/newest', [ProductController::class, 'newest']);
+Route::get('/products/recent-discounts', [ProductController::class, 'recentDiscounts']);
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{product}', [ProductController::class, 'show']);
 
@@ -39,7 +40,9 @@ Route::post('/admin/logout', [AdminAuthController::class, 'logout']);
 Route::get('/admin/stats', [AdminOrderController::class, 'stats']);
 Route::get('/admin/orders', [AdminOrderController::class, 'index']);
 Route::get('/admin/orders/{order}', [AdminOrderController::class, 'show']);
+Route::patch('/admin/orders/{order}', [AdminOrderController::class, 'updateStatus']);
 Route::patch('/admin/orders/{order}/status', [AdminOrderController::class, 'updateStatus']);
+Route::post('/admin/orders/{order}/cancel', [AdminOrderController::class, 'cancel']);
 Route::delete('/admin/orders/{order}', [AdminOrderController::class, 'destroy']);
 
 // PC Builder routes

@@ -9,7 +9,7 @@ const cartStore = useCartStore()
 const categories = ref([])
 const products = ref([])
 const filteredProducts = ref([])
-const saleProducts = ref([])
+const recentDiscountProducts = ref([])
 const searchQuery = ref('')
 const selectedCategory = ref(null)
 const loading = ref(false)
@@ -167,13 +167,12 @@ async function fetchProducts(categoryId = null) {
   }
 }
 
-async function fetchSaleProducts() {
-  loading.value = true
+async function fetchRecentDiscounts() {
   try {
-    const response = await fetch('/api/products/sales')
+    const response = await fetch('/api/products/recent-discounts')
     const result = await response.json()
     if (result.status === 'success') {
-      saleProducts.value = result.data.map(product => ({
+      recentDiscountProducts.value = result.data.map(product => ({
         id: product.id,
         name: product.name,
         price: parseFloat(product.price),
@@ -185,13 +184,11 @@ async function fetchSaleProducts() {
         description: product.description || '',
       }))
     } else {
-      saleProducts.value = []
+      recentDiscountProducts.value = []
     }
   } catch (err) {
-    console.error('Error fetching sale products:', err)
-    saleProducts.value = []
-  } finally {
-    loading.value = false
+    console.error('Error fetching recent discounts:', err)
+    recentDiscountProducts.value = []
   }
 }
 
@@ -260,7 +257,7 @@ function updateQuantity(productId, quantity) {
 onMounted(() => {
   fetchCategories()
   fetchProducts()
-  fetchSaleProducts()
+  fetchRecentDiscounts()
 })
 </script>
 
@@ -369,15 +366,16 @@ onMounted(() => {
               </div>
             </div>
 
-            <!-- Sale Products Section -->
-            <div v-if="saleProducts.length > 0 && !activeCategoryName" class="mb-8">
+            <!-- Recent Discounts Section -->
+            <div v-if="recentDiscountProducts.length > 0 && !activeCategoryName" class="mb-8">
               <div class="flex items-center justify-between mb-4">
-                <h2 class="text-lg font-bold text-red-600">🔥 Sản phẩm giảm giá</h2>
+                <h2 class="text-lg font-bold text-red-600">🔥 Vừa giảm giá</h2>
+                <span class="text-xs text-gray-500">3 sản phẩm vừa được chỉnh giá</span>
               </div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
                 <div
-                  v-for="product in saleProducts"
-                  :key="'sale-'+product.id"
+                  v-for="product in recentDiscountProducts"
+                  :key="'recent-'+product.id"
                   class="group bg-white rounded-2xl border border-red-100 overflow-hidden hover:border-red-300 transition-all duration-300 hover:shadow-lg flex flex-col relative"
                 >
                   <div class="absolute top-2 right-2 z-10">

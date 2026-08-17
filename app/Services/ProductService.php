@@ -86,6 +86,15 @@ class ProductService
             ->get();
     }
 
+    public function getRecentlyDiscountedProducts(int $limit = 3)
+    {
+        return Product::where('discount_percentage', '>', 0)
+            ->with('category')
+            ->orderByDesc('updated_at')
+            ->limit($limit)
+            ->get();
+    }
+
     public function getNewestProducts(int $limit = 6)
     {
         return Product::with('category')

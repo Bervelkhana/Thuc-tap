@@ -80,18 +80,20 @@ async function fetchProducts() {
   error.value = null
   try {
     const response = await fetch('/api/products?per_page=100')
+    const text = await response.text()
+    let result
+    try {
+      result = JSON.parse(text)
+    } catch (parseError) {
+      console.error('Invalid JSON response:', text)
+      throw new Error('Server trả về dữ liệu không hợp lệ')
+    }
+
     if (!response.ok) {
-      let message = `HTTP ${response.status}`
-      try {
-        const err = await response.json()
-        message = err.message || message
-      } catch {
-        const text = await response.text()
-        message = text || message
-      }
+      const message = result?.message || `HTTP ${response.status}`
       throw new Error(message)
     }
-    const result = await response.json()
+
     if (result.status === 'success') {
       products.value = result.data.map(product => ({
         id: product.id,
@@ -104,12 +106,11 @@ async function fetchProducts() {
         created_at: product.created_at,
       }))
     } else {
-      console.error('API returned error:', result)
       error.value = result.message || 'Không thể tải sản phẩm'
     }
   } catch (err) {
     console.error('Error fetching products:', err)
-    error.value = 'Không thể tải sản phẩm: ' + err.message
+    error.value = err.message || 'Không thể tải sản phẩm'
   } finally {
     loading.value = false
   }

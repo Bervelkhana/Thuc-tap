@@ -75,29 +75,55 @@ class ChatController extends Controller
 
     public function streamMessage(Request $request): StreamedResponse
     {
-        $validated = $request->validate([
-            'message' => 'required|string|max:1000',
-            'history' => 'nullable|array',
-        ]);
+        try {
+            $validated = $request->validate([
+                'message' => 'required|string|max:1000',
+                'history' => 'nullable|array',
+            ]);
 
-        $userMessage = $validated['message'];
-        $history = $validated['history'] ?? [];
+            $userMessage = $validated['message'];
+            $history = $validated['history'] ?? [];
 
-        return new StreamedResponse(function () use ($userMessage, $history) {
-            $this->chatService->chatStream($userMessage, $history, function ($chunk) {
-                echo 'data: ' . json_encode($chunk) . "\n\n";
+            return new StreamedResponse(function () use ($userMessage, $history) {
+                try {
+                    $this->chatService->chatStream($userMessage, $history, function ($chunk) {
+                        echo 'data: ' . json_encode($chunk) . "\n\n";
 
-                if (ob_get_level() > 0) {
-                    ob_flush();
+                        if (ob_get_level() > 0) {
+                            ob_flush();
+                        }
+
+                        flush();
+                    });
+                } catch (\Throwable $e) {
+                    Log::error('Chat Stream Error', [
+                        'message' => $e->getMessage(),
+                        'exception_class' => get_class($e),
+                    ]);
+                    echo 'data: ' . json_encode(['error' => 'Có lỗi xảy ra khi streaming. Vui lòng thử lại.']) . "\n\n";
+                    flush();
                 }
+            }, 200, [
+                'Content-Type' => 'text/event-stream',
+                'Cache-Control' => 'no-cache',
+                'Connection' => 'keep-alive',
+                'X-Accel-Buffering' => 'no',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Chat Stream Request Error', [
+                'message' => $e->getMessage(),
+                'exception_class' => get_class($e),
+            ]);
 
+            return new StreamedResponse(function () use ($e) {
+                echo 'data: ' . json_encode(['error' => 'Có lỗi xảy ra. Vui lòng thử lại sau.']) . "\n\n";
                 flush();
-            });
-        }, 200, [
-            'Content-Type' => 'text/event-stream',
-            'Cache-Control' => 'no-cache',
-            'Connection' => 'keep-alive',
-            'X-Accel-Buffering' => 'no',
-        ]);
+            }, 500, [
+                'Content-Type' => 'text/event-stream',
+                'Cache-Control' => 'no-cache',
+                'Connection' => 'keep-alive',
+                'X-Accel-Buffering' => 'no',
+            ]);
+        }
     }
 }

@@ -30,7 +30,7 @@ class ProductController extends Controller
                 perPage: $request->integer('per_page', 100)
             );
 
-            $items = $products->items()->map(function ($product) {
+            $items = $products->getCollection()->map(function ($product) {
                 return array_merge($product->only([
                     'id', 'category_id', 'sku', 'name', 'price', 'stock_quantity',
                     'description', 'thumbnail_url', 'brand', 'discount_percentage',
@@ -134,6 +134,40 @@ class ProductController extends Controller
                 'status' => 'error',
                 'message' => 'Lỗi khi tải sản phẩm mới',
                 'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    public function recentDiscounts()
+    {
+        try {
+            $products = $this->productService->getRecentlyDiscountedProducts(3);
+
+            $items = $products->map(function ($product) {
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'price' => (float) $product->price,
+                    'discount_percentage' => (int) $product->discount_percentage,
+                    'sale_price' => $product->discount_percentage > 0
+                        ? round($product->price * (1 - $product->discount_percentage / 100), 2)
+                        : null,
+                    'is_on_sale' => (bool) $product->discount_percentage > 0,
+                    'thumbnail_url' => $product->thumbnail_url,
+                    'stock_quantity' => $product->stock_quantity,
+                    'description' => $product->description,
+                    'category_id' => $product->category_id,
+                ];
+            });
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $items,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Lỗi khi tải sản phẩm giảm giá gần nhất',
             ], 500);
         }
     }

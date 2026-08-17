@@ -59,13 +59,23 @@ class NvidiaNimChatService
 
             // =========== BẮT LỖI TỪ API (HTTP 4xx, 5xx) ===========
             if ($response->failed()) {
+                $status = $response->status();
+                $body = $response->body();
+
                 Log::error('NVIDIA NIM API Error', [
-                    'status' => $response->status(),
-                    'body'   => $response->json(), // Lấy chi tiết lỗi từ API trả về để dễ fix
-                    'model'  => $this->model,
+                    'status' => $status,
+                    'body_preview' => substr($body, 0, 500),
+                    'model' => $this->model,
                 ]);
 
-                return $this->getFallbackResponse($userMessage, $productContext, 'Lỗi từ AI API: ' . $response->status());
+                $message = match ($status) {
+                    401 => 'API key không hợp lệ hoặc đã hết hạn.',
+                    429 => 'Đang quá nhiều yêu cầu. Vui lòng thử lại sau.',
+                    500, 502, 503 => 'Server AI đang bận. Vui lòng thử lại sau.',
+                    default => "Lỗi từ AI API: HTTP {$status}",
+                };
+
+                return $this->getFallbackResponse($userMessage, $productContext, $message);
             }
 
             $reply = $response->json('choices.0.message.content');
@@ -105,6 +115,13 @@ class NvidiaNimChatService
 
         if ($this->apiUrl === '') {
             return 'Chưa cấu hình endpoint URL cho AI. Vui lòng liên hệ quản trị viên.';
+        }
+
+        if (!str_starts_with($this->apiKey, 'nvapi-')) {
+            Log::warning('Invalid NVIDIA NIM API key format', [
+                'key_preview' => substr($this->apiKey, 0, 10) . '...',
+            ]);
+            return 'Định dạng API key không hợp lệ. Vui lòng liên hệ quản trị viên.';
         }
 
         return null;
@@ -188,7 +205,6 @@ class NvidiaNimChatService
 
     protected function buildProductContext(string $userMessage): string
     {
-        // Giữ nguyên logic xử lý Intent và Context của bạn
         try {
             $analysis = $this->intentAnalyzer->analyze($userMessage);
             $primaryIntent = $analysis['primary_intent'];
@@ -215,7 +231,10 @@ class NvidiaNimChatService
             }
             return $context;
         } catch (\Exception $e) {
-            Log::warning('Failed to build product context: ' . $e->getMessage());
+            Log::error('Failed to build product context', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return '';
         }
     }
@@ -245,3 +264,97 @@ class NvidiaNimChatService
         QUAN TRỌNG: Giao tiếp 100% bằng tiếng Việt tự nhiên.
         PROMPT;
     }
+
+    public function chatStream(string $userMessage, array $conversationHistory = [], callable $onChunk): void
+    {
+        try {
+            if ($validationError = $this->validateConfiguration()) {
+                $onChunk(['error' => $validationError]);
+                return;
+            }
+
+            $productContext = $this->buildProductContext($userMessage);
+
+            if ($this->isInDemoMode()) {
+                $demo = $this->getDemoResponse($userMessage, $productContext);
+                if (!empty($demo['reply'])) {
+                    $onChunk(['content' => $demo['reply']]);
+                }
+                return;
+            }
+
+            $messages = $this->buildMessages($this->getSystemPrompt(), $productContext, $userMessage, $conversationHistory);
+
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->apiKey,
+                'Content-Type' => 'application/json; charset=utf-8',
+            ])
+            ->timeout(60)
+            ->connectTimeout(10)
+            ->post($this->apiUrl . '/chat/completions', [
+                'model' => $this->model,
+                'messages' => $messages,
+                'temperature' => 0.7,
+                'max_tokens' => 800,
+                'stream' => true,
+            ]);
+
+            if ($response->failed()) {
+                $status = $response->status();
+                $body = $response->body();
+                Log::error('NVIDIA NIM API Stream Error', [
+                    'status' => $status,
+                    'body_preview' => substr($body, 0, 500),
+                    'model' => $this->model,
+                ]);
+
+                $message = match ($status) {
+                    401 => 'API key không hợp lệ hoặc đã hết hạn.',
+                    429 => 'Đang quá nhiều yêu cầu. Vui lòng thử lại sau.',
+                    500, 502, 503 => 'Server AI đang bận. Vui lòng thử lại sau.',
+                    default => "Lỗi từ AI API: HTTP {$status}",
+                };
+
+                $onChunk(['error' => $message]);
+                return;
+            }
+
+            $body = $response->body();
+            $lines = explode("\n", $body);
+
+            foreach ($lines as $line) {
+                $trimmed = trim($line);
+                if ($trimmed === '' || $trimmed === 'data: [DONE]') {
+                    continue;
+                }
+
+                if (str_starts_with($trimmed, 'data: ')) {
+                    $data = substr($trimmed, 6);
+                    $parsed = json_decode($data, true);
+
+                    if (isset($parsed['error'])) {
+                        $onChunk(['error' => $parsed['error']['message'] ?? 'Lỗi từ AI']);
+                        return;
+                    }
+
+                    if (isset($parsed['choices'][0]['delta']['content'])) {
+                        $content = $parsed['choices'][0]['delta']['content'];
+                        if ($content) {
+                            $onChunk(['content' => $content]);
+                        }
+                    }
+
+                    if (!empty($parsed['done'])) {
+                        break;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::error('NVIDIA NIM Stream Exception', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            $onChunk(['error' => 'Có lỗi xảy ra khi streaming. Vui lòng thử lại.']);
+        }
+    }
+}
