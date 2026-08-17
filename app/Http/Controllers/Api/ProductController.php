@@ -30,9 +30,22 @@ class ProductController extends Controller
                 perPage: $request->integer('per_page', 100)
             );
 
+            $items = $products->items()->map(function ($product) {
+                return array_merge($product->only([
+                    'id', 'category_id', 'sku', 'name', 'price', 'stock_quantity',
+                    'description', 'thumbnail_url', 'brand', 'discount_percentage',
+                    'is_on_sale', 'sale_price',
+                ]), [
+                    'sale_price' => $product->discount_percentage > 0
+                        ? round($product->price * (1 - $product->discount_percentage / 100), 2)
+                        : null,
+                    'is_on_sale' => (bool) $product->discount_percentage > 0,
+                ]);
+            });
+
             return response()->json([
                 'status' => 'success',
-                'data' => $products->items(),
+                'data' => $items,
                 'meta' => [
                     'current_page' => $products->currentPage(),
                     'last_page' => $products->lastPage(),
@@ -72,9 +85,31 @@ class ProductController extends Controller
         try {
             $products = $this->productService->getSaleProducts(limit: 6);
 
+            $data = $products->map(function ($product) {
+                return [
+                    'id' => $product->id,
+                    'sku' => $product->sku,
+                    'name' => $product->name,
+                    'price' => $product->price,
+                    'stock_quantity' => $product->stock_quantity,
+                    'thumbnail_url' => $product->thumbnail_url,
+                    'brand' => $product->brand,
+                    'discount_percentage' => $product->discount_percentage,
+                    'is_on_sale' => (bool) $product->discount_percentage > 0,
+                    'sale_price' => $product->discount_percentage > 0
+                        ? round($product->price * (1 - $product->discount_percentage / 100), 2)
+                        : null,
+                    'category' => $product->category ? [
+                        'id' => $product->category->id,
+                        'name' => $product->category->name,
+                        'slug' => $product->category->slug,
+                    ] : null,
+                ];
+            });
+
             return response()->json([
                 'status' => 'success',
-                'data' => $products,
+                'data' => $data,
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -189,7 +224,7 @@ class ProductController extends Controller
                 'hdd'      => ['HDD', 'ổ cứng hdd', 'đĩa cứng', 'hard disk'],
                 'psu'      => ['PSU', 'nguồn', 'power supply', 'nguồn pc'],
                 'case'     => ['Case', 'vỏ máy tính', 'vỏ case', 'chassis', 'case pc'],
-                'tản nhiệt'=> ['Tản nhiệt', 'cooler', 'heatsink', 'tản nhiệt nước', 'water cooler'],
+                'cooler'     => ['Cooler', 'cooler', 'heatsink', 'tản nhiệt', 'tản nhiệt nước', 'water cooler'],
                 'fan'      => ['Fan', 'quạt', 'fan case', 'cooling fan'],
             ];
 

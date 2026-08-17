@@ -67,12 +67,13 @@ async function fetchCategoryProducts(page = 1) {
       if (products.value.length > 0) {
         const categoryMap = {
           'CPU': '🧠',
-          'MAIN': '💡',
+          'Mainboard': '🔧',
           'RAM': '📊',
           'VGA': '🎮',
           'SSD': '💾',
+          'PSU': '⚡',
           'COOLER': '❄️',
-          'CASE': '🖥️',
+          'CASE': '📦',
         }
         const catResponse = await fetch('/api/categories')
         const catResult = await catResponse.json()

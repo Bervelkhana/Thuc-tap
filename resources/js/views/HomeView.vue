@@ -33,15 +33,16 @@ async function fetchCategories() {
     if (result.status === 'success') {
       const iconMap = {
         'CPU': '🧠',
-        'MAIN': '💡',
+        'Mainboard': '🔧',
         'RAM': '📊',
         'VGA': '🎮',
         'SSD': '💾',
+        'PSU': '⚡',
         'COOLER': '❄️',
-        'CASE': '🖥️',
+        'CASE': '📦',
       }
 
-      const categoryOrder = ['CPU', 'MAIN', 'RAM', 'VGA', 'SSD', 'COOLER', 'CASE']
+      const categoryOrder = ['CPU', 'Mainboard', 'RAM', 'VGA', 'SSD', 'PSU', 'COOLER', 'CASE']
 
       categories.value = result.data
         .map(cat => ({

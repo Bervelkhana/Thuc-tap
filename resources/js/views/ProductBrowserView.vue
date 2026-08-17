@@ -9,6 +9,7 @@ const cartStore = useCartStore()
 const categories = ref([])
 const products = ref([])
 const filteredProducts = ref([])
+const saleProducts = ref([])
 const searchQuery = ref('')
 const selectedCategory = ref(null)
 const loading = ref(false)
@@ -96,25 +97,27 @@ async function fetchCategories() {
     if (result.status === 'success') {
       const iconMap = {
         'CPU': '🧠',
-        'MAIN': '💡',
+        'Mainboard': '🔧',
         'RAM': '📊',
         'VGA': '🎮',
         'SSD': '💾',
+        'PSU': '⚡',
         'COOLER': '❄️',
-        'CASE': '🖥️',
+        'CASE': '📦',
       }
 
       const slugMap = {
         'CPU': 'cpu',
-        'MAIN': 'main',
+        'Mainboard': 'main',
         'RAM': 'ram',
         'VGA': 'vga',
         'SSD': 'ssd',
+        'PSU': 'psu',
         'COOLER': 'cooler',
         'CASE': 'case',
       }
 
-      const categoryOrder = ['CPU', 'MAIN', 'RAM', 'VGA', 'SSD', 'COOLER', 'CASE']
+      const categoryOrder = ['CPU', 'Mainboard', 'RAM', 'VGA', 'SSD', 'PSU', 'COOLER', 'CASE']
 
       categories.value = result.data
         .map(cat => ({
@@ -151,11 +154,42 @@ async function fetchProducts(categoryId = null) {
         stock_quantity: product.stock_quantity,
         description: product.description || '',
         created_at: product.created_at,
+        discount_percentage: product.discount_percentage || 0,
+        sale_price: product.sale_price || parseFloat(product.price),
+        is_on_sale: product.is_on_sale || false,
       }))
       filterProducts()
     }
   } catch (err) {
     console.error('Error fetching products:', err)
+  } finally {
+    loading.value = false
+  }
+}
+
+async function fetchSaleProducts() {
+  loading.value = true
+  try {
+    const response = await fetch('/api/products/sales')
+    const result = await response.json()
+    if (result.status === 'success') {
+      saleProducts.value = result.data.map(product => ({
+        id: product.id,
+        name: product.name,
+        price: parseFloat(product.price),
+        sale_price: product.sale_price ? parseFloat(product.sale_price) : parseFloat(product.price),
+        discount_percentage: product.discount_percentage || 0,
+        is_on_sale: product.is_on_sale || false,
+        thumbnail_url: product.thumbnail_url || '',
+        stock_quantity: product.stock_quantity,
+        description: product.description || '',
+      }))
+    } else {
+      saleProducts.value = []
+    }
+  } catch (err) {
+    console.error('Error fetching sale products:', err)
+    saleProducts.value = []
   } finally {
     loading.value = false
   }
@@ -226,6 +260,7 @@ function updateQuantity(productId, quantity) {
 onMounted(() => {
   fetchCategories()
   fetchProducts()
+  fetchSaleProducts()
 })
 </script>
 
@@ -334,6 +369,63 @@ onMounted(() => {
               </div>
             </div>
 
+            <!-- Sale Products Section -->
+            <div v-if="saleProducts.length > 0 && !activeCategoryName" class="mb-8">
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-red-600">🔥 Sản phẩm giảm giá</h2>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                <div
+                  v-for="product in saleProducts"
+                  :key="'sale-'+product.id"
+                  class="group bg-white rounded-2xl border border-red-100 overflow-hidden hover:border-red-300 transition-all duration-300 hover:shadow-lg flex flex-col relative"
+                >
+                  <div class="absolute top-2 right-2 z-10">
+                    <span class="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-lg">-{{ product.discount_percentage }}%</span>
+                  </div>
+                  <div class="aspect-[4/3] bg-gray-50 flex items-center justify-center overflow-hidden">
+                    <img
+                      v-if="product.thumbnail_url"
+                      :src="product.thumbnail_url"
+                      :alt="product.name"
+                      class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div v-else class="text-5xl text-gray-300">🛍️</div>
+                  </div>
+                  <div class="p-4 sm:p-5 space-y-3 sm:space-y-4 flex flex-col flex-1">
+                    <div>
+                      <p class="text-xs uppercase tracking-widest text-gray-400 mb-1 sm:mb-2">
+                        {{ product.stock_quantity > 0 ? 'Còn hàng' : 'Hết hàng' }}
+                      </p>
+                      <h3 class="text-base sm:text-lg font-semibold text-gray-900 leading-tight line-clamp-2">
+                        {{ product.name }}
+                      </h3>
+                    </div>
+                    <p class="text-xs sm:text-sm text-gray-500 line-clamp-2">{{ product.description }}</p>
+                    <div class="flex items-center justify-between gap-3 sm:gap-4 pt-2 mt-auto">
+                      <div>
+                        <p class="text-xs text-gray-400 uppercase tracking-widest">Giá</p>
+                        <p class="text-xs text-gray-400 line-through">{{ formatPrice(product.price) }}</p>
+                        <p class="text-base sm:text-lg font-semibold text-red-600">{{ formatPrice(product.sale_price) }}</p>
+                      </div>
+                      <button
+                        @click="addToCart(product)"
+                        :disabled="product.stock_quantity === 0"
+                        :class="[
+                          'inline-flex items-center justify-center px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition',
+                          product.stock_quantity === 0
+                            ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                            : 'bg-red-600 text-white hover:bg-red-700'
+                        ]"
+                      >
+                        {{ product.stock_quantity === 0 ? 'Hết' : 'Thêm vào' }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Loading State -->
             <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               <div v-for="i in 6" :key="i" class="animate-pulse rounded-2xl border border-gray-200 p-4">
@@ -355,7 +447,7 @@ onMounted(() => {
                 class="group bg-white rounded-2xl border border-gray-200 overflow-hidden hover:border-gray-400 transition-all duration-300 hover:shadow-lg flex flex-col"
               >
                 <!-- Product Image -->
-                <div class="aspect-[4/3] bg-gray-50 flex items-center justify-center overflow-hidden">
+                <div class="aspect-[4/3] bg-gray-50 flex items-center justify-center overflow-hidden relative">
                   <img
                     v-if="product.thumbnail_url"
                     :src="product.thumbnail_url"
@@ -363,6 +455,7 @@ onMounted(() => {
                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                   <div v-else class="text-5xl text-gray-300">🛍️</div>
+                  <span v-if="product.discount_percentage > 0" class="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-lg">-{{ product.discount_percentage }}%</span>
                 </div>
 
                 <!-- Product Info -->
@@ -378,11 +471,15 @@ onMounted(() => {
 
                   <p class="text-xs sm:text-sm text-gray-500 line-clamp-2">{{ product.description }}</p>
 
-                  <div class="flex items-center justify-between gap-3 sm:gap-4 pt-2 mt-auto">
-                    <div>
-                      <p class="text-xs text-gray-400 uppercase tracking-widest">Giá</p>
-                      <p class="text-base sm:text-lg font-semibold text-black">{{ formatPrice(product.price) }}</p>
-                    </div>
+                   <div class="flex items-center justify-between gap-3 sm:gap-4 pt-2 mt-auto">
+                     <div>
+                       <p class="text-xs text-gray-400 uppercase tracking-widest">Giá</p>
+                       <div v-if="product.discount_percentage > 0">
+                         <p class="text-xs text-gray-400 line-through">{{ formatPrice(product.price) }}</p>
+                         <p class="text-base sm:text-lg font-semibold text-red-600">{{ formatPrice(product.sale_price) }}</p>
+                       </div>
+                       <p v-else class="text-base sm:text-lg font-semibold text-black">{{ formatPrice(product.price) }}</p>
+                     </div>
 
                     <button
                       @click="addToCart(product)"

@@ -22,7 +22,7 @@ class PCBuilderSampleDataSeeder extends Seeder
             'SSD' => 'Storage Drive',
             'PSU' => 'Power Supply',
             'Case' => 'Computer Case',
-            'Tản nhiệt' => 'Cooler',
+            'Cooler' => 'Cooler',
         ];
 
         $categoryMap = [];
@@ -238,21 +238,27 @@ class PCBuilderSampleDataSeeder extends Seeder
         // ===== COOLER =====
         echo "📌 Seeding Cooler samples...\n";
         $coolers = [
-            ['name' => 'Noctua NH-D15S', 'price' => 1890000, 'tier' => 'high'],
-            ['name' => 'be quiet! Dark Rock Pro 4', 'price' => 2190000, 'tier' => 'high'],
-            ['name' => 'Arctic Liquid Freezer II 280', 'price' => 2490000, 'tier' => 'mid'],
+            ['name' => 'Noctua NH-D15S', 'price' => 1890000, 'tier' => 'high', 'socket_type' => 'LGA1700, AM5, AM4'],
+            ['name' => 'be quiet! Dark Rock Pro 4', 'price' => 2190000, 'tier' => 'high', 'socket_type' => 'LGA1700, AM5, AM4'],
+            ['name' => 'Arctic Liquid Freezer II 280', 'price' => 2490000, 'tier' => 'mid', 'socket_type' => 'LGA1700, AM5, AM4'],
+            ['name' => 'Cooler Master MasterLiquid 360L Core', 'price' => 1890000, 'tier' => 'mid', 'socket_type' => 'LGA1700, AM5'],
+            ['name' => 'Deepcool AK620', 'price' => 1690000, 'tier' => 'mid', 'socket_type' => 'LGA1700, AM5, AM4'],
+            ['name' => 'Thermalright Phantom Spirit 120', 'price' => 1490000, 'tier' => 'mid', 'socket_type' => 'LGA1700, AM5, AM4'],
+            ['name' => 'Noctua NH-U12S redux', 'price' => 1290000, 'tier' => 'entry', 'socket_type' => 'LGA1700, AM5, AM4'],
         ];
 
         foreach ($coolers as $cooler) {
             Product::updateOrCreate(
                 ['sku' => strtoupper(substr($cooler['name'], 0, 5) . rand(1000, 9999))],
                 [
-                    'category_id' => $categoryMap['Tản nhiệt']->id,
+                    'category_id' => $categoryMap['Cooler']->id,
                     'name' => $cooler['name'],
                     'price' => $cooler['price'],
                     'stock_quantity' => 10,
                     'tier' => $cooler['tier'],
-                    'description' => "{$cooler['name']} CPU Cooler",
+                    'socket_type' => $cooler['socket_type'],
+                    'tdp' => 15,
+                    'description' => "{$cooler['name']} CPU Cooler - Hỗ trợ: {$cooler['socket_type']}",
                 ]
             );
         }

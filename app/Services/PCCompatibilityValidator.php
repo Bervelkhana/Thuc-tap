@@ -61,6 +61,9 @@ class PCCompatibilityValidator
         // Validate GPU & Case length compatibility
         $this->validateGpuCaseCompatibility($products);
 
+        // Validate Cooler & CPU socket compatibility
+        $this->validateCoolerCpuCompatibility($products);
+
         return $this->result;
     }
 
@@ -380,6 +383,56 @@ class PCCompatibilityValidator
             'gpu_length_mm' => $gpuLength,
             'case_max_gpu_length_mm' => $caseMaxGpuLength,
             'remaining_space_mm' => $caseMaxGpuLength - $gpuLength,
+        ];
+    }
+
+    /**
+     * RULE 6: Cooler & CPU Socket Compatibility
+     * - Cooler must support the selected CPU socket
+     */
+    private function validateCoolerCpuCompatibility(array $products): void
+    {
+        $cpu = $products['cpu'] ?? null;
+        $cooler = $products['cooler'] ?? null;
+
+        if (!$cpu || !$cooler) {
+            return;
+        }
+
+        $cpuSocket = $cpu->socket_type;
+        $coolerSockets = $cooler->socket_type;
+
+        if (!$cpuSocket || !$coolerSockets) {
+            $this->result['details']['cooler_cpu'] = [
+                'status' => 'unknown',
+                'message' => 'Không có thông tin socket để kiểm tra.',
+            ];
+            return;
+        }
+
+        $supportedSockets = array_map('trim', explode(',', $coolerSockets));
+        $isCompatible = in_array($cpuSocket, $supportedSockets, true);
+
+        if (!$isCompatible) {
+            $this->result['is_compatible'] = false;
+            $this->result['errors'][] = [
+                'type' => 'cooler_cpu_socket_mismatch',
+                'severity' => 'critical',
+                'message' => "Cooler không hỗ trợ socket {$cpuSocket}. Cooler chỉ hỗ trợ: {$coolerSockets}.",
+                'affected' => ['cpu', 'cooler'],
+                'details' => [
+                    'cpu_socket' => $cpuSocket,
+                    'cooler_supported_sockets' => $coolerSockets,
+                ],
+            ];
+            return;
+        }
+
+        $this->result['details']['cooler_cpu'] = [
+            'status' => 'compatible',
+            'cpu_socket' => $cpuSocket,
+            'cooler_supported_sockets' => $coolerSockets,
+            'message' => "Cooler hỗ trợ socket {$cpuSocket}.",
         ];
     }
 

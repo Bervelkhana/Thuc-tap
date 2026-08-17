@@ -133,19 +133,23 @@ async function saveProduct() {
 
     const method = isEditing.value ? 'PUT' : 'POST'
 
+    const discount = Number(formData.value.discount_percentage) || 0
+    const payload = {
+      name: formData.value.name,
+      sku: formData.value.sku,
+      price: formData.value.price,
+      stock_quantity: formData.value.stock_quantity,
+      discount_percentage: discount,
+      is_on_sale: discount > 0,
+      category_id: formData.value.category_id,
+      description: formData.value.description,
+      thumbnail_url: formData.value.thumbnail_url,
+    }
+
     const response = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: formData.value.name,
-        sku: formData.value.sku,
-        price: formData.value.price,
-        stock_quantity: formData.value.stock_quantity,
-        discount_percentage: formData.value.discount_percentage ? Number(formData.value.discount_percentage) : 0,
-        category_id: formData.value.category_id,
-        description: formData.value.description,
-        thumbnail_url: formData.value.thumbnail_url,
-      })
+      body: JSON.stringify(payload),
     })
 
     const result = await response.json()
@@ -381,7 +385,7 @@ onMounted(() => {
               />
             </div>
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Giảm giá (%)</label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Phần trăm giảm giá (%)</label>
               <input
                 v-model="formData.discount_percentage"
                 type="number"
@@ -390,6 +394,7 @@ onMounted(() => {
                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
                 placeholder="0"
               />
+              <p class="text-xs text-gray-500 mt-1">Nhập 0 để bỏ giảm giá. Tối đa 100%</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Danh mục *</label>

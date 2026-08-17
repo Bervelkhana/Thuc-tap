@@ -11,6 +11,7 @@ const products = ref([])
 const searchQuery = ref('')
 const selectedCategory = ref(null)
 const loading = ref(false)
+const error = ref(null)
 const showCart = ref(false)
 const addedToCart = ref(null)
 const showDetailModal = ref(false)
@@ -39,25 +40,27 @@ async function fetchCategories() {
     if (result.status === 'success') {
       const iconMap = {
         'CPU': '🧠',
-        'MAIN': '💡',
+        'Mainboard': '🔧',
         'RAM': '📊',
         'VGA': '🎮',
         'SSD': '💾',
+        'PSU': '⚡',
         'COOLER': '❄️',
-        'CASE': '🖥️',
+        'CASE': '📦',
       }
 
       const slugMap = {
         'CPU': 'cpu',
-        'MAIN': 'main',
+        'Mainboard': 'main',
         'RAM': 'ram',
         'VGA': 'vga',
         'SSD': 'ssd',
+        'PSU': 'psu',
         'COOLER': 'cooler',
         'CASE': 'case',
       }
 
-      const categoryOrder = ['CPU', 'MAIN', 'RAM', 'VGA', 'SSD', 'COOLER', 'CASE']
+      const categoryOrder = ['CPU', 'Mainboard', 'RAM', 'VGA', 'SSD', 'PSU', 'COOLER', 'CASE']
 
       categories.value = result.data
         .map(cat => ({
@@ -74,8 +77,20 @@ async function fetchCategories() {
 
 async function fetchProducts() {
   loading.value = true
+  error.value = null
   try {
     const response = await fetch('/api/products?per_page=100')
+    if (!response.ok) {
+      let message = `HTTP ${response.status}`
+      try {
+        const err = await response.json()
+        message = err.message || message
+      } catch {
+        const text = await response.text()
+        message = text || message
+      }
+      throw new Error(message)
+    }
     const result = await response.json()
     if (result.status === 'success') {
       products.value = result.data.map(product => ({
@@ -88,9 +103,13 @@ async function fetchProducts() {
         description: product.description || '',
         created_at: product.created_at,
       }))
+    } else {
+      console.error('API returned error:', result)
+      error.value = result.message || 'Không thể tải sản phẩm'
     }
   } catch (err) {
     console.error('Error fetching products:', err)
+    error.value = 'Không thể tải sản phẩm: ' + err.message
   } finally {
     loading.value = false
   }
@@ -249,6 +268,13 @@ onMounted(() => {
                 <div class="h-4 bg-gray-200 rounded mb-3"></div>
                 <div class="h-4 bg-gray-200 rounded w-2/3"></div>
               </div>
+            </div>
+
+            <div v-else-if="error" class="bg-red-50 rounded-2xl p-8 text-center border border-red-200">
+              <p class="text-red-600">{{ error }}</p>
+              <button @click="fetchProducts" class="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                Thử lại
+              </button>
             </div>
 
             <div v-else-if="filteredProducts.length === 0" class="bg-gray-50 rounded-2xl p-8 sm:p-12 text-center border border-gray-200">

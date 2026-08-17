@@ -30,7 +30,7 @@ class PCBuilderService
             'ssd' => 'SSD',
             'psu' => 'PSU',
             'case' => 'Case',
-            'cooler' => 'Tản nhiệt',
+            'cooler' => 'Cooler',
         ];
 
         $categoryName = $categoryMap[$categorySlug] ?? null;
@@ -111,7 +111,7 @@ class PCBuilderService
             'ssd' => 'SSD',
             'psu' => 'PSU',
             'case' => 'Case',
-            'cooler' => 'Tản nhiệt',
+            'cooler' => 'Cooler',
         ];
     }
 
@@ -128,7 +128,7 @@ class PCBuilderService
             'ssd' => 'SSD',
             'psu' => 'PSU',
             'case' => 'Case',
-            'cooler' => 'Tản nhiệt',
+            'cooler' => 'Cooler',
         ];
 
         $results = [];
