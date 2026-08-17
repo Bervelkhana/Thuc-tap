@@ -22,6 +22,7 @@ class PCBuilderSampleDataSeeder extends Seeder
             'SSD' => 'Storage Drive',
             'PSU' => 'Power Supply',
             'Case' => 'Computer Case',
+            'Tản nhiệt' => 'Cooler',
         ];
 
         $categoryMap = [];
@@ -166,10 +167,10 @@ class PCBuilderSampleDataSeeder extends Seeder
         // ===== GPU =====
         echo "📌 Seeding GPU samples...\n";
         $gpus = [
-            ['name' => 'NVIDIA RTX 4060', 'price' => 3500000, 'tier' => 'entry', 'tdp' => 150],
-            ['name' => 'NVIDIA RTX 4070', 'price' => 8000000, 'tier' => 'mid', 'tdp' => 250],
-            ['name' => 'NVIDIA RTX 4090', 'price' => 25000000, 'tier' => 'ultra', 'tdp' => 450],
-            ['name' => 'AMD Radeon RX 7700 XT', 'price' => 7500000, 'tier' => 'mid', 'tdp' => 250],
+            ['name' => 'NVIDIA RTX 4060', 'price' => 3500000, 'tier' => 'entry', 'tdp' => 150, 'length_mm' => 272],
+            ['name' => 'NVIDIA RTX 4070', 'price' => 8000000, 'tier' => 'mid', 'tdp' => 250, 'length_mm' => 261],
+            ['name' => 'NVIDIA RTX 4090', 'price' => 25000000, 'tier' => 'ultra', 'tdp' => 450, 'length_mm' => 337],
+            ['name' => 'AMD Radeon RX 7700 XT', 'price' => 7500000, 'tier' => 'mid', 'tdp' => 250, 'length_mm' => 302],
         ];
 
         foreach ($gpus as $gpu) {
@@ -183,6 +184,7 @@ class PCBuilderSampleDataSeeder extends Seeder
                     'stock_quantity' => 5,
                     'tier' => $gpu['tier'],
                     'tdp' => $gpu['tdp'],
+                    'gpu_length_mm' => $gpu['length_mm'],
                     'description' => "{$gpu['name']} Graphics Card",
                 ]
             );
@@ -214,9 +216,9 @@ class PCBuilderSampleDataSeeder extends Seeder
         // ===== CASE =====
         echo "📌 Seeding Case samples...\n";
         $cases = [
-            ['name' => 'NZXT H510 Flow', 'price' => 1500000],
-            ['name' => 'Corsair Crystal 570X RGB', 'price' => 3000000],
-            ['name' => 'Lian Li Lancool 3', 'price' => 2000000],
+            ['name' => 'NZXT H510 Flow', 'price' => 1500000, 'max_gpu_length_mm' => 381],
+            ['name' => 'Corsair Crystal 570X RGB', 'price' => 3000000, 'max_gpu_length_mm' => 300],
+            ['name' => 'Lian Li Lancool 3', 'price' => 2000000, 'max_gpu_length_mm' => 420],
         ];
 
         foreach ($cases as $case) {
@@ -227,7 +229,30 @@ class PCBuilderSampleDataSeeder extends Seeder
                     'name' => $case['name'],
                     'price' => $case['price'],
                     'stock_quantity' => 12,
+                    'max_gpu_length_mm' => $case['max_gpu_length_mm'],
                     'description' => "{$case['name']} Computer Case",
+                ]
+            );
+        }
+
+        // ===== COOLER =====
+        echo "📌 Seeding Cooler samples...\n";
+        $coolers = [
+            ['name' => 'Noctua NH-D15S', 'price' => 1890000, 'tier' => 'high'],
+            ['name' => 'be quiet! Dark Rock Pro 4', 'price' => 2190000, 'tier' => 'high'],
+            ['name' => 'Arctic Liquid Freezer II 280', 'price' => 2490000, 'tier' => 'mid'],
+        ];
+
+        foreach ($coolers as $cooler) {
+            Product::updateOrCreate(
+                ['sku' => strtoupper(substr($cooler['name'], 0, 5) . rand(1000, 9999))],
+                [
+                    'category_id' => $categoryMap['Tản nhiệt']->id,
+                    'name' => $cooler['name'],
+                    'price' => $cooler['price'],
+                    'stock_quantity' => 10,
+                    'tier' => $cooler['tier'],
+                    'description' => "{$cooler['name']} CPU Cooler",
                 ]
             );
         }

@@ -14,6 +14,9 @@ const messages = ref([
   }
 ])
 
+const streamingAssistantId = ref(null)
+const streamingText = ref('')
+
 const hasMessages = computed(() => messages.value.length > 0)
 const showSuggestions = computed(() => !hasInteracted.value && messages.value.length <= 1)
 
@@ -64,18 +67,6 @@ function toggleChat() {
   isOpen.value = !isOpen.value
 }
 
-function extractBackendMessage(data) {
-  if (!data || typeof data !== 'object') return ''
-  return (
-    data.message ||
-    data.error ||
-    data?.data?.message ||
-    data?.data?.error ||
-    data?.data?.reply ||
-    ''
-  )
-}
-
 async function sendMessage(text) {
   const messageText = typeof text === 'string' ? text.trim() : input.value.trim()
   if (!messageText || isLoading.value) return
@@ -97,95 +88,127 @@ async function sendMessage(text) {
   }
   isLoading.value = true
 
-  let httpStatus = null
-  let responseText = ''
-  let parsedData = null
+  const assistantId = Date.now() + 1
+  streamingAssistantId.value = assistantId
+  streamingText.value = ''
+
+  messages.value.push({
+    id: assistantId,
+    role: 'assistant',
+    text: ''
+  })
 
   try {
-    const response = await fetch('/api/chat', {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 60000)
+
+    const response = await fetch('/api/chat/stream', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        'Accept': 'text/event-stream',
       },
       credentials: 'same-origin',
       body: JSON.stringify({
         message: messageText,
         history
-      })
+      }),
+      signal: controller.signal
     })
 
-    httpStatus = response.status
-    responseText = await response.text()
-
-    try {
-      parsedData = responseText ? JSON.parse(responseText) : null
-    } catch (parseError) {
-      console.error('[Chat Debug] Backend returned invalid JSON:', responseText)
-      throw new Error('Phản hồi từ máy chủ không hợp lệ. Vui lòng thử lại.')
-    }
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
-      const backendMessage = extractBackendMessage(parsedData)
-      console.error('[Chat Debug] HTTP error detected', {
-        httpStatus,
-        ok: response.ok,
-        parsedData,
-        backendMessage
-      })
-      throw new Error(backendMessage || `HTTP ${httpStatus}` || 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.')
+      throw new Error('HTTP ' + response.status)
     }
 
-    if (parsedData?.status === 'error') {
-      const backendMessage = extractBackendMessage(parsedData)
-      messages.value.push({
-        id: Date.now() + 1,
-        role: 'assistant',
-        text: backendMessage || 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.'
-      })
-      return
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder('utf-8')
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+
+      if (done) {
+        break
+      }
+
+      buffer += decoder.decode(value, { stream: true })
+
+      let newlineIndex
+      while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, newlineIndex)
+        buffer = buffer.slice(newlineIndex + 1)
+
+        const trimmed = line.trim()
+
+        if (trimmed === '' || trimmed.startsWith(':')) {
+          continue
+        }
+
+        if (trimmed.startsWith('data: ')) {
+          const data = trimmed.slice(6)
+
+          if (data === '[DONE]') {
+            continue
+          }
+
+          try {
+            const parsed = JSON.parse(data)
+
+            if (parsed.error) {
+              streamingText.value += parsed.error
+              updateStreamingMessage()
+              continue
+            }
+
+            const content = parsed.content
+
+            if (typeof content === 'string' && content !== '') {
+              streamingText.value += content
+              updateStreamingMessage()
+            }
+
+            if (parsed.done) {
+              continue
+            }
+          } catch {
+            // Incomplete JSON in buffer, wait for next chunk
+          }
+        }
+      }
     }
 
-    if (parsedData?.status === 'success') {
-      messages.value.push({
-        id: Date.now() + 1,
-        role: 'assistant',
-        text: parsedData.data?.reply || 'Không nhận được phản hồi từ AI.'
-      })
-      return
+    if (streamingText.value === '') {
+      streamingText.value = 'Không nhận được phản hồi từ AI.'
+      updateStreamingMessage()
     }
-
-    console.error('[Chat Debug] Unexpected response structure', {
-      httpStatus,
-      parsedData
-    })
-    throw new Error('Phản hồi không hợp lệ từ máy chủ.')
   } catch (error) {
-    console.error('[Chat Error] Full error details:', {
-      message: error.message,
-      name: error.name,
-      stack: error.stack,
-      httpStatus,
-      responseText,
-      parsedData
-    })
+    console.error('[Chat Stream Error]', error)
 
     if (error instanceof TypeError && String(error.message).toLowerCase().includes('failed to fetch')) {
-      messages.value.push({
-        id: Date.now() + 1,
-        role: 'assistant',
-        text: 'Lỗi mạng hoặc không thể kết nối tới server. Vui lòng kiểm tra kết nối hoặc thử lại sau.'
-      })
-      return
+      streamingText.value = 'Lỗi mạng hoặc không thể kết nối tới server. Vui lòng kiểm tra kết nối hoặc thử lại sau.'
+    } else if (error.name === 'AbortError') {
+      streamingText.value = 'Yêu cầu mất quá nhiều thời gian. Vui lòng thử lại sau.'
+    } else {
+      streamingText.value = error?.message || 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.'
     }
 
-    messages.value.push({
-      id: Date.now() + 1,
-      role: 'assistant',
-      text: error?.message || 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.'
-    })
+    updateStreamingMessage()
   } finally {
     isLoading.value = false
+    streamingAssistantId.value = null
+    streamingText.value = ''
+  }
+}
+
+function updateStreamingMessage() {
+  const target = streamingAssistantId.value
+  if (!target) return
+
+  const idx = messages.value.findIndex(m => m.id === target)
+  if (idx !== -1) {
+    messages.value[idx].text = streamingText.value
   }
 }
 

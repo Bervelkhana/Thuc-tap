@@ -194,8 +194,7 @@ class IntentAnalyzerService
             return 0.0;
         }
         
-        // Normalize score (0-1)
-        return min($totalScore / (count($keywords) * 1.5), 1.0);
+        return min($totalScore, 1.0);
     }
 
     /**

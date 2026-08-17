@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\NvidiaNimChatService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ChatController extends Controller
 {
@@ -19,8 +20,6 @@ class ChatController extends Controller
     public function sendMessage(Request $request)
     {
         try {
-            set_time_limit(120);
-
             $validated = $request->validate([
                 'message' => 'required|string|max:1000',
                 'history' => 'nullable|array',
@@ -72,5 +71,33 @@ class ChatController extends Controller
                     : 'Có lỗi xảy ra. Vui lòng thử lại sau.',
             ], 500);
         }
+    }
+
+    public function streamMessage(Request $request): StreamedResponse
+    {
+        $validated = $request->validate([
+            'message' => 'required|string|max:1000',
+            'history' => 'nullable|array',
+        ]);
+
+        $userMessage = $validated['message'];
+        $history = $validated['history'] ?? [];
+
+        return new StreamedResponse(function () use ($userMessage, $history) {
+            $this->chatService->chatStream($userMessage, $history, function ($chunk) {
+                echo 'data: ' . json_encode($chunk) . "\n\n";
+
+                if (ob_get_level() > 0) {
+                    ob_flush();
+                }
+
+                flush();
+            });
+        }, 200, [
+            'Content-Type' => 'text/event-stream',
+            'Cache-Control' => 'no-cache',
+            'Connection' => 'keep-alive',
+            'X-Accel-Buffering' => 'no',
+        ]);
     }
 }

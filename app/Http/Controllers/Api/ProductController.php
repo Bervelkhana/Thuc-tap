@@ -246,7 +246,7 @@ class ProductController extends Controller
         $products = $builder
             ->orderBy('name', 'asc')
             ->limit($limit)
-            ->get(['id', 'category_id', 'sku', 'name', 'price', 'stock_quantity', 'thumbnail_url']);
+            ->get(['id', 'category_id', 'sku', 'name', 'price', 'stock_quantity', 'thumbnail_url', 'discount_percentage']);
 
         $count = $products->count();
 

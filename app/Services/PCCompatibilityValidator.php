@@ -58,6 +58,9 @@ class PCCompatibilityValidator
         // Check tier matching (bottleneck detection)
         $this->validateTierMatching($products);
 
+        // Validate GPU & Case length compatibility
+        $this->validateGpuCaseCompatibility($products);
+
         return $this->result;
     }
 
@@ -76,13 +79,27 @@ class PCCompatibilityValidator
 
             if ($item instanceof Product) {
                 $products[$category] = $item;
-            } elseif (is_numeric($item)) {
+                continue;
+            }
+
+            if (is_numeric($item)) {
                 // Product ID
                 $products[$category] = Product::find($item);
-            } elseif (is_array($item) && isset($item['id'])) {
-                // Array with ID
-                $products[$category] = Product::find($item['id']);
+                continue;
             }
+
+            if (is_array($item)) {
+                // Array with ID or product_id
+                $productId = $item['id'] ?? $item['product_id'] ?? null;
+                if ($productId) {
+                    $products[$category] = Product::find($productId);
+                } else {
+                    $products[$category] = null;
+                }
+                continue;
+            }
+
+            $products[$category] = null;
         }
 
         return $products;
@@ -304,6 +321,66 @@ class PCCompatibilityValidator
                 ];
             }
         }
+    }
+
+    /**
+     * RULE 5: GPU & Case Length Compatibility
+     * - GPU length must fit within case max GPU length
+     */
+    private function validateGpuCaseCompatibility(array $products): void
+    {
+        $vga = $products['vga'] ?? null;
+        $case = $products['case'] ?? null;
+
+        if (!$vga || !$case) {
+            return;
+        }
+
+        // Get GPU length - check column first, fallback to EAV attribute
+        $gpuLength = $vga->gpu_length_mm;
+        if (!$gpuLength) {
+            $gpuLengthAttr = $vga->attributes->firstWhere('name', 'GPU Length (mm)');
+            $gpuLength = $gpuLengthAttr ? (int) $gpuLengthAttr->pivot->value : null;
+        }
+
+        // Get case max GPU length - check column first, fallback to EAV attribute
+        $caseMaxGpuLength = $case->max_gpu_length_mm;
+        if (!$caseMaxGpuLength) {
+            $caseAttr = $case->attributes->firstWhere('name', 'Max GPU Length (mm)');
+            $caseMaxGpuLength = $caseAttr ? (int) $caseAttr->pivot->value : null;
+        }
+
+        // If we don't have data for either, skip validation
+        if (!$gpuLength || !$caseMaxGpuLength) {
+            $this->result['details']['gpu_case'] = [
+                'status' => 'unknown',
+                'message' => 'Không có thông tin kích thước để kiểm tra.',
+            ];
+            return;
+        }
+
+        if ($gpuLength > $caseMaxGpuLength) {
+            $this->result['is_compatible'] = false;
+            $this->result['errors'][] = [
+                'type' => 'gpu_case_length_mismatch',
+                'severity' => 'critical',
+                'message' => "GPU length ({$gpuLength}mm) vượt quá max GPU length của Case ({$caseMaxGpuLength}mm). GPU sẽ không vừa case.",
+                'affected' => ['vga', 'case'],
+                'details' => [
+                    'gpu_length_mm' => $gpuLength,
+                    'case_max_gpu_length_mm' => $caseMaxGpuLength,
+                    'excess_mm' => $gpuLength - $caseMaxGpuLength,
+                ],
+            ];
+            return;
+        }
+
+        $this->result['details']['gpu_case'] = [
+            'status' => 'compatible',
+            'gpu_length_mm' => $gpuLength,
+            'case_max_gpu_length_mm' => $caseMaxGpuLength,
+            'remaining_space_mm' => $caseMaxGpuLength - $gpuLength,
+        ];
     }
 
     /**

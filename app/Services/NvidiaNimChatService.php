@@ -2,11 +2,11 @@
 
 namespace App\Services;
 
-use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\Client\RequestException;
-use Illuminate\Http\Client\TimeoutException;
-use Illuminate\Support\Facades\Http;
+use App\Models\Product;
+use App\Models\Category;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Http\Client\ConnectionException;
 
 class NvidiaNimChatService
 {
@@ -28,186 +28,79 @@ class NvidiaNimChatService
     public function chat(string $userMessage, array $conversationHistory = []): array
     {
         try {
-            set_time_limit(120);
-
-            // ========== FAST-FAIL: Validate config trước khi gọi API ==========
-            $validationError = $this->validateConfiguration();
-            if ($validationError !== null) {
-                return [
-                    'success' => false,
-                    'reply' => $validationError,
-                ];
+            // ========== FAST-FAIL ==========
+            if ($validationError = $this->validateConfiguration()) {
+                return ['success' => false, 'reply' => $validationError];
             }
 
-            $systemPrompt = $this->getSystemPrompt();
             $productContext = $this->buildProductContext($userMessage);
 
             if ($this->isInDemoMode()) {
                 return $this->getDemoResponse($userMessage, $productContext);
             }
 
-            // ========== TỐI ƯU: Giới hạn history để giảm payload ==========
-            $trimmedHistory = $this->trimConversationHistory($conversationHistory, 6);
-            $messages = $this->buildMessages($systemPrompt, $productContext, $userMessage, $trimmedHistory);
+            // Xử lý message hợp lệ cho API
+            $messages = $this->buildMessages($this->getSystemPrompt(), $productContext, $userMessage, $conversationHistory);
 
-            Log::info('--- BẮT ĐẦU DEBUG NVIDIA NIM API ---');
-            Log::info('1. Tổng quan Request:', [
-                'model' => $this->model,
-                'messages_count' => count($messages),
-                'payload_size_kb' => round(strlen(json_encode($messages)) / 1024, 2) . ' KB',
+            // ========== GỌI API BẰNG LARAVEL HTTP FACADE ==========
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->apiKey,
+                'Content-Type'  => 'application/json; charset=utf-8',
+            ])
+            ->timeout(15)
+            ->connectTimeout(10)
+            ->post($this->apiUrl . '/chat/completions', [
+                'model'       => $this->model,
+                'messages'    => $messages,
+                'temperature' => 0.7,
+                'max_tokens'  => 800, // Tăng lên 800 vì 300 token thường bị cắt cụt câu tiếng Việt
+                'stream'      => false,
             ]);
 
-            Log::info('2. Chi tiết Payload sẽ gửi đi:', [
-                'body_json' => json_encode($messages, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
-            ]);
-            Log::info('--- KẾT THÚC LOG DEBUG ---');
-
-            // ========== GỌI API với timeout rõ ràng ==========
-            $response = Http::timeout(60)
-                ->connectTimeout(10)
-                ->acceptJson()
-                ->withHeaders([
-                    'Content-Type' => 'application/json; charset=utf-8',
-                    'Authorization' => 'Bearer ' . $this->apiKey,
-                ])
-                ->post($this->apiUrl . '/chat/completions', [
-                    'model' => $this->model,
-                    'messages' => $messages,
-                    'temperature' => 0.7,
-                    'max_tokens' => 300,
-                    'stream' => false,
-                ]);
-
-            // ========== XỬ LÝ RESPONSE NGAY, KHÔNG ĐỂ TREO ==========
+            // =========== BẮT LỖI TỪ API (HTTP 4xx, 5xx) ===========
             if ($response->failed()) {
-                $status = $response->status();
-                $body = trim($response->body() ?: 'Empty response');
-
-                Log::error('NVIDIA NIM API Error Response', [
-                    'status' => $status,
-                    'body' => $body,
-                    'api_url' => $this->apiUrl,
-                    'model' => $this->model,
+                Log::error('NVIDIA NIM API Error', [
+                    'status' => $response->status(),
+                    'body'   => $response->json(), // Lấy chi tiết lỗi từ API trả về để dễ fix
+                    'model'  => $this->model,
                 ]);
 
-                // Auth errors: fail ngay, không retry
-                if ($status === 401 || $status === 403) {
-                    return [
-                        'success' => false,
-                        'reply' => 'Lỗi xác thực API. Vui lòng liên hệ quản trị viên.',
-                    ];
-                }
-
-                // Rate limit: suggest retry
-                if ($status === 429) {
-                    return [
-                        'success' => false,
-                        'reply' => 'Server AI đang quá tải. Vui lòng thử lại sau 30 giây.',
-                    ];
-                }
-
-                // Other errors
-                return [
-                    'success' => false,
-                    'reply' => 'Server AI phản hồi lỗi (' . $status . '). Vui lòng thử lại sau.',
-                ];
+                return $this->getFallbackResponse($userMessage, $productContext, 'Lỗi từ AI API: ' . $response->status());
             }
 
-            $data = $response->json();
-            $reply = data_get($data, 'choices.0.message.content');
+            $reply = $response->json('choices.0.message.content');
 
             if (is_string($reply) && trim($reply) !== '') {
+                // Fix lỗi font nếu có
                 if (!mb_check_encoding($reply, 'UTF-8')) {
                     $reply = mb_convert_encoding($reply, 'UTF-8', 'UTF-8,ISO-8859-1,CP1252');
                 }
-
-                return [
-                    'success' => true,
-                    'reply' => trim($reply),
-                ];
+                return ['success' => true, 'reply' => trim($reply)];
             }
 
-            Log::warning('Unexpected NVIDIA NIM response structure', ['response' => $data]);
+            return $this->getFallbackResponse($userMessage, $productContext, 'AI trả về phản hồi rỗng.');
 
-            return [
-                'success' => false,
-                'reply' => 'AI trả về phản hồi không hợp lệ. Vui lòng thử lại.',
-            ];
-        } catch (TimeoutException $e) {
-            Log::error('NVIDIA NIM chat timeout', [
-                'exception_class' => get_class($e),
-                'message' => $e->getMessage(),
-                'api_url' => $this->apiUrl,
-                'model' => $this->model,
-                'user_message_length' => strlen($userMessage),
-            ]);
-
-            return [
-                'success' => false,
-                'reply' => 'Server AI đang bận xử lý yêu cầu. Vui lòng thử lại sau 1-2 phút.',
-            ];
         } catch (ConnectionException $e) {
-            Log::error('NVIDIA NIM connection error', [
-                'exception_class' => get_class($e),
-                'message' => $e->getMessage(),
-                'api_url' => $this->apiUrl,
-                'model' => $this->model,
-            ]);
-
-            return [
-                'success' => false,
-                'reply' => 'Không thể kết nối tới server AI. Vui lòng kiểm tra mạng và thử lại.',
-            ];
-        } catch (RequestException $e) {
-            Log::error('NVIDIA NIM request error', [
-                'exception_class' => get_class($e),
-                'message' => $e->getMessage(),
-                'api_url' => $this->apiUrl,
-                'model' => $this->model,
-            ]);
-
-            return [
-                'success' => false,
-                'reply' => 'Yêu cầu tới AI bị lỗi. Vui lòng thử lại sau.',
-            ];
+            Log::error('NVIDIA NIM Connection Timeout', ['message' => $e->getMessage()]);
+            return $this->getFallbackResponse($userMessage, $productContext, 'Server AI đang bận hoặc quá hạn kết nối.');
         } catch (\Throwable $e) {
             Log::error('NVIDIA NIM Chat Exception', [
-                'exception_class' => get_class($e),
                 'message' => $e->getMessage(),
-                'api_url' => $this->apiUrl,
-                'model' => $this->model,
-                'trace' => $e->getTraceAsString(),
+                'trace'   => $e->getTraceAsString(),
             ]);
-
-            return [
-                'success' => false,
-                'reply' => 'Có lỗi xảy ra. Vui lòng thử lại sau.',
-            ];
+            return ['success' => false, 'reply' => 'Có lỗi hệ thống xảy ra. Vui lòng thử lại sau.'];
         }
     }
 
-    /**
-     * Validate config before making API call - FAIL FAST
-     */
     private function validateConfiguration(): ?string
     {
         if ($this->apiKey === '') {
             return 'Chưa cấu hình API key cho AI. Vui lòng liên hệ quản trị viên.';
         }
 
-        // Detect malformed API key (e.g., with quotes from .env)
         if (str_starts_with($this->apiKey, '"') || str_ends_with($this->apiKey, '"')) {
-            Log::warning('Malformed NVIDIA NIM API key detected (has quotes)', [
-                'key_preview' => substr($this->apiKey, 0, 20) . '...',
-            ]);
-
+            Log::warning('Malformed NVIDIA NIM API key detected (has quotes)');
             return 'Cấu hình API key không hợp lệ. Vui lòng liên hệ quản trị viên.';
-        }
-
-        if (!str_starts_with($this->apiKey, 'nvapi-')) {
-            Log::warning('NVIDIA NIM API key has unexpected format', [
-                'key_preview' => substr($this->apiKey, 0, 20) . '...',
-            ]);
         }
 
         if ($this->apiUrl === '') {
@@ -217,40 +110,85 @@ class NvidiaNimChatService
         return null;
     }
 
-    /**
-     * Trim conversation history to last N messages to reduce payload
-     */
-    private function trimConversationHistory(array $history, int $maxMessages = 6): array
+    protected function buildMessages(string $systemPrompt, string $productContext, string $userMessage, array $history): array
     {
-        if (count($history) <= $maxMessages) {
-            return $history;
+        // 1. Gộp System Prompt và Context thành MỘT message duy nhất để tránh lỗi 400
+        $fullSystemContent = $systemPrompt;
+        if (!empty($productContext)) {
+            $fullSystemContent .= "\n\nDữ liệu sản phẩm hiện có:\n" . $productContext;
         }
 
-        return array_slice($history, -$maxMessages);
+        $messages = [
+            ['role' => 'system', 'content' => $fullSystemContent]
+        ];
+
+        // 2. Trim History
+        $trimmedHistory = count($history) > 4 ? array_slice($history, -4) : $history;
+
+        // 3. Chuẩn hóa History (Đảm bảo luồng user/assistant xen kẽ, không có role liên tiếp)
+        $lastRole = 'system';
+        foreach ($trimmedHistory as $msg) {
+            if (isset($msg['role'], $msg['content']) && trim($msg['content']) !== '') {
+                if ($msg['role'] !== $lastRole) {
+                    $messages[] = [
+                        'role'    => $msg['role'],
+                        'content' => $msg['content'],
+                    ];
+                    $lastRole = $msg['role'];
+                }
+            }
+        }
+
+        // 4. Đẩy User Message hiện tại vào
+        if ($lastRole === 'user') {
+            // Nếu message trước đó cũng là user (VD: lỗi UI gửi đúp), thì gộp nội dung lại thay vì ghi đè
+            $messages[count($messages) - 1]['content'] .= "\n\n" . $userMessage;
+        } else {
+            $messages[] = [
+                'role'    => 'user',
+                'content' => $userMessage,
+            ];
+        }
+
+        return $messages;
     }
 
     protected function isInDemoMode(): bool
     {
-        return filter_var(env('NVIDIA_NIM_DEMO_MODE', false), FILTER_VALIDATE_BOOL) === true;
+        // Dùng config() thay vì env() để không bị dính lỗi khi chạy artisan config:cache
+        return filter_var(config('services.nvidia_nim.demo_mode', false), FILTER_VALIDATE_BOOL) === true;
     }
 
     protected function getDemoResponse(string $userMessage, string $productContext): array
     {
+        // Giữ nguyên logic của bạn
         if (!empty($productContext)) {
             return [
                 'success' => true,
                 'reply' => "Tìm thấy thông tin sau:\n\n" . $productContext . "\n\nGhi chú: Đây là chế độ demo hoặc chưa cấu hình API key NVIDIA NIM.",
             ];
         }
+        return ['success' => true, 'reply' => 'Tôi là AI Assistant. Hỏi tôi điều gì tùy bạn!'];
+    }
 
+    protected function getFallbackResponse(string $userMessage, string $productContext, string $errorNote): array
+    {
+        // Giữ nguyên logic của bạn
+        if (!empty($productContext)) {
+            return [
+                'success' => true,
+                'reply' => "Mình gặp chút vấn đề khi gọi AI ({$errorNote}), nhưng đây là thông tin liên quan từ kho của mình nhé:\n\n" . $productContext,
+            ];
+        }
         return [
             'success' => true,
-            'reply' => 'Tôi là AI Assistant. Hỏi tôi điều gì tùy bạn!',
+            'reply' => "Mình đang gặp vấn đề kết nối tới AI ({$errorNote}). Bạn vui lòng thử lại sau 1-2 phút, hoặc hỏi cụ thể hơn về sản phẩm để mình tra kho trực tiếp giúp bạn.",
         ];
     }
 
     protected function buildProductContext(string $userMessage): string
     {
+        // Giữ nguyên logic xử lý Intent và Context của bạn
         try {
             $analysis = $this->intentAnalyzer->analyze($userMessage);
             $primaryIntent = $analysis['primary_intent'];
@@ -261,21 +199,20 @@ class NvidiaNimChatService
             if ($primaryIntent['confidence'] > 0.6) {
                 switch ($primaryIntent['type']) {
                     case 'stock_check':
-                        $context = $this->productService->getProductsContext(10);
+                        $context = $this->productService->getProductsContext(5);
                         break;
                     case 'category_search':
                         if (!empty($primaryIntent['category'])) {
-                            $context = $this->productService->getProductsByCategoryContext($primaryIntent['category'], 5);
+                            $context = $this->productService->getProductsByCategoryContext($primaryIntent['category'], 3);
                         }
                         break;
                     case 'product_search':
                         if (!empty($extractedInfo['product_name'])) {
-                            $context = $this->productService->getProductsByNameContext($extractedInfo['product_name'], 5);
+                            $context = $this->productService->getProductsByNameContext($extractedInfo['product_name'], 3);
                         }
                         break;
                 }
             }
-
             return $context;
         } catch (\Exception $e) {
             Log::warning('Failed to build product context: ' . $e->getMessage());
@@ -283,93 +220,28 @@ class NvidiaNimChatService
         }
     }
 
-    protected function buildMessages(string $systemPrompt, string $productContext, string $userMessage, array $history): array
-    {
-        $messages = [[
-            'role' => 'system',
-            'content' => $systemPrompt,
-        ]];
-
-        if (!empty($productContext)) {
-            $messages[] = [
-                'role' => 'system',
-                'content' => "Dữ liệu sản phẩm hiện có:\n" . $productContext,
-            ];
-        }
-
-        foreach ($history as $msg) {
-            if (isset($msg['role']) && isset($msg['content'])) {
-                $messages[] = [
-                    'role' => $msg['role'],
-                    'content' => $msg['content'],
-                ];
-            }
-        }
-
-        $messages[] = [
-            'role' => 'user',
-            'content' => $userMessage,
-        ];
-
-        // ========== NORMALIZE: đảm bảo cấu trúc user/assistant xen kẽ, không lặp role liền kề ==========
-        $normalized = [];
-        foreach ($messages as $msg) {
-            if (empty($normalized)) {
-                $normalized[] = $msg;
-                continue;
-            }
-
-            $last = $normalized[count($normalized) - 1];
-
-            // Bỏ qua nếu trùng TỪNG BỘI role lẫn content (exact duplicate)
-            if ($last['role'] === $msg['role'] && $last['content'] === $msg['content']) {
-                continue;
-            }
-
-            // Bỏ qua nếu cùng role liền kề (trừ system, vì system có thể có nhiều block liên tiếp)
-            if ($last['role'] === $msg['role'] && $last['role'] !== 'system') {
-                // Nếu cùng role liền kề, giữ message mới hơn (bỏ message cũ)
-                $normalized[count($normalized) - 1] = $msg;
-                continue;
-            }
-
-            $normalized[] = $msg;
-        }
-
-        // Đảm bảo message cuối cùng là user message hiện tại (chỉ 1 lần)
-        // Nếu cuối đang là user nhưng khác nội dung hiện tại, thay thế bằng message hiện tại
-        if (!empty($normalized) && $normalized[count($normalized) - 1]['role'] === 'user') {
-            $normalized[count($normalized) - 1] = [
-                'role' => 'user',
-                'content' => $userMessage,
-            ];
-        } else {
-            $normalized[] = [
-                'role' => 'user',
-                'content' => $userMessage,
-            ];
-        }
-
-        return $normalized;
-    }
-
     protected function getSystemPrompt(): string
     {
-        return "Bạn là trợ lý tư vấn mua sắm linh kiện máy tính của cửa hàng TechGear.\n\n"
-            . "Nhiệm vụ:\n"
-            . "1. Tìm sản phẩm phù hợp từ kho\n"
-            . "2. Tư vấn cấu hình PC theo nhu cầu\n"
-            . "3. Trả lời thông số kỹ thuật\n"
-            . "4. Gợi ý linh kiện tương thích\n"
-            . "5. So sánh sản phẩm\n"
-            . "6. Thông tin tồn kho\n\n"
-            . "Hướng dẫn:\n"
-            . "- Trả lời ngắn gọn, rõ ràng\n"
-            . "- Dựa vào dữ liệu kho khi có\n"
-            . "- Hỏi lại nếu cần thông tin (ngân sách, mục đích)\n"
-            . "- Thân thiện, chuyên nghiệp\n"
-            . "- Chỉ giới thiệu sản phẩm còn hàng\n"
-            . "- Chỉ trả lời về máy tính, linh kiện, PC\n\n"
-            . "QUAN TRỌNG: Luôn trả lời bằng tiếng Việt.";
+        // Sử dụng Nowdoc (<<<'PROMPT') của PHP để code sạch hơn, không cần nối chuỗi (.)
+        return <<<'PROMPT'
+        Bạn là chuyên gia tư vấn mua sắm của TechGear, chuyên về linh kiện và cấu hình PC.
+
+        [VAI TRÒ & THÁI ĐỘ]
+        - Chuyên nghiệp, thân thiện, tư vấn tận tâm. Xưng hô là "mình/TechGear" và gọi khách là "bạn".
+        - Luôn giữ thái độ hỗ trợ, trả lời ngắn gọn, súc tích, đi thẳng vào trọng tâm.
+
+        [NGUYÊN TẮC CỐT LÕI - TUYỆT ĐỐI TUÂN THỦ]
+        1. BÁM SÁT DỮ LIỆU KHO (RAG): Chỉ tư vấn dựa trên "Dữ liệu sản phẩm hiện có" được cung cấp. Tuyệt đối không tự bịa (hallucinate) tên sản phẩm, thông số hoặc giá cả không có trong kho.
+        2. XỬ LÝ HẾT HÀNG: Nếu khách hỏi sản phẩm không có trong dữ liệu kho, hãy trả lời: "Hiện tại TechGear đang tạm hết mã này, bạn tham khảo sang các mẫu sau nhé..." (nếu có gợi ý) hoặc hỏi thêm nhu cầu.
+        3. KHAI THÁC THÔNG TIN: Nếu khách yêu cầu build PC nhưng chưa rõ, BẮT BUỘC phải hỏi lại 2 yếu tố: Mức ngân sách tối đa và Mục đích sử dụng chính (Gaming, Đồ họa, Code, Văn phòng...).
+        4. GIỚI HẠN CHỦ ĐỀ: Từ chối lịch sự và khéo léo lùi về chủ đề công nghệ nếu khách hỏi các vấn đề ngoài lề (chính trị, tôn giáo, đời sống...).
+
+        [ĐỊNH DẠNG ĐẦU RA]
+        - Sử dụng Markdown để trình bày.
+        - In đậm **Tên sản phẩm** và **Giá tiền**.
+        - Sử dụng gạch đầu dòng (-) khi liệt kê linh kiện hoặc ưu điểm.
+        - Trình bày thoáng, cách dòng rõ ràng giữa các đoạn.
+
+        QUAN TRỌNG: Giao tiếp 100% bằng tiếng Việt tự nhiên.
+        PROMPT;
     }
-}

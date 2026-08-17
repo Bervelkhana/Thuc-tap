@@ -15,8 +15,9 @@ const COMPONENTS = [
   { key: 'ram',        label: 'RAM',         slug: 'ram',        placeholder: 'Nhập tên RAM để tìm kiếm...' },
   { key: 'vga',        label: 'VGA',         slug: 'vga',        placeholder: 'Nhập tên VGA để tìm kiếm...' },
   { key: 'ssd',        label: 'SSD',         slug: 'ssd',        placeholder: 'Nhập tên SSD để tìm kiếm...' },
-  { key: 'psu',        label: 'PSU (Nguồn)', slug: 'psu',        placeholder: 'Nhập tên PSU để tìm kiếm...' },
   { key: 'case',       label: 'Case (Vỏ)',   slug: 'case',       placeholder: 'Nhập tên Case để tìm kiếm...' },
+  { key: 'cooler',     label: 'Cooler',      slug: 'cooler',     placeholder: 'Nhập tên Cooler để tìm kiếm...' },
+  { key: 'psu',        label: 'PSU (Nguồn)', slug: 'psu',        placeholder: 'Nhập tên PSU để tìm kiếm...' },
 ]
 
 const icons = {
@@ -24,9 +25,10 @@ const icons = {
   mainboard: '🔲',
   ram:    '💾',
   vga:    '🎮',
-  ssd:    '⚡',
-  psu:    '🔌',
+  ssd:    '💿',
   case:   '🖥️',
+  cooler: '❄️',
+  psu:    '🔌',
 }
 
 // ─── selectedComponents: one product object per component slot ────────
@@ -243,9 +245,9 @@ function openEditForm(config) {
 
 function getCategoryKeyFromName(categoryName) {
   const map = {
-    'CPU': 'cpu', 'Mainboard': 'mainboard', 'RAM': 'ram',
+    'CPU': 'cpu', 'MAIN': 'main', 'RAM': 'ram',
     'VGA': 'vga', 'SSD': 'ssd', 'HDD': 'ssd',
-    'PSU': 'psu', 'Case': 'case',
+    'PSU': 'psu', 'Case': 'case', 'COOLER': 'cooler',
   }
   return map[categoryName] || null
 }

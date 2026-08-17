@@ -19,6 +19,7 @@ class Product extends Model
         'price',
         'sale_price',
         'is_on_sale',
+        'discount_percentage',
         'stock_quantity',
         'description',
         'thumbnail_url',
@@ -31,6 +32,8 @@ class Product extends Model
         'tdp',
         'memory_type',
         'memory_speed',
+        'gpu_length_mm',
+        'max_gpu_length_mm',
     ];
 
     protected $casts = [

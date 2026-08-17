@@ -31,21 +31,24 @@ async function fetchCategories() {
     const result = await response.json()
     
     if (result.status === 'success') {
-      // Map category data với icon tương ứng
       const iconMap = {
         'CPU': '🧠',
+        'MAIN': '💡',
         'RAM': '📊',
-        'Mainboard': '🔲',
         'VGA': '🎮',
         'SSD': '💾',
-        'PSU': '⚡',
-        'Case': '🖥️',
+        'COOLER': '❄️',
+        'CASE': '🖥️',
       }
-      
-      categories.value = result.data.map(cat => ({
-        ...cat,
-        icon: iconMap[cat.name] || '🔧'
-      }))
+
+      const categoryOrder = ['CPU', 'MAIN', 'RAM', 'VGA', 'SSD', 'COOLER', 'CASE']
+
+      categories.value = result.data
+        .map(cat => ({
+          ...cat,
+          icon: iconMap[cat.name] || '🔧'
+        }))
+        .sort((a, b) => categoryOrder.indexOf(a.name) - categoryOrder.indexOf(b.name))
     }
   } catch (err) {
     error.value.categories = err.message
@@ -89,14 +92,18 @@ async function fetchSaleProducts() {
     const result = await response.json()
     
     if (result.status === 'success') {
-      saleProducts.value = result.data.map(product => ({
-        id: product.id,
-        name: product.name,
-        price: parseFloat(product.price),
-        salePrice: parseFloat(product.sale_price || product.price),
-        discount: product.discount_percentage || 0,
-        thumbnail_url: product.thumbnail_url || '',
-      }))
+  saleProducts.value = result.data.map(product => {
+    const discount = product.discount_percentage || 0
+    const salePrice = discount > 0 ? parseFloat(product.price) * (1 - discount / 100) : parseFloat(product.sale_price || product.price)
+    return {
+      id: product.id,
+      name: product.name,
+      price: parseFloat(product.price),
+      salePrice: salePrice,
+      discount: discount,
+      thumbnail_url: product.thumbnail_url || '',
+    }
+  })
     }
   } catch (err) {
     error.value.sales = err.message
@@ -262,7 +269,7 @@ function closeModal() {
     <!-- ===== SALE SECTION ===== -->
     <section class="max-w-6xl mx-auto px-8 py-32 space-y-16">
       <div class="space-y-6">
-        <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-widest">🔥 Sản phẩm sale</h3>
+        <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-widest">🔥 Sản phẩm giảm giá</h3>
         <div class="w-16 h-px bg-black"></div>
       </div>
       
@@ -281,12 +288,12 @@ function closeModal() {
       
       <!-- Error State -->
       <div v-else-if="error.sales" class="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
-        <p class="text-gray-600">Không thể tải sản phẩm sale. Vui lòng thử lại.</p>
+        <p class="text-gray-600">Không thể tải sản phẩm giảm giá. Vui lòng thử lại.</p>
       </div>
       
       <!-- Empty State -->
       <div v-else-if="saleProducts.length === 0" class="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
-        <p class="text-gray-600">Hiện tại không có sản phẩm sale.</p>
+        <p class="text-gray-600">Hiện tại không có sản phẩm giảm giá.</p>
       </div>
       
       <!-- Sale Products Grid -->

@@ -30,6 +30,7 @@ class PCBuilderService
             'ssd' => 'SSD',
             'psu' => 'PSU',
             'case' => 'Case',
+            'cooler' => 'Tản nhiệt',
         ];
 
         $categoryName = $categoryMap[$categorySlug] ?? null;
@@ -74,7 +75,7 @@ class PCBuilderService
             });
         }
 
-        return $query->get(['id', 'category_id', 'sku', 'name', 'price', 'stock_quantity', 'description', 'thumbnail_url', 'created_at', 'brand', 'socket_type', 'platform', 'tier', 'tdp', 'memory_type', 'memory_speed']);
+        return $query->get(['id', 'category_id', 'sku', 'name', 'price', 'stock_quantity', 'description', 'thumbnail_url', 'created_at', 'brand', 'socket_type', 'platform', 'tier', 'tdp', 'memory_type', 'memory_speed', 'gpu_length_mm', 'max_gpu_length_mm']);
     }
 
     /**
@@ -110,6 +111,7 @@ class PCBuilderService
             'ssd' => 'SSD',
             'psu' => 'PSU',
             'case' => 'Case',
+            'cooler' => 'Tản nhiệt',
         ];
     }
 
@@ -126,6 +128,7 @@ class PCBuilderService
             'ssd' => 'SSD',
             'psu' => 'PSU',
             'case' => 'Case',
+            'cooler' => 'Tản nhiệt',
         ];
 
         $results = [];

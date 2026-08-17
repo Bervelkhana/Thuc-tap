@@ -14,6 +14,7 @@ const componentTypes = [
   { key: 'ssd', label: 'SSD', icon: '💿' },
   { key: 'psu', label: 'PSU', icon: '⚡' },
   { key: 'case', label: 'Case', icon: '📦' },
+  { key: 'cooler', label: 'Tản nhiệt', icon: '❄️' },
 ]
 
 const selectedParts = ref({
@@ -24,6 +25,7 @@ const selectedParts = ref({
   ssd: null,
   psu: null,
   case: null,
+  cooler: null,
 })
 
 const searchInputs = ref({
@@ -34,6 +36,7 @@ const searchInputs = ref({
   ssd: '',
   psu: '',
   case: '',
+  cooler: '',
 })
 
 const globalSearchQuery = ref('')
@@ -49,6 +52,7 @@ const searchResults = ref({
   ssd: [],
   psu: [],
   case: [],
+  cooler: [],
 })
 
 const showResults = ref({
@@ -59,6 +63,7 @@ const showResults = ref({
   ssd: false,
   psu: false,
   case: false,
+  cooler: false,
 })
 
 const loadingSearch = ref({
@@ -69,10 +74,19 @@ const loadingSearch = ref({
   ssd: false,
   psu: false,
   case: false,
+  cooler: false,
 })
 
 const error = ref(null)
 const successMessage = ref(null)
+
+const compatibilityResult = ref(null)
+const isValidating = ref(false)
+
+const compatibleMainboards = ref([])
+const cpuCompatibilityInfo = ref(null)
+const isLoadingCompatible = ref(false)
+const showAllMainboards = ref(false)
 
 function extractSocket(name) {
   const sockets = ['LGA1700', 'LGA1200', 'AM5', 'AM4', 'TRX4']
@@ -106,6 +120,116 @@ const compatibilityWarnings = computed(() => {
   
   return warnings
 })
+
+async function validateCompatibility() {
+  const selected = selectedParts.value
+
+  const hasComponents = Object.values(selected).filter(Boolean).length >= 2
+  if (!hasComponents) {
+    compatibilityResult.value = null
+    return
+  }
+
+  isValidating.value = true
+  try {
+    const payload = {
+      selected_products: Object.entries(selected)
+        .filter(([_, product]) => product)
+        .map(([category, product]) => ({
+          category,
+          product_id: product.id,
+          name: product.name,
+          price: product.price,
+        })),
+    }
+
+    const response = await fetch('/api/pc-builder/validate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify(payload),
+    })
+
+    const data = await response.json()
+    compatibilityResult.value = data.data?.compatibility || null
+  } catch (error) {
+    console.error('Validation error:', error)
+    compatibilityResult.value = null
+  } finally {
+    isValidating.value = false
+  }
+}
+
+watch(
+  () => [
+    selectedParts.value.cpu,
+    selectedParts.value.mainboard,
+    selectedParts.value.ram,
+    selectedParts.value.vga,
+    selectedParts.value.ssd,
+    selectedParts.value.psu,
+    selectedParts.value.case,
+  ],
+  () => {
+    validateCompatibility()
+  },
+  { deep: true }
+)
+
+watch(
+  () => selectedParts.value.cpu,
+  (newCpu) => {
+    if (newCpu) {
+      fetchCompatibleMainboards(newCpu.id)
+    } else {
+      compatibleMainboards.value = []
+      cpuCompatibilityInfo.value = null
+    }
+    showAllMainboards.value = false
+  }
+)
+
+async function fetchCompatibleMainboards(cpuId) {
+  if (!cpuId) {
+    compatibleMainboards.value = []
+    cpuCompatibilityInfo.value = null
+    return
+  }
+
+  isLoadingCompatible.value = true
+  try {
+    const response = await fetch(`/api/pc-builder/compatible-mainboards?cpu_id=${cpuId}`)
+    const data = await response.json()
+
+    if (data.status === 'success') {
+      compatibleMainboards.value = data.data.mainboards
+      cpuCompatibilityInfo.value = {
+        cpu: data.data.cpu,
+        total: data.data.total,
+      }
+    } else {
+      compatibleMainboards.value = []
+      cpuCompatibilityInfo.value = null
+    }
+  } catch (error) {
+    console.error('Error fetching compatible mainboards:', error)
+    compatibleMainboards.value = []
+    cpuCompatibilityInfo.value = null
+  } finally {
+    isLoadingCompatible.value = false
+  }
+}
+
+function selectMainboard(mainboard) {
+  selectedParts.value.mainboard = mainboard
+  searchInputs.value.mainboard = ''
+  searchResults.value.mainboard = []
+  showResults.value.mainboard = false
+  validateCompatibility()
+}
 
 // Global search handler
 async function performGlobalSearch() {
@@ -341,6 +465,68 @@ function handleGlobalKeyDown(event) {
         {{ successMessage }}
       </div>
 
+      <Transition name="compatibility">
+        <!-- Compatibility Result -->
+        <div v-if="compatibilityResult" class="mb-6 rounded-xl border p-4">
+        <h3 class="text-lg font-semibold mb-3">Kết quả kiểm tra tương thích</h3>
+  
+        <!-- Errors -->
+        <div v-if="compatibilityResult.errors?.length" class="space-y-2">
+          <div 
+            v-for="error in compatibilityResult.errors" 
+            :key="error.type"
+            class="rounded-lg bg-red-50 border border-red-200 p-3"
+          >
+            <div class="flex items-start gap-2">
+              <span class="text-red-600 font-bold">✕</span>
+              <div>
+                <p class="text-sm font-medium text-red-800">{{ error.message }}</p>
+                <p v-if="error.details" class="text-xs text-red-600 mt-1">
+                  GPU: {{ error.details.gpu_length_mm }}mm | Case: {{ error.details.case_max_gpu_length_mm }}mm | 
+                  Dư thừa: {{ error.details.excess_mm }}mm
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+  
+        <!-- Warnings -->
+        <div v-if="compatibilityResult.warnings?.length" class="mt-3 space-y-2">
+          <div 
+            v-for="warning in compatibilityResult.warnings" 
+            :key="warning.type"
+            class="rounded-lg bg-yellow-50 border border-yellow-200 p-3"
+          >
+            <div class="flex items-start gap-2">
+              <span class="text-yellow-600 font-bold">⚠</span>
+              <p class="text-sm text-yellow-800">{{ warning.message }}</p>
+            </div>
+          </div>
+        </div>
+  
+        <!-- Success -->
+        <div v-if="compatibilityResult.is_compatible && !compatibilityResult.errors?.length" class="rounded-lg bg-green-50 border border-green-200 p-3">
+          <div class="flex items-center gap-2">
+            <span class="text-green-600 font-bold">✓</span>
+            <p class="text-sm font-medium text-green-800">
+              Cấu hình tương thích
+            </p>
+          </div>
+          
+          <!-- GPU-Case detail -->
+          <div v-if="compatibilityResult.details?.gpu_case" class="mt-2 text-xs text-green-700">
+            <p>GPU vừa Case (còn dư {{ compatibilityResult.details.gpu_case.remaining_space_mm }}mm)</p>
+          </div>
+        </div>
+  
+        <!-- Loading -->
+        <div v-if="isValidating" class="mt-3 flex items-center gap-2 text-gray-600">
+          <div class="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-black"></div>
+          <span class="text-sm">Đang kiểm tra...</span>
+        </div>
+        </div>
+      </Transition>
+
       <!-- PC Builder Form -->
       <div class="space-y-6 mb-8">
         <div v-for="component in componentTypes" :key="component.key" class="bg-white rounded-lg shadow-md p-6">
@@ -426,6 +612,67 @@ function handleGlobalKeyDown(event) {
         </div>
       </div>
 
+      <!-- Auto-suggested Mainboards -->
+      <div v-if="cpuCompatibilityInfo && selectedParts.value.cpu" class="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-semibold text-blue-900">
+            Mainboard tương thích với {{ cpuCompatibilityInfo.cpu.name }}
+          </h3>
+          <span class="text-xs text-blue-600">
+            Socket: {{ cpuCompatibilityInfo.cpu.socket_type }} | 
+            RAM: {{ cpuCompatibilityInfo.cpu.memory_type }}
+          </span>
+        </div>
+
+        <!-- Loading -->
+        <div v-if="isLoadingCompatible" class="flex items-center gap-2 text-blue-600">
+          <div class="h-4 w-4 animate-spin rounded-full border-2 border-blue-300 border-t-blue-600"></div>
+          <span class="text-sm">Đang tìm mainboard phù hợp...</span>
+        </div>
+
+        <!-- No compatible mainboards -->
+        <div v-else-if="compatibleMainboards.length === 0" class="rounded-lg bg-yellow-50 border border-yellow-200 p-3">
+          <p class="text-sm text-yellow-800">
+            Không tìm thấy mainboard tương thích với CPU này trong kho.
+          </p>
+        </div>
+
+        <!-- Compatible mainboards list -->
+        <div v-else class="space-y-2">
+          <p class="text-xs text-blue-700 mb-2">
+            Tìm thấy {{ compatibleMainboards.length }} mainboard tương thích:
+          </p>
+          <div class="grid grid-cols-1 gap-2">
+            <div 
+              v-for="mb in (showAllMainboards ? compatibleMainboards : compatibleMainboards.slice(0, 5))" 
+              :key="mb.id"
+              class="flex items-center justify-between rounded-lg bg-white border border-blue-100 p-3 hover:border-blue-300 transition cursor-pointer"
+              @click="selectMainboard(mb)"
+            >
+              <div class="flex-1">
+                <p class="text-sm font-medium text-gray-900">{{ mb.name }}</p>
+                <p class="text-xs text-gray-500">
+                  {{ mb.brand }} | {{ mb.socket_type }} | {{ mb.memory_type }}
+                </p>
+              </div>
+              <div class="text-right">
+                <p class="text-sm font-semibold text-blue-600">{{ formatPrice(mb.price) }}</p>
+                <p class="text-xs text-gray-500">Còn {{ mb.stock_quantity }}</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Show more button -->
+          <button 
+            v-if="!showAllMainboards && compatibleMainboards.length > 5"
+            @click="showAllMainboards = true"
+            class="text-xs text-blue-600 hover:text-blue-800 mt-2"
+          >
+            Xem tất cả {{ compatibleMainboards.length }} mainboard →
+          </button>
+        </div>
+      </div>
+
       <!-- Summary Section -->
       <div class="bg-white rounded-lg shadow-lg p-8 sticky bottom-8">
         <div class="flex items-center justify-between">
@@ -449,5 +696,15 @@ function handleGlobalKeyDown(event) {
 <style scoped>
 input:focus {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.compatibility-enter-active,
+.compatibility-leave-active {
+  transition: all 0.3s ease;
+}
+.compatibility-enter-from,
+.compatibility-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 </style>

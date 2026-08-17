@@ -39,29 +39,33 @@ async function fetchCategories() {
     if (result.status === 'success') {
       const iconMap = {
         'CPU': '🧠',
+        'MAIN': '💡',
         'RAM': '📊',
-        'Mainboard': '🔲',
         'VGA': '🎮',
         'SSD': '💾',
-        'PSU': '⚡',
-        'Case': '🖥️',
+        'COOLER': '❄️',
+        'CASE': '🖥️',
       }
 
       const slugMap = {
         'CPU': 'cpu',
+        'MAIN': 'main',
         'RAM': 'ram',
-        'Mainboard': 'mainboard',
         'VGA': 'vga',
         'SSD': 'ssd',
-        'PSU': 'psu',
-        'Case': 'case',
+        'COOLER': 'cooler',
+        'CASE': 'case',
       }
 
-      categories.value = result.data.map(cat => ({
-        ...cat,
-        slug: cat.slug || slugMap[cat.name] || cat.name.toLowerCase().replace(/\s+/g, '-'),
-        icon: iconMap[cat.name] || '🔧'
-      }))
+      const categoryOrder = ['CPU', 'MAIN', 'RAM', 'VGA', 'SSD', 'COOLER', 'CASE']
+
+      categories.value = result.data
+        .map(cat => ({
+          ...cat,
+          slug: cat.slug || slugMap[cat.name] || cat.name.toLowerCase().replace(/\s+/g, '-'),
+          icon: iconMap[cat.name] || '🔧'
+        }))
+        .sort((a, b) => categoryOrder.indexOf(a.name) - categoryOrder.indexOf(b.name))
     }
   } catch (err) {
     console.error('Error fetching categories:', err)

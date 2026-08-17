@@ -217,6 +217,9 @@ final class NvidiaNimBuildService
                 'items_count' => count($finalConfiguration['items']),
             ]);
 
+            // ========== FORCE FILL: Đảm bảo tất cả linh kiện bắt buộc có ID ==========
+            $finalConfiguration = $this->forceFillMissingComponents($finalConfiguration, $productContextData);
+
             // ========== CHỐT CHẶN CỨNG: Validation + Fallback ==========
             $budgetRange = $this->analyzeBudgetRange($budget);
             $hardMaxBudget = $budgetRange['max'] + $budgetRange['tolerance'];
@@ -365,17 +368,17 @@ final class NvidiaNimBuildService
         foreach ($categoryKeys as $key) {
             $names = match ($key) {
                 'cpu' => ['CPU', 'Processor'],
-                'mainboard' => ['Mainboard', 'Motherboard'],
+                'mainboard' => ['Mainboard', 'Motherboard', 'MAIN', 'Main', 'Bo mạch'],
                 'ram' => ['RAM', 'Memory'],
-                'vga' => ['VGA', 'Graphics Card', 'GPU'],
+                'vga' => ['VGA', 'Graphics Card', 'GPU', 'Card màn hình'],
                 'ssd' => ['SSD', 'Storage'],
-                'psu' => ['PSU', 'Power Supply'],
-                'case' => ['Case', 'Chassis'],
+                'psu' => ['PSU', 'Power Supply', 'Nguồn', 'Nguon', 'Power'],
+                'case' => ['Case', 'Chassis', 'Vỏ case', 'Vỏ Case'],
                 default => [],
             };
 
             $categoryIds = Category::query()
-                ->where('name', $names)
+                ->whereIn('name', $names)
                 ->orWhere(function ($query) use ($names): void {
                     foreach ($names as $name) {
                         $query->orWhere('slug', 'like', '%' . str($name)->slug() . '%');
@@ -630,6 +633,8 @@ Mọi máy tính đều PHẢI có RAM và SSD để hoạt động.
 
 ✓ RAM: BẮTBUỘC PHẢI CÓ trong mọi cấu hình (không được null)
 ✓ SSD: BẮTBUỘC PHẢI CÓ trong mọi cấu hình (không được null)
+✓ MAINBOARD: BẮTBUỘC PHẢI CÓ trong mọi cấu hình (không được null)
+✓ PSU: BẮTBUỘC PHẢI CÓ trong mọi cấu hình (không được null)
 ✓ VGA: 
   - Máy Văn phòng ngân sách < 20M: Tùy chọn (có thể dùng iGPU)
   - Máy Văn phòng ngân sách >= 20M: BẮTBUỘC chọn VGA Low/Mid tier (không null)
@@ -637,11 +642,13 @@ Mọi máy tính đều PHẢI có RAM và SSD để hoạt động.
 
 1. Trả về ĐÚNG MỘT mảng JSON duy nhất
 2. Không có markdown, không có lời chào, không có giải thích
-3. BẮTBUỘC bao gồm: cpu_id, mainboard_id, ram_id, vga_id, ssd_id, psu_id, case_id, ai_advice
-4. ⚠️ Nếu ngân sách >= 20,000,000 VNĐ → BẮTBUỘC chọn VGA (không null)
-5. ⚠️ RAM & SSD TUYỆT ĐỐI KHÔNG ĐƯỢC NULL TRONG BẤT KỲ TRƯỜNG HỢP NÀO
-6. CHỈ ĐƯỢC PHÉP chọn từ danh sách sản phẩm JSON được cung cấp
-7. ⚠️ TUYỆT ĐỐI: Tổng giá tiền của cấu hình PHẢI nằm trong {$min} VNĐ đến {$hardMax} VNĐ
+3. BẮTBUỘC bao gồm ĐẦY ĐỦ 7 TRƯỜNG: cpu_id, mainboard_id, ram_id, vga_id, ssd_id, psu_id, case_id, ai_advice
+4. ⚠️ TUYỆT ĐỐI KHÔNG ĐƯỢC PHÉP TRẢ VỀ null CHO BẤT KỲ TRƯỜNG NÀO TRỪ vga_id (chỉ được null khi máy văn phòng ngân sách < 20M)
+5. ⚠️ Nếu ngân sách >= 20,000,000 VNĐ → BẮTBUỘC chọn VGA (vga_id không null)
+6. ⚠️ RAM & SSD TUYỆT ĐỐI KHÔNG ĐƯỢC NULL TRONG BẤT KỲ TRƯỜNG HỢP NÀO
+7. ⚠️ MAINBOARD & PSU TUYỆT ĐỐI KHÔNG ĐƯỢC NULL TRONG BẤT KỲ TRƯỜNG HỢP NÀO
+8. CHỈ ĐƯỢC PHÉP chọn từ danh sách sản phẩm JSON được cung cấp
+9. ⚠️ TUYỆT ĐỐI: Tổng giá tiền của cấu hình PHẢI nằm trong {$min} VNĐ đến {$hardMax} VNĐ
 
 JSON RETURN FORMAT:
 {
@@ -870,11 +877,13 @@ PROMPT;
             'overage' => $totalPrice - $hardLimit,
         ]);
 
-        // Priority downgrade: Mainboard → Case → RAM
+        // Priority downgrade: VGA → Mainboard → Case → RAM → PSU
         $downgradeAttempts = [
+            ['component' => 'vga', 'productContext' => $productContext['vga'] ?? []],
             ['component' => 'mainboard', 'productContext' => $productContext['mainboard'] ?? []],
             ['component' => 'case', 'productContext' => $productContext['case'] ?? []],
             ['component' => 'ram', 'productContext' => $productContext['ram'] ?? []],
+            ['component' => 'psu', 'productContext' => $productContext['psu'] ?? []],
         ];
 
         foreach ($downgradeAttempts as $attempt) {
@@ -884,6 +893,7 @@ PROMPT;
             if (empty($products)) continue;
 
             $currentPrice = $configuration[$component]['price'] ?? 0;
+            if ($currentPrice <= 0) continue;
             
             // Tìm sản phẩm rẻ hơn
             foreach ($products as $product) {
@@ -1247,6 +1257,51 @@ PROMPT;
         return $configuration;
     }
 
+    /**
+     * Force fill any missing mandatory component from context pool.
+     * This is a safety net in case AI returns null for required fields.
+     */
+    private function forceFillMissingComponents(array $configuration, array $productContext): array
+    {
+        $mandatory = ['cpu', 'mainboard', 'ram', 'ssd', 'psu', 'case'];
+        
+        foreach ($mandatory as $cat) {
+            $id = $configuration[$cat]['id'] ?? null;
+            if (empty($id)) {
+                $available = $productContext[$cat] ?? [];
+                if (!empty($available)) {
+                    // Chọn sản phẩm rẻ nhất để an toàn ngân sách
+                    $fallback = end($available);
+                    if ($fallback !== false) {
+                        $configuration[$cat] = [
+                            'id' => (int) $fallback['id'],
+                            'name' => (string) $fallback['name'],
+                            'price' => (int) $fallback['price'],
+                            'category' => strtoupper($cat),
+                        ];
+                        Log::info("FORCE_FILL_MISSING_{$cat}", [
+                            'component_id' => $fallback['id'],
+                            'component_name' => $fallback['name'],
+                            'component_price' => $fallback['price'],
+                        ]);
+                    }
+                }
+            }
+        }
+
+        // Recalculate total after force fill
+        $configuration['items'] = [];
+        $configuration['total_price'] = 0;
+        foreach (['cpu', 'mainboard', 'ram', 'vga', 'ssd', 'psu', 'case'] as $cat) {
+            if (!empty($configuration[$cat]['id'])) {
+                $configuration['items'][] = $configuration[$cat];
+                $configuration['total_price'] += (int) ($configuration[$cat]['price'] ?? 0);
+            }
+        }
+
+        return $configuration;
+    }
+
     private function getMaxPsuWattageForFiltering(?string $vgaName): int
     {
         $recommended = $this->getRecommendedPsuWattage($vgaName);
@@ -1355,34 +1410,57 @@ PROMPT;
 
         if ($needVga && (empty($vgaId) || empty($vgaData['name']) || $invalidVgaCategory)) {
             $availableVgas = $productContext['vga'] ?? [];
-            $selectedVga = null;
-
-            foreach ($availableVgas as $vga) {
-                $name = (string) ($vga['name'] ?? '');
-                if (preg_match('/(GTX 1650|RTX 3050|RTX 4060|RX 6600|RX 7600|VGA)/i', $name)) {
-                    $selectedVga = $vga;
-                    break;
+            
+            // Nếu đã có VGA rời trong cấu hình, không cần fill thêm
+            if (!empty($vgaId) && !$invalidVgaCategory) {
+                // VGA đã tốt, giữ nguyên
+            } else {
+                // Tìm VGA phù hợp với ngân sách còn lại
+                $currentTotal = $configuration['total_price'] ?? 0;
+                $budgetRange = $this->analyzeBudgetRange($budget);
+                $hardMaxBudget = $budgetRange['max'] + $budgetRange['tolerance'];
+                $remainingBudget = $hardMaxBudget - $currentTotal;
+                
+                $selectedVga = null;
+                
+                // Chỉ chọn VGA nếu còn đủ ngân sách (ít nhất 2M cho VGA)
+                if ($remainingBudget >= 2000000 && !empty($availableVgas)) {
+                    foreach ($availableVgas as $vga) {
+                        $name = (string) ($vga['name'] ?? '');
+                        $price = (int) ($vga['price'] ?? 0);
+                        if ($price <= $remainingBudget) {
+                            if (preg_match('/(GTX 1650|RTX 3050|RTX 4060|RX 6600|RX 7600|VGA)/i', $name)) {
+                                $selectedVga = $vga;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if ($selectedVga === null) {
+                        foreach ($availableVgas as $vga) {
+                            if ((int) ($vga['price'] ?? 0) <= $remainingBudget) {
+                                $selectedVga = $vga;
+                                break;
+                            }
+                        }
+                    }
                 }
-            }
-
-            if ($selectedVga === null && !empty($availableVgas)) {
-                $selectedVga = reset($availableVgas);
-            }
-
-            if ($selectedVga !== null) {
-                $configuration['vga'] = [
-                    'id' => (int) $selectedVga['id'],
-                    'name' => (string) $selectedVga['name'],
-                    'price' => (int) $selectedVga['price'],
-                    'category' => 'VGA',
-                ];
-            } elseif ($subPurpose === 'lam_viec_van_phong') {
-                $configuration['vga'] = [
-                    'id' => 0,
-                    'name' => 'Đồ họa tích hợp',
-                    'price' => 0,
-                    'category' => 'VGA',
-                ];
+                
+                if ($selectedVga !== null) {
+                    $configuration['vga'] = [
+                        'id' => (int) $selectedVga['id'],
+                        'name' => (string) $selectedVga['name'],
+                        'price' => (int) $selectedVga['price'],
+                        'category' => 'VGA',
+                    ];
+                } elseif ($subPurpose === 'lam_viec_van_phong') {
+                    $configuration['vga'] = [
+                        'id' => 0,
+                        'name' => 'Đồ họa tích hợp',
+                        'price' => 0,
+                        'category' => 'VGA',
+                    ];
+                }
             }
         } elseif ($subPurpose === 'lam_viec_van_phong' && $budget < 20000000 && empty($vgaId)) {
             $configuration['vga'] = [

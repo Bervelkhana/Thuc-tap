@@ -12,6 +12,22 @@ const loading = ref(false)
 const selectedQuantity = ref(1)
 const outOfStockMessage = ref('')
 
+const categoryOrder = [
+  { id: 8, name: 'CPU', icon: '🖥️' },
+  { id: 9, name: 'Mainboard', icon: '🔌' },
+  { id: 10, name: 'RAM', icon: '💾' },
+  { id: 11, name: 'SSD', icon: '💿' },
+  { id: 12, name: 'VGA', icon: '🎮' },
+  { id: 13, name: 'Case', icon: '📦' },
+  { id: 14, name: 'Cooler', icon: '❄️' },
+  { id: 15, name: 'PSU', icon: '⚡' },
+]
+
+function getProductsByCategory(products, categoryId) {
+  if (!products?.length) return []
+  return products.filter(p => p.category_id === categoryId)
+}
+
 async function fetchConfig() {
   loading.value = true
   try {
@@ -137,16 +153,20 @@ onMounted(fetchConfig)
 
       <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
         <h2 class="text-xl font-bold text-gray-900 mb-4">Sản phẩm cấu thành</h2>
-        <div v-if="config.products?.length" class="space-y-3">
-          <div v-for="item in config.products" :key="item.id" class="flex items-center justify-between rounded-xl border" :class="item.stock_quantity < (item.pivot?.quantity || 1) * selectedQuantity ? 'border-red-200 bg-red-50' : 'border-gray-200'">
-            <div class="px-4 py-3">
-              <p class="font-medium text-gray-900">{{ item.name }}</p>
-              <p class="text-sm text-gray-500">
-                Số lượng cần: {{ (item.pivot?.quantity || 1) * selectedQuantity }} 
-                <span v-if="item.stock_quantity < (item.pivot?.quantity || 1) * selectedQuantity" class="text-red-600 font-semibold"> (Còn: {{ item.stock_quantity }})</span>
-              </p>
-            </div>
-            <p class="px-4 text-sm font-semibold text-gray-700">{{ formatPrice(item.price) }}</p>
+        <div v-if="config.products?.length" class="space-y-6">
+          <div v-for="cat in categoryOrder" :key="cat.id" class="space-y-2">
+            <template v-for="item in getProductsByCategory(config.products, cat.id)" :key="item.id">
+              <div class="flex items-center justify-between rounded-xl border" :class="item.stock_quantity < (item.pivot?.quantity || 1) * selectedQuantity ? 'border-red-200 bg-red-50' : 'border-gray-200'">
+                <div class="px-4 py-3">
+                  <p class="font-medium text-gray-900">{{ cat.icon }} {{ item.name }}</p>
+                  <p class="text-sm text-gray-500">
+                    Số lượng cần: {{ (item.pivot?.quantity || 1) * selectedQuantity }} 
+                    <span v-if="item.stock_quantity < (item.pivot?.quantity || 1) * selectedQuantity" class="text-red-600 font-semibold"> (Còn: {{ item.stock_quantity }})</span>
+                  </p>
+                </div>
+                <p class="px-4 text-sm font-semibold text-gray-700">{{ formatPrice(item.price) }}</p>
+              </div>
+            </template>
           </div>
         </div>
         <div v-else class="text-sm text-gray-500 bg-gray-50 rounded-xl p-4">Chưa có sản phẩm cấu thành.</div>

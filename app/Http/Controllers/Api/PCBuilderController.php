@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Product;
 use App\Services\PCBuilderService;
 use Illuminate\Http\Request;
 
@@ -21,7 +22,7 @@ class PCBuilderController extends Controller
     public function getComponentsByCategory(Request $request)
     {
         $request->validate([
-            'category' => 'required|string|in:cpu,mainboard,ram,vga,ssd,psu,case',
+            'category' => 'required|string|in:cpu,mainboard,ram,vga,ssd,psu,case,cooler',
             'search' => 'nullable|string|max:255',
             'cpu_id' => 'nullable|integer',
         ]);
@@ -118,6 +119,53 @@ class PCBuilderController extends Controller
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('PCBuilderController getBuildCategories error', [
                 'error' => $e->getMessage(),
+            ]);
+
+            return $this->errorResponse($e->getMessage(), 400);
+        }
+    }
+
+    /**
+     * Get compatible mainboards for selected CPU
+     */
+    public function getCompatibleMainboards(Request $request)
+    {
+        $request->validate([
+            'cpu_id' => 'required|integer|exists:products,id',
+        ]);
+
+        try {
+            $cpu = Product::findOrFail($request->input('cpu_id'));
+
+            $mainboards = Product::query()
+                ->with('category')
+                ->whereHas('category', function ($q) {
+                    $q->where('name', 'Mainboard');
+                })
+                ->where('stock_quantity', '>', 0)
+                ->when($cpu->socket_type, function ($q, $socket) {
+                    $q->where('socket_type', $socket);
+                })
+                ->when($cpu->memory_type, function ($q, $memory) {
+                    $q->where('memory_type', $memory);
+                })
+                ->orderByDesc('created_at')
+                ->get(['id', 'category_id', 'sku', 'name', 'price', 'stock_quantity', 'description', 'thumbnail_url', 'brand', 'socket_type', 'platform', 'tier', 'memory_type', 'memory_speed']);
+
+            return $this->successResponse([
+                'cpu' => [
+                    'id' => $cpu->id,
+                    'name' => $cpu->name,
+                    'socket_type' => $cpu->socket_type,
+                    'memory_type' => $cpu->memory_type,
+                ],
+                'mainboards' => $mainboards,
+                'total' => $mainboards->count(),
+            ], 'Compatible mainboards retrieved');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('PCBuilderController getCompatibleMainboards error', [
+                'error' => $e->getMessage(),
+                'cpu_id' => $request->input('cpu_id'),
             ]);
 
             return $this->errorResponse($e->getMessage(), 400);

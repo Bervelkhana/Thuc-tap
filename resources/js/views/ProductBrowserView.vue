@@ -96,29 +96,33 @@ async function fetchCategories() {
     if (result.status === 'success') {
       const iconMap = {
         'CPU': '🧠',
+        'MAIN': '💡',
         'RAM': '📊',
-        'Mainboard': '🔲',
         'VGA': '🎮',
         'SSD': '💾',
-        'PSU': '⚡',
-        'Case': '🖥️',
+        'COOLER': '❄️',
+        'CASE': '🖥️',
       }
 
       const slugMap = {
         'CPU': 'cpu',
+        'MAIN': 'main',
         'RAM': 'ram',
-        'Mainboard': 'mainboard',
         'VGA': 'vga',
         'SSD': 'ssd',
-        'PSU': 'psu',
-        'Case': 'case',
+        'COOLER': 'cooler',
+        'CASE': 'case',
       }
 
-      categories.value = result.data.map(cat => ({
-        ...cat,
-        slug: cat.slug || slugMap[cat.name] || cat.name.toLowerCase().replace(/\s+/g, '-'),
-        icon: iconMap[cat.name] || '🔧'
-      }))
+      const categoryOrder = ['CPU', 'MAIN', 'RAM', 'VGA', 'SSD', 'COOLER', 'CASE']
+
+      categories.value = result.data
+        .map(cat => ({
+          ...cat,
+          slug: cat.slug || slugMap[cat.name] || cat.name.toLowerCase().replace(/\s+/g, '-'),
+          icon: iconMap[cat.name] || '🔧'
+        }))
+        .sort((a, b) => categoryOrder.indexOf(a.name) - categoryOrder.indexOf(b.name))
 
       syncRouteCategory()
     }
@@ -288,10 +292,10 @@ onMounted(() => {
                 <span class="text-xl shrink-0">🧩</span>
                 <span class="text-sm font-medium leading-tight flex-1">Cấu hình xây sẵn</span>
               </router-link>
-              <router-link to="/ai-build" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 border-2 bg-black text-white border-black hover:bg-gray-900">
+              <a href="/ai-build" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 border-2 bg-black text-white border-black hover:bg-gray-900">
                 <span class="text-xl shrink-0">🤖</span>
                 <span class="text-sm font-medium leading-tight flex-1">Xây dựng bằng AI</span>
-              </router-link>
+              </a>
               <a href="/pc-builder" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 border-2 bg-white text-gray-800 border-transparent hover:border-gray-200 hover:bg-gray-50">
                 <span class="text-xl shrink-0">🔧</span>
                 <span class="text-sm font-medium leading-tight flex-1">Xây dựng cấu hình</span>

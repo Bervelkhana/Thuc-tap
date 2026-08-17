@@ -79,9 +79,9 @@ class ProductService
 
     public function getSaleProducts(int $limit = 6)
     {
-        return Product::where('is_on_sale', true)
+        return Product::where('discount_percentage', '>', 0)
             ->with('category')
-            ->orderByDesc('sale_percent')
+            ->orderByDesc('discount_percentage')
             ->limit($limit)
             ->get();
     }
@@ -121,7 +121,7 @@ class ProductService
     /**
      * Get products by category
      */
-    public function getProductsByCategoryContext(string $categoryName): string
+    public function getProductsByCategoryContext(string $categoryName, int $limit = 10): string
     {
         $category = Category::where('name', 'like', '%' . $categoryName . '%')->first();
 
@@ -131,7 +131,7 @@ class ProductService
 
         $products = $category->products()
             ->where('stock_quantity', '>', 0)
-            ->limit(10)
+            ->limit($limit)
             ->get();
 
         if ($products->isEmpty()) {

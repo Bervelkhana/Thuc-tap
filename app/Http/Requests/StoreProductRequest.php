@@ -20,6 +20,7 @@ class StoreProductRequest extends FormRequest
             'price' => 'required|numeric|min:0',
             'sale_price' => 'nullable|numeric|min:0',
             'is_on_sale' => 'nullable|boolean',
+            'discount_percentage' => 'nullable|integer|min:0|max:100',
             'stock_quantity' => 'required|integer|min:0',
             'description' => 'nullable|string',
             'thumbnail_url' => 'nullable|string|url',

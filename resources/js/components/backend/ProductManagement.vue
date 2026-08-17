@@ -20,6 +20,7 @@ const formData = ref({
   sku: '',
   price: '',
   stock_quantity: '',
+  discount_percentage: '',
   category_id: '',
   description: '',
   thumbnail_url: '',
@@ -104,6 +105,7 @@ function openAddForm() {
     sku: '',
     price: '',
     stock_quantity: '',
+    discount_percentage: '',
     category_id: '',
     description: '',
     thumbnail_url: '',
@@ -139,6 +141,7 @@ async function saveProduct() {
         sku: formData.value.sku,
         price: formData.value.price,
         stock_quantity: formData.value.stock_quantity,
+        discount_percentage: formData.value.discount_percentage ? Number(formData.value.discount_percentage) : 0,
         category_id: formData.value.category_id,
         description: formData.value.description,
         thumbnail_url: formData.value.thumbnail_url,
@@ -358,7 +361,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Giá (VND) *</label>
               <input
@@ -373,6 +376,17 @@ onMounted(() => {
               <input
                 v-model="formData.stock_quantity"
                 type="number"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
+                placeholder="0"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Giảm giá (%)</label>
+              <input
+                v-model="formData.discount_percentage"
+                type="number"
+                min="0"
+                max="100"
                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
                 placeholder="0"
               />
