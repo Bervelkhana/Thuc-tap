@@ -13,21 +13,35 @@ class AdminAuthController extends Controller
 {
     public function login(Request $request)
     {
+        Log::info('Login attempt', [
+            'email' => $request->input('email'),
+            'password_length' => strlen((string) $request->input('password')),
+            'headers' => $request->headers->all(),
+        ]);
+
         try {
             $validated = $request->validate([
                 'email' => 'required|string|email|max:255',
                 'password' => 'required|string|min:6',
             ]);
 
+            Log::info('Validated credentials', [
+                'email' => $validated['email'],
+            ]);
+
             $user = User::where('email', $validated['email'])->first();
 
-            Log::info('Admin login attempt', [
-                'email' => $validated['email'],
+            Log::info('User lookup result', [
                 'user_found' => $user ? true : false,
                 'user_role' => $user->role ?? 'N/A',
             ]);
 
             if (! $user || ! Hash::check($validated['password'], $user->password)) {
+                Log::warning('Login failed: invalid credentials', [
+                    'email' => $validated['email'],
+                    'user_found' => $user ? true : false,
+                ]);
+
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Email hoặc mật khẩu không đúng',
@@ -35,6 +49,11 @@ class AdminAuthController extends Controller
             }
 
             if (! $user->isAdmin()) {
+                Log::warning('Login failed: not admin', [
+                    'email' => $validated['email'],
+                    'role' => $user->role,
+                ]);
+
                 return response()->json([
                     'status' => 'error',
                     'message' => 'Tài khoản không có quyền truy cập admin.',
@@ -45,7 +64,7 @@ class AdminAuthController extends Controller
 
             $token = $user->createToken('admin-token')->plainTextToken;
 
-            Log::info('Admin login success', [
+            Log::info('Login success', [
                 'user_id' => $user->id,
                 'email' => $user->email,
             ]);
@@ -64,13 +83,17 @@ class AdminAuthController extends Controller
                 ],
             ]);
         } catch (ValidationException $e) {
+            Log::error('Login validation error', [
+                'errors' => $e->errors(),
+            ]);
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Dữ liệu không hợp lệ.',
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Admin login error', [
+            Log::error('Login error', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);

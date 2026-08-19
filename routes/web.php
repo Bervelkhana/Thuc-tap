@@ -44,6 +44,10 @@ if (app()->isLocal()) {
         \Artisan::call('db:seed', ['--class' => 'UserSeeder']);
         return 'Admin user seeded successfully. Email: admin@example.com, Password: admin123';
     });
+
+    Route::get('/debug-login', function () {
+        return view('debug-login');
+    });
 }
 
 // Catch-all: trả về SPA cho các route do Vue Router xử lý (vd /browse, /home, /checkout)

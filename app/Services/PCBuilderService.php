@@ -24,13 +24,13 @@ class PCBuilderService
     {
         $categoryMap = [
             'cpu' => 'CPU',
-            'mainboard' => 'Mainboard',
+            'mainboard' => 'MAIN',
             'ram' => 'RAM',
             'vga' => 'VGA',
             'ssd' => 'SSD',
             'psu' => 'PSU',
-            'case' => 'Case',
-            'cooler' => 'Cooler',
+            'case' => 'CASE',
+            'cooler' => 'COOLER',
         ];
 
         $categoryName = $categoryMap[$categorySlug] ?? null;
@@ -131,13 +131,13 @@ class PCBuilderService
     {
         $categoryMap = [
             'cpu' => 'CPU',
-            'mainboard' => 'Mainboard',
+            'mainboard' => 'MAIN',
             'ram' => 'RAM',
             'vga' => 'VGA',
             'ssd' => 'SSD',
             'psu' => 'PSU',
-            'case' => 'Case',
-            'cooler' => 'Cooler',
+            'case' => 'CASE',
+            'cooler' => 'COOLER',
         ];
 
         $results = [];

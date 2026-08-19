@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Attribute;
+use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductAttributeValue;
 use Illuminate\Database\Seeder;
@@ -27,18 +28,44 @@ class ProductSeeder extends Seeder
             return;
         }
 
-        foreach ($products as $productData) {
-            $categoryId = (int) ($productData['category_id'] ?? 0);
+        $categoryMap = [
+            1 => 'CPU',
+            2 => 'MAIN',
+            3 => 'RAM',
+            4 => 'SSD',
+            5 => 'VGA',
+            6 => 'CASE',
+            7 => 'COOLER',
+        ];
 
-            if ($categoryId < 1) {
-                $this->command->warn('Skipping product with invalid category_id: ' . ($productData['sku'] ?? 'unknown'));
+        $categories = Category::all()->keyBy('name');
+
+        $attributeIdMap = [
+            1 => 'Socket',
+            2 => 'TDP',
+            3 => 'RAM Type',
+            4 => 'Wattage',
+            5 => 'RGB',
+            6 => 'Release Date',
+            7 => 'Specifications',
+        ];
+
+        $attributes = Attribute::all()->keyBy('name');
+
+        foreach ($products as $productData) {
+            $rawCategoryId = (int) ($productData['category_id'] ?? 0);
+            $categoryName = $categoryMap[$rawCategoryId] ?? null;
+            $category = $categoryName ? ($categories[$categoryName] ?? null) : null;
+
+            if (! $category) {
+                $this->command->warn("Skipping product with missing category_id={$rawCategoryId}: " . ($productData['sku'] ?? 'unknown'));
                 continue;
             }
 
             $product = Product::updateOrCreate(
                 ['sku' => $productData['sku']],
                 [
-                    'category_id' => $categoryId,
+                    'category_id' => $category->id,
                     'name' => $productData['name'],
                     'price' => $productData['price'],
                     'stock_quantity' => $productData['stock_quantity'] ?? 20,
@@ -59,14 +86,15 @@ class ProductSeeder extends Seeder
 
             if (! empty($productData['attributes']) && is_array($productData['attributes'])) {
                 foreach ($productData['attributes'] as $attr) {
-                    $attributeId = (int) ($attr['id'] ?? 0);
-                    $value = $attr['value'] ?? null;
+                    $rawAttributeId = (int) ($attr['id'] ?? 0);
+                    $attributeName = $attributeIdMap[$rawAttributeId] ?? null;
+                    $attribute = $attributeName ? ($attributes[$attributeName] ?? null) : null;
 
-                    if ($attributeId > 0 && $value !== null) {
+                    if ($attribute && ($value = $attr['value'] ?? null) !== null) {
                         ProductAttributeValue::updateOrCreate(
                             [
                                 'product_id' => $product->id,
-                                'attribute_id' => $attributeId,
+                                'attribute_id' => $attribute->id,
                             ],
                             ['value' => $value]
                         );

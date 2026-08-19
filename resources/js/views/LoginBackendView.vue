@@ -20,6 +20,18 @@ async function handleLogin() {
   loading.value = true
   error.value = ''
 
+  const payload = {
+    email: email.value,
+    password: password.value,
+  }
+
+  console.log('Login attempt:', {
+    email: payload.email,
+    password_length: payload.password.length,
+  })
+
+  console.log('Login payload:', payload)
+
   try {
     const response = await fetch('/api/admin/login', {
       method: 'POST',
@@ -28,20 +40,27 @@ async function handleLogin() {
         'Accept': 'application/json',
         'X-Requested-With': 'XMLHttpRequest',
       },
-      body: JSON.stringify({
-        email: email.value,
-        password: password.value,
-      }),
+      body: JSON.stringify(payload),
+      credentials: 'same-origin',
     })
 
+    console.log('Login response status:', response.status)
+
+    const text = await response.text()
+    console.log('Login response body:', text)
+
     if (!response.ok) {
-      const text = await response.text()
-      console.error('Login failed:', response.status, text)
-      error.value = 'Đăng nhập thất bại: Vui lòng thử lại'
+      let data = {}
+      try {
+        data = JSON.parse(text)
+      } catch (e) {
+        data = { message: text }
+      }
+      error.value = data.message || 'Đăng nhập thất bại'
       return
     }
 
-    const result = await response.json()
+    const result = JSON.parse(text)
 
     if (result.status === 'success') {
       adminStore.setAuth(result.data)
@@ -50,6 +69,7 @@ async function handleLogin() {
       error.value = result.message || 'Đăng nhập thất bại'
     }
   } catch (err) {
+    console.error('Login error:', err)
     error.value = 'Lỗi kết nối: ' + err.message
   } finally {
     loading.value = false

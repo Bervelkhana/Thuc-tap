@@ -152,7 +152,7 @@ class PCBuilderController extends Controller
             $mainboards = Product::query()
                 ->with('category')
                 ->whereHas('category', function ($q) {
-                    $q->where('name', 'Mainboard');
+                    $q->whereIn('name', ['MAIN', 'Mainboard']);
                 })
                 ->where('stock_quantity', '>', 0)
                 ->when($cpu->socket_type, function ($q, $socket) {
