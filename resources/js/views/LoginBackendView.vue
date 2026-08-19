@@ -141,7 +141,7 @@ function handleKeydown(e) {
 
       <!-- Back Link -->
       <div class="text-center mt-6">
-        <router-link to="/" class="text-gray-500 hover:text-gray-400 text-sm transition">
+        <router-link to="/browse" class="text-gray-500 hover:text-gray-400 text-sm transition">
           ← Quay lại trang chủ
         </router-link>
       </div>

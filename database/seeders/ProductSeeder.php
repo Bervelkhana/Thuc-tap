@@ -30,8 +30,8 @@ class ProductSeeder extends Seeder
 
         $categoryMap = [
             1 => 'CPU',
-            2 => 'MAIN',
-            3 => 'RAM',
+            2 => 'RAM',
+            3 => 'MAIN',
             4 => 'SSD',
             5 => 'VGA',
             6 => 'CASE',
