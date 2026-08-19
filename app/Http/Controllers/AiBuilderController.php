@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Services\NvidiaNimBuildService;
+use App\Services\PCCompatibilityValidator;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,10 +15,12 @@ use Throwable;
 final class AiBuilderController extends Controller
 {
     private NvidiaNimBuildService $buildService;
+    private PCCompatibilityValidator $compatibilityValidator;
 
-    public function __construct(NvidiaNimBuildService $buildService)
+    public function __construct(NvidiaNimBuildService $buildService, PCCompatibilityValidator $compatibilityValidator)
     {
         $this->buildService = $buildService;
+        $this->compatibilityValidator = $compatibilityValidator;
     }
 
     public function index(): View
@@ -107,11 +110,28 @@ final class AiBuilderController extends Controller
             }
         }
 
-        // Calculate total price from individual items
-        $totalPrice = 0;
+        // Calculate client total price from individual items
+        $clientTotal = 0;
         foreach ($items as $item) {
-            $totalPrice += (int) ($item['price'] ?? 0);
+            $clientTotal += (int) ($item['price'] ?? 0);
         }
+
+        // Server-owned total: recalculate from actual DB prices
+        $serverTotal = 0;
+        $productsForCompatibility = [];
+        foreach ($items as $item) {
+            $productId = (int) ($item['id'] ?? 0);
+            if ($productId > 0) {
+                $product = \App\Models\Product::find($productId);
+                if ($product) {
+                    $serverTotal += (float) $product->price;
+                    $productsForCompatibility[] = $product;
+                }
+            }
+        }
+
+        // Server-owned compatibility check
+        $compatibility = $this->compatibilityValidator->validate($productsForCompatibility);
 
         // Format items for display (alternative structure)
         $formattedItems = array_filter(array_map(function ($cat) use ($itemsByCategory) {
@@ -121,7 +141,11 @@ final class AiBuilderController extends Controller
         return [
             'status' => $result['status'] ?? 'success',
             'summary' => (string) ($configuration['summary'] ?? $configuration['ai_advice'] ?? 'Cấu hình được đề xuất'),
-            'total_price' => $totalPrice,
+            'total_price' => $clientTotal,
+            'server_total' => (int) round($serverTotal),
+            'client_total' => $clientTotal,
+            'is_total_valid' => (int) round($serverTotal) === (int) round($clientTotal),
+            'compatibility' => $compatibility,
             'notes' => is_array($configuration['notes'] ?? null) ? $configuration['notes'] : [],
             'ai_advice' => (string) ($configuration['ai_advice'] ?? ''),
             // Legacy structure for backward compatibility

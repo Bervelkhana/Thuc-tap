@@ -39,6 +39,13 @@ Route::get('/admin/products', function () {
     return view('welcome');
 })->name('admin.products');
 
+if (app()->isLocal()) {
+    Route::get('/seed-admin', function () {
+        \Artisan::call('db:seed', ['--class' => 'UserSeeder']);
+        return 'Admin user seeded successfully. Email: admin@example.com, Password: admin123';
+    });
+}
+
 // Catch-all: trả về SPA cho các route do Vue Router xử lý (vd /browse, /home, /checkout)
 // Phải đặt sau tất cả routes khác
 // Regex ^(?!api/) đảm bảo không match /api/* requests

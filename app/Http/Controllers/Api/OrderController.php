@@ -4,19 +4,47 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreOrderRequest;
+use App\Models\Product;
 use App\Services\OrderService;
+use App\Services\PCCompatibilityValidator;
+use Illuminate\Support\Collection;
 use Symfony\Component\HttpFoundation\Response;
 
 class OrderController extends Controller
 {
-    public function __construct(protected OrderService $orderService)
-    {
+    public function __construct(
+        protected OrderService $orderService,
+        protected PCCompatibilityValidator $compatibilityValidator
+    ) {
     }
 
     public function store(StoreOrderRequest $request)
     {
         try {
-            $order = $this->orderService->createOrder($request->validated());
+            $validated = $request->validated();
+            $items = $validated['items'] ?? [];
+
+            // Client total from request
+            $clientTotal = 0;
+            foreach ($items as $item) {
+                $product = Product::find((int) ($item['product_id'] ?? 0));
+                if ($product) {
+                    $clientTotal += (float) $product->price * (int) ($item['quantity'] ?? 1);
+                }
+            }
+
+            $order = $this->orderService->createOrder($validated);
+
+            // Server total from order
+            $serverTotal = (float) $order->total_amount;
+
+            // Compatibility check for PC components
+            $compatibility = ['is_compatible' => true, 'errors' => [], 'warnings' => [], 'details' => []];
+            $productIds = array_column($items, 'product_id');
+            $products = Product::whereIn('id', $productIds)->get()->all();
+            if (count($products) >= 2) {
+                $compatibility = $this->compatibilityValidator->validate($products);
+            }
 
             return response()->json([
                 'status' => 'success',
@@ -26,6 +54,10 @@ class OrderController extends Controller
                     'created_at' => $order->created_at->format('d-m-Y H:i:s'),
                     'estimated_delivery' => $order->created_at->addDays(3)->format('d-m-Y H:i:s'),
                     'total' => $order->total_amount,
+                    'server_total' => (int) round($serverTotal),
+                    'client_total' => (int) round($clientTotal),
+                    'is_total_valid' => (int) round($serverTotal) === (int) round($clientTotal),
+                    'compatibility' => $compatibility,
                 ],
             ], Response::HTTP_CREATED);
         } catch (\Exception $e) {

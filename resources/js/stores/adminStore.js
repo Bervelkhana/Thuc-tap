@@ -21,13 +21,12 @@ export const useAdminStore = defineStore('admin', () => {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token.value}`,
-            'Content-Type': 'application/json',
+            'Accept': 'application/json',
           },
-          credentials: 'same-origin',
         })
       }
-    } catch {
-      // ignore logout errors
+    } catch (error) {
+      console.error('Logout error:', error)
     } finally {
       admin.value = null
       token.value = null

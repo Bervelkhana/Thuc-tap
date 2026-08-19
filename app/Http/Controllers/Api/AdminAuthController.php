@@ -7,50 +7,86 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
 
 class AdminAuthController extends Controller
 {
     public function login(Request $request)
     {
-        $request->validate([
-            'email' => 'required|string|email',
-            'password' => 'required|string',
-        ]);
-
-        $user = User::where('email', $request->input('email'))->first();
-
-        if (! $user || ! Hash::check($request->input('password'), $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['Email hoặc mật khẩu không đúng'],
+        try {
+            $validated = $request->validate([
+                'email' => 'required|string|email|max:255',
+                'password' => 'required|string|min:6',
             ]);
-        }
 
-        if (! $user->isAdmin()) {
-            throw ValidationException::withMessages([
-                'email' => ['Tài khoản không có quyền truy cập admin.'],
+            $user = User::where('email', $validated['email'])->first();
+
+            Log::info('Admin login attempt', [
+                'email' => $validated['email'],
+                'user_found' => $user ? true : false,
+                'user_role' => $user->role ?? 'N/A',
             ]);
-        }
 
-        $token = $user->createToken('admin-token')->plainTextToken;
+            if (! $user || ! Hash::check($validated['password'], $user->password)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Email hoặc mật khẩu không đúng',
+                ], 401);
+            }
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Đăng nhập thành công',
-            'data' => [
-                'admin' => [
-                    'id' => $user->id,
-                    'email' => $user->email,
-                    'name' => $user->name,
-                    'role' => $user->role,
+            if (! $user->isAdmin()) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Tài khoản không có quyền truy cập admin.',
+                ], 403);
+            }
+
+            $user->tokens()->delete();
+
+            $token = $user->createToken('admin-token')->plainTextToken;
+
+            Log::info('Admin login success', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+            ]);
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Đăng nhập thành công',
+                'data' => [
+                    'admin' => [
+                        'id' => $user->id,
+                        'email' => $user->email,
+                        'name' => $user->name,
+                        'role' => $user->role,
+                    ],
+                    'token' => $token,
                 ],
-                'token' => $token,
-            ],
-        ]);
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Dữ liệu không hợp lệ.',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('Admin login error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Có lỗi xảy ra. Vui lòng thử lại.',
+            ], 500);
+        }
     }
 
     public function logout(Request $request)
     {
-        $request->user()->currentAccessToken()->delete();
+        if ($request->user()) {
+            $request->user()->currentAccessToken()->delete();
+        }
 
         return response()->json([
             'status' => 'success',

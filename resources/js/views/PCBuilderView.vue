@@ -82,6 +82,8 @@ const successMessage = ref(null)
 
 const compatibilityResult = ref(null)
 const isValidating = ref(false)
+const serverTotal = ref(0)
+const totalMismatch = ref(false)
 
 const compatibleMainboards = ref([])
 const cpuCompatibilityInfo = ref(null)
@@ -96,41 +98,19 @@ function extractSocket(name) {
   return null
 }
 
-const compatibilityWarnings = computed(() => {
-  const warnings = []
-  
-  if (selectedParts.value.cpu && selectedParts.value.mainboard) {
-    const cpuSocket = extractSocket(selectedParts.value.cpu.name)
-    const mbSocket = extractSocket(selectedParts.value.mainboard.name)
-    
-    if (cpuSocket && mbSocket) {
-      if (mbSocket.includes(cpuSocket)) {
-        warnings.push({
-          type: 'success',
-          message: `✅ CPU socket ${cpuSocket} phù hợp với Mainboard`
-        })
-      } else {
-        warnings.push({
-          type: 'error',
-          message: `❌ CPU socket ${cpuSocket} KHÔNG phù hợp với Mainboard socket ${mbSocket}`
-        })
-      }
-    }
-  }
-  
-  return warnings
-})
-
 async function validateCompatibility() {
   const selected = selectedParts.value
 
   const hasComponents = Object.values(selected).filter(Boolean).length >= 2
   if (!hasComponents) {
     compatibilityResult.value = null
+    serverTotal.value = 0
+    totalMismatch.value = false
     return
   }
 
   isValidating.value = true
+  totalMismatch.value = false
   try {
     const payload = {
       selected_products: Object.entries(selected)
@@ -138,8 +118,6 @@ async function validateCompatibility() {
         .map(([category, product]) => ({
           category,
           product_id: product.id,
-          name: product.name,
-          price: product.price,
         })),
     }
 
@@ -154,10 +132,16 @@ async function validateCompatibility() {
     })
 
     const data = await response.json()
-    compatibilityResult.value = data.data?.compatibility || null
+    const result = data.data || {}
+
+    compatibilityResult.value = result.compatibility || null
+    serverTotal.value = (int) (result.server_total || 0)
+    totalMismatch.value = result.is_total_valid === false
   } catch (error) {
     console.error('Validation error:', error)
     compatibilityResult.value = null
+    serverTotal.value = 0
+    totalMismatch.value = false
   } finally {
     isValidating.value = false
   }
@@ -347,10 +331,6 @@ function formatPrice(price) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(price || 0))
 }
 
-const totalPrice = computed(() => {
-  return componentTypes.reduce((sum, type) => sum + Number(selectedParts.value[type.key]?.price || 0), 0)
-})
-
 const selectedPartsSummary = computed(() => {
   return componentTypes.map(type => ({
     key: type.key,
@@ -472,16 +452,8 @@ function handleGlobalKeyDown(event) {
           </div>
 
           <!-- Warnings -->
-          <div v-if="compatibilityWarnings.length > 0" class="space-y-2">
-            <div v-for="(warning, idx) in compatibilityWarnings" :key="idx"
-              :class="[
-                'p-3 rounded-lg border text-sm',
-                warning.type === 'error' 
-                  ? 'bg-red-50 text-red-700 border-red-200' 
-                  : 'bg-green-50 text-green-700 border-green-200'
-              ]">
-              {{ warning.message }}
-            </div>
+          <div v-if="totalMismatch" class="p-3 bg-yellow-50 border border-yellow-200 rounded-lg border text-sm">
+            ⚠️ Có sự không khớp trong tổng giá. Vui lòng thử lại.
           </div>
 
           <!-- Error Message -->
@@ -731,12 +703,15 @@ function handleGlobalKeyDown(event) {
               </div>
             </div>
 
-            <!-- Summary Section -->
-            <div class="bg-white rounded-lg shadow p-4">
-              <div class="mb-3">
-                <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Tổng giá cấu hình</p>
-                <p class="text-2xl font-bold text-blue-600">{{ formatPrice(totalPrice) }}</p>
-              </div>
+             <!-- Summary Section -->
+             <div class="bg-white rounded-lg shadow p-4">
+               <div class="mb-3">
+                 <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Tổng giá cấu hình</p>
+                 <p class="text-2xl font-bold text-blue-600">{{ formatPrice(serverTotal) }}</p>
+                 <p v-if="totalMismatch" class="text-xs text-yellow-600 mt-1">
+                   Tổng giá không khớp. Đang hiển thị giá từ server.
+                 </p>
+               </div>
               <button
                 @click="addAllToCart"
                 :disabled="!selectedParts.cpu || !selectedParts.mainboard"

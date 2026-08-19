@@ -87,15 +87,24 @@ class PCBuilderService
     }
 
     /**
-     * Tính toán tổng giá của build
-     */
+      * Tính toán tổng giá của build từ DB (server-owned)
+      */
     public function calculateTotalPrice(array $selectedProducts): float
     {
         $total = 0;
         foreach ($selectedProducts as $product) {
             if ($product && is_array($product)) {
-                $total += (float) ($product['price'] ?? 0);
+                $productId = (int) ($product['product_id'] ?? $product['id'] ?? 0);
+                if ($productId > 0) {
+                    $dbProduct = Product::find($productId);
+                    if ($dbProduct) {
+                        $total += (float) $dbProduct->price;
+                        continue;
+                    }
+                }
             }
+
+            $total += (float) ($product['price'] ?? 0);
         }
 
         return $total;

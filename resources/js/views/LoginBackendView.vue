@@ -23,12 +23,23 @@ async function handleLogin() {
   try {
     const response = await fetch('/api/admin/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
       body: JSON.stringify({
         email: email.value,
         password: password.value,
       }),
     })
+
+    if (!response.ok) {
+      const text = await response.text()
+      console.error('Login failed:', response.status, text)
+      error.value = 'Đăng nhập thất bại: Vui lòng thử lại'
+      return
+    }
 
     const result = await response.json()
 

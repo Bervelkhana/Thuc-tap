@@ -21,22 +21,27 @@ async function fetchDashboardData() {
     loading.value = true
     error.value = null
 
-    const headers = { 'Content-Type': 'application/json' }
+    const headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    }
     if (adminStore.token) {
       headers['Authorization'] = `Bearer ${adminStore.token}`
     }
 
     const response = await fetch('/api/admin/stats', {
       headers,
-      credentials: 'same-origin',
     })
 
+    if (response.status === 401 || response.status === 403) {
+      adminStore.logout()
+      router.push('/login-backend')
+      return
+    }
+
     if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        adminStore.logout()
-        router.push('/login-backend')
-        return
-      }
+      const text = await response.text()
+      console.error('Failed to fetch stats:', response.status, text)
       throw new Error(`Failed to fetch stats: ${response.statusText}`)
     }
 
@@ -54,7 +59,7 @@ async function fetchDashboardData() {
     }
   } catch (err) {
     console.error('Failed to fetch dashboard data:', err)
-    error.value = err.message
+    error.value = err.message || 'Có lỗi xảy ra'
   } finally {
     loading.value = false
   }

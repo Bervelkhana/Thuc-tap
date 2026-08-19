@@ -5,7 +5,7 @@ Hệ thống bán linh kiện máy tính trực tuyến với trợ lý AI tư v
 ## Tính năng chính
 
 - **Catalog sản phẩm:** Lọc động, tìm kiếm, phân trang
-- **Giỏ hàng & Checkout:** Quản lý giỏ hàng bằng Pinia, thanh toán COD/VietQR
+- **Giỏ hàng & Checkout:** Quản lý giỏ hàng bằng Pinia, thanh toán COD/VietQR, unified 4-step checkout flow (Cart → Address → Payment → Confirm)
 - **AI ChatBox:** Trợ lý AI tư vấn mua sắm với streaming response
 - **AI PC Builder:** Tự động build cấu hình PC theo ngân sách và nhu cầu
 - **Manual PC Builder:** Chọn linh kiện thủ công với kiểm tra tương thích
@@ -197,6 +197,33 @@ techgear/
     └── checklist.md
 ```
 
+## Testing
+
+### Test Coverage hiện tại
+
+| Module | Tests | Trạng thái |
+|--------|-------|-----------|
+| Order API | 12 tests | ✅ Passing |
+| Order Concurrency | 4 tests | ✅ Passing |
+| Product Attribute Service | 7 tests | ✅ Passing |
+| Admin Authorization | 3 tests | ✅ Passing |
+
+### Chạy tests
+
+```bash
+# Chạy tất cả tests
+php artisan test
+
+# Chạy tests theo nhóm
+php artisan test --testsuite=Feature
+php artisan test --testsuite=Unit
+
+# Chạy test cụ thể
+php artisan test --filter=OrderApiTest
+php artisan test --filter=OrderConcurrencyTest
+php artisan test --filter=ProductAttributeServiceTest
+```
+
 ## API Endpoints
 
 ### Public APIs
@@ -226,7 +253,7 @@ techgear/
 | GET | `/api/admin/orders` | Danh sách đơn hàng |
 | GET | `/api/admin/orders/{id}` | Chi tiết đơn hàng |
 | PATCH | `/api/admin/orders/{id}/status` | Cập nhật trạng thái |
-| DELETE | `/api/admin/orders/{id}` | Xóa đơn hàng |
+| POST | `/api/admin/orders/{id}/cancel` | Hủy đơn hàng |
 | POST | `/api/products` | Tạo sản phẩm |
 | PUT | `/api/products/{id}` | Cập nhật sản phẩm |
 | DELETE | `/api/products/{id}` | Xóa sản phẩm |
@@ -243,29 +270,29 @@ techgear/
 | PATCH | `/api/prebuilt-configs/{id}/toggle-active` | Bật/tắt cấu hình |
 | PATCH | `/api/prebuilt-configs/{id}/toggle-featured` | Đặt làm nổi bật |
 
-## Testing
+## Checkout Flow
 
-### Test Coverage hiện tại
+Checkout flow được consolidate thành 4 bước thống nhất trong component `UnifiedCheckoutFlow.vue`:
 
-| Module | Tests | Trạng thái |
-|--------|-------|-----------|
-| Order API | 6 tests | ✅ Passing |
-| Product Service | 6 tests | ✅ Passing |
-| Admin Authorization | 3 tests | ✅ Passing |
-| AI Fallback | 4 tests | ✅ Passing |
+1. **Cart Review** - Xem lại giỏ hàng
+2. **Shipping Address** - Nhập thông tin giao hàng
+3. **Payment Method** - Chọn phương thức thanh toán (COD)
+4. **Confirm & Submit** - Xác nhận và đặt hàng
 
-### Test mẫu
+Server thực hiện validate tổng giá (`server_total` vs `client_total`) và compatibility check trước khi tạo order. Frontend chỉ hiển thị kết quả, không tự tính toán.
 
-```bash
-# Test order flow
-php artisan test --filter=OrderApiTest
+## Admin Order Management
 
-# Test admin authorization
-php artisan test --filter=ChatAuthorizationTest
+Admin order management được consolidate thành component `AdminOrderManagement.vue` với các tính năng:
 
-# Test AI fallback khi API lỗi
-php artisan test --filter=AiFallbackTest
-```
+- **Xem danh sách orders** với filter by status (all, pending, confirmed, shipped, delivered, cancelled)
+- **Xem chi tiết order** với modal popup
+- **Cập nhật trạng thái** (processing, shipped, delivered, cancelled)
+- **Hủy đơn hàng** với confirmation dialog
+- Auth check tự động, redirect về login nếu chưa đăng nhập
+
+File: `resources/js/components/AdminOrderManagement.vue`
+View: `resources/js/views/AdminOrderView.vue`
 
 ## Database Schema
 
@@ -345,6 +372,17 @@ ChatBox AI hỗ trợ 2 nền tảng:
 - Chưa có lưu lịch sử chat vào database
 - Chưa có email notification
 - Chưa có Redis cache
+
+## Demo Accounts
+
+### Admin
+- Email: admin@example.com
+- Password: admin123
+- URL: /login-backend
+
+### Customer
+- Email: customer@example.com
+- Password: customer123
 
 ## License
 

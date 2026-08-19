@@ -33,7 +33,7 @@ Route::delete('/products/{product}', [ProductController::class, 'destroy']);
 Route::post('/orders', [OrderController::class, 'store']);
 
 // Admin Auth routes
-Route::post('/admin/login', [AdminAuthController::class, 'login']);
+Route::post('/admin/login', [AdminAuthController::class, 'login'])->middleware('api');
 Route::post('/admin/logout', [AdminAuthController::class, 'logout'])->middleware('auth:sanctum');
 Route::get('/admin/me', [AdminAuthController::class, 'me'])->middleware('auth:sanctum', 'role:admin,super_admin');
 

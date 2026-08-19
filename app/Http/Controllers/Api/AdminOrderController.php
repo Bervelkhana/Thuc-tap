@@ -142,21 +142,33 @@ class AdminOrderController extends Controller
      */
     public function stats()
     {
-        $stats = [
-            'total_orders' => Order::count(),
-            'total_products' => Product::count(),
-            'pending' => Order::where('status', 'pending')->count(),
-            'confirmed' => Order::where('status', 'confirmed')->count(),
-            'shipped' => Order::where('status', 'shipped')->count(),
-            'delivered' => Order::where('status', 'delivered')->count(),
-            'cancelled' => Order::where('status', 'cancelled')->count(),
-            'total_revenue' => Order::where('status', 'delivered')->sum('total_amount'),
-        ];
+        try {
+            $stats = [
+                'total_orders' => Order::count(),
+                'total_products' => Product::count(),
+                'pending' => Order::where('status', 'pending')->count(),
+                'confirmed' => Order::where('status', 'confirmed')->count(),
+                'shipped' => Order::where('status', 'shipped')->count(),
+                'delivered' => Order::where('status', 'delivered')->count(),
+                'cancelled' => Order::where('status', 'cancelled')->count(),
+                'total_revenue' => Order::where('status', 'delivered')->sum('total_amount'),
+            ];
 
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Thống kê đơn hàng',
-            'data' => $stats,
-        ]);
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Thống kê đơn hàng',
+                'data' => $stats,
+            ]);
+        } catch (\Throwable $e) {
+            \Log::error('Admin stats error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Có lỗi khi lấy thống kê: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 }
