@@ -70,7 +70,7 @@ class ProductSeeder extends Seeder
                     'price' => $productData['price'],
                     'stock_quantity' => $productData['stock_quantity'] ?? 20,
                     'description' => $productData['description'] ?? null,
-                    'thumbnail_url' => $productData['thumbnail_url'] ?? null,
+                    'thumbnail_url' => $productData['thumbnail_url'] ?? '🛍️',
                     'brand' => $productData['brand'] ?? null,
                     'socket_type' => $productData['socket_type'] ?? null,
                     'chipset' => $productData['chipset'] ?? null,

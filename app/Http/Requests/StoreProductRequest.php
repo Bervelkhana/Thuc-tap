@@ -23,7 +23,7 @@ class StoreProductRequest extends FormRequest
             'discount_percentage' => 'nullable|integer|min:0|max:100',
             'stock_quantity' => 'required|integer|min:0',
             'description' => 'nullable|string',
-            'thumbnail_url' => 'nullable|string|url',
+            'thumbnail_url' => 'nullable|string|max:2048',
             'datasheet_pdf_url' => 'nullable|string|url',
         ];
     }

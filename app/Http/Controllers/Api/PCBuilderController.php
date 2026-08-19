@@ -171,13 +171,105 @@ class PCBuilderController extends Controller
                     'socket_type' => $cpu->socket_type,
                     'memory_type' => $cpu->memory_type,
                 ],
-                'mainboards' => $mainboards,
+                'MAINs' => $mainboards,
                 'total' => $mainboards->count(),
             ], 'Compatible mainboards retrieved');
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error('PCBuilderController getCompatibleMainboards error', [
                 'error' => $e->getMessage(),
                 'cpu_id' => $request->input('cpu_id'),
+            ]);
+
+            return $this->errorResponse($e->getMessage(), 400);
+        }
+    }
+
+    /**
+     * Get compatible cases for selected VGA or compatible VGAs for selected case
+     */
+    public function getCompatibleCases(Request $request)
+    {
+        $request->validate([
+            'vga_id' => 'nullable|integer|exists:products,id',
+            'case_id' => 'nullable|integer|exists:products,id',
+        ]);
+
+        try {
+            $vga = null;
+            $case = null;
+            $mode = '';
+
+            if ($request->has('vga_id')) {
+                $vga = Product::findOrFail($request->input('vga_id'));
+                $mode = 'vga_selected';
+            } elseif ($request->has('case_id')) {
+                $case = Product::findOrFail($request->input('case_id'));
+                $mode = 'case_selected';
+            }
+
+            if ($mode === 'vga_selected' && $vga) {
+                $gpuLength = (int) ($vga->gpu_length_mm ?? 0);
+
+                $cases = Product::query()
+                    ->with('category')
+                    ->whereHas('category', function ($q) {
+                        $q->where('name', 'Case');
+                    })
+                    ->where('stock_quantity', '>', 0)
+                    ->when($gpuLength > 0, function ($q) use ($gpuLength) {
+                        $q->where('max_gpu_length_mm', '>=', $gpuLength);
+                    })
+                    ->orderByDesc('created_at')
+                    ->get(['id', 'category_id', 'sku', 'name', 'price', 'stock_quantity', 'description', 'thumbnail_url', 'brand', 'max_gpu_length_mm']);
+
+                return $this->successResponse([
+                    'mode' => 'vga_selected',
+                    'vga' => [
+                        'id' => $vga->id,
+                        'name' => $vga->name,
+                        'gpu_length_mm' => $gpuLength,
+                    ],
+                    'cases' => $cases,
+                    'total' => $cases->count(),
+                ], 'Compatible cases retrieved');
+            }
+
+            if ($mode === 'case_selected' && $case) {
+                $maxGpuLength = (int) ($case->max_gpu_length_mm ?? 0);
+
+                $vgas = Product::query()
+                    ->with('category')
+                    ->whereHas('category', function ($q) {
+                        $q->where('name', 'VGA');
+                    })
+                    ->where('stock_quantity', '>', 0)
+                    ->when($maxGpuLength > 0, function ($q) use ($maxGpuLength) {
+                        $q->where('gpu_length_mm', '<=', $maxGpuLength);
+                    })
+                    ->orderByDesc('created_at')
+                    ->get(['id', 'category_id', 'sku', 'name', 'price', 'stock_quantity', 'description', 'thumbnail_url', 'brand', 'gpu_length_mm']);
+
+                return $this->successResponse([
+                    'mode' => 'case_selected',
+                    'case' => [
+                        'id' => $case->id,
+                        'name' => $case->name,
+                        'max_gpu_length_mm' => $maxGpuLength,
+                    ],
+                    'vgas' => $vgas,
+                    'total' => $vgas->count(),
+                ], 'Compatible VGAs retrieved');
+            }
+
+            return $this->successResponse([
+                'mode' => 'none',
+                'cases' => [],
+                'vgas' => [],
+                'total' => 0,
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('PCBuilderController getCompatibleCases error', [
+                'error' => $e->getMessage(),
             ]);
 
             return $this->errorResponse($e->getMessage(), 400);

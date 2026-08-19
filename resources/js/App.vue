@@ -34,7 +34,7 @@ const showSidebar = computed(() => {
   <AdminLayout v-if="isAdminRoute">
     <router-view />
   </AdminLayout>
-  <MainLayout v-else-if="route.path !== '/login-backend'" :show-sidebar="!hideSidebar">
+  <MainLayout v-else-if="route.path !== '/login-backend'" :show-sidebar="showSidebar">
     <router-view />
   </MainLayout>
   <router-view v-else />

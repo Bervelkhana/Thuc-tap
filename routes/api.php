@@ -53,6 +53,7 @@ Route::get('/pc-builder/components', [PCBuilderController::class, 'getComponents
 Route::get('/pc-builder/categories', [PCBuilderController::class, 'getBuildCategories']);
 Route::get('/pc-builder/search', [PCBuilderController::class, 'searchComponents']);
 Route::get('/pc-builder/compatible-mainboards', [PCBuilderController::class, 'getCompatibleMainboards']);
+Route::get('/pc-builder/compatible-cases', [PCBuilderController::class, 'getCompatibleCases']);
 Route::post('/pc-builder/validate', [PCBuilderController::class, 'checkCompatibility']);
 Route::post('/pc-builder/recommend', [PCBuilderController::class, 'recommend']);
 

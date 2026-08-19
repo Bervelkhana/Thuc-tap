@@ -24,7 +24,7 @@ class ProductFactory extends Factory
             'price' => $this->faker->numberBetween(500000, 30000000),
             'stock_quantity' => $this->faker->numberBetween(5, 50),
             'description' => $this->faker->sentence(),
-            'thumbnail_url' => null,
+            'thumbnail_url' => '🛍️',
             'datasheet_pdf_url' => null,
             'brand' => $this->faker->randomElement(['Intel', 'AMD', 'NVIDIA', 'Corsair', 'Kingston', 'G.Skill', 'Seagate', 'Samsung', 'ASUS', 'MSI']),
             'socket_type' => $this->faker->randomElement([null, 'LGA1700', 'AM5', 'DDR4', 'DDR5', 'PCIe 4.0']),

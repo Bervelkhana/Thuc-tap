@@ -90,6 +90,11 @@ const cpuCompatibilityInfo = ref(null)
 const isLoadingCompatible = ref(false)
 const showAllMAINs = ref(false)
 
+const compatibleCases = ref([])
+const vgaCaseInfo = ref(null)
+const isLoadingCompatibleCases = ref(false)
+const showAllCases = ref(false)
+
 function extractSocket(name) {
   const sockets = ['LGA1700', 'LGA1200', 'AM5', 'AM4', 'TRX4']
   for (const socket of sockets) {
@@ -176,6 +181,32 @@ watch(
   }
 )
 
+watch(
+  () => selectedParts.value.vga,
+  (newVga) => {
+    if (newVga) {
+      fetchCompatibleCases('vga', newVga.id)
+    } else {
+      compatibleCases.value = []
+      vgaCaseInfo.value = null
+    }
+    showAllCases.value = false
+  }
+)
+
+watch(
+  () => selectedParts.value.case,
+  (newCase) => {
+    if (newCase) {
+      fetchCompatibleCases('case', null, newCase.id)
+    } else {
+      compatibleCases.value = []
+      vgaCaseInfo.value = null
+    }
+    showAllCases.value = false
+  }
+)
+
 async function fetchCompatibleMAINs(cpuId) {
   if (!cpuId) {
     compatibleMAINs.value = []
@@ -212,6 +243,68 @@ function selectMAIN(MAIN) {
   searchInputs.value.MAIN = ''
   searchResults.value.MAIN = []
   showResults.value.MAIN = false
+  validateCompatibility()
+}
+
+async function fetchCompatibleCases(mode, vgaId = null, caseId = null) {
+  if (!vgaId && !caseId) {
+    compatibleCases.value = []
+    vgaCaseInfo.value = null
+    return
+  }
+
+  isLoadingCompatibleCases.value = true
+  try {
+    const params = new URLSearchParams()
+    if (mode === 'vga' && vgaId) {
+      params.set('vga_id', String(vgaId))
+    } else if (mode === 'case' && caseId) {
+      params.set('case_id', String(caseId))
+    }
+
+    const response = await fetch(`/api/pc-builder/compatible-cases?${params.toString()}`)
+    const data = await response.json()
+
+    if (data.status === 'success') {
+      if (data.data.mode === 'vga_selected') {
+        compatibleCases.value = data.data.cases
+        vgaCaseInfo.value = {
+          vga: data.data.vga,
+          total: data.data.total,
+        }
+      } else if (data.data.mode === 'case_selected') {
+        compatibleCases.value = data.data.vgas
+        vgaCaseInfo.value = {
+          case: data.data.case,
+          total: data.data.total,
+        }
+      }
+    } else {
+      compatibleCases.value = []
+      vgaCaseInfo.value = null
+    }
+  } catch (error) {
+    console.error('Error fetching compatible cases/VGAs:', error)
+    compatibleCases.value = []
+    vgaCaseInfo.value = null
+  } finally {
+    isLoadingCompatibleCases.value = false
+  }
+}
+
+function selectCaseFromSuggestion(caseProduct) {
+  selectedParts.value.case = caseProduct
+  searchInputs.value.case = ''
+  searchResults.value.case = []
+  showResults.value.case = false
+  validateCompatibility()
+}
+
+function selectVGAFromSuggestion(vgaProduct) {
+  selectedParts.value.vga = vgaProduct
+  searchInputs.value.vga = ''
+  searchResults.value.vga = []
+  showResults.value.vga = false
   validateCompatibility()
 }
 
@@ -353,6 +446,9 @@ function clearAllParts() {
   compatibleMAINs.value = []
   cpuCompatibilityInfo.value = null
   showAllMAINs.value = false
+  compatibleCases.value = []
+  vgaCaseInfo.value = null
+  showAllCases.value = false
   validateCompatibility()
 }
 
@@ -689,6 +785,67 @@ function handleGlobalKeyDown(event) {
                   class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 mt-1"
                 >
                   Xem tất cả {{ compatibleMAINs.length }} →
+                </button>
+              </div>
+            </div>
+
+            <!-- Auto-suggested Cases for VGA / VGAs for Case -->
+            <div v-if="vgaCaseInfo && (selectedParts.vga || selectedParts.case)" class="bg-white dark:bg-slate-800 rounded-lg shadow p-4">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-xs font-semibold text-green-900 dark:text-green-300">
+                  {{ selectedParts.vga ? 'Case phù hợp' : 'VGA phù hợp' }}
+                </h3>
+                <span class="text-xs text-green-600 dark:text-green-400">
+                  {{ vgaCaseInfo.total }} sản phẩm
+                </span>
+              </div>
+
+              <!-- Loading -->
+              <div v-if="isLoadingCompatibleCases" class="flex items-center gap-2 text-green-600 dark:text-green-400">
+                <div class="h-3 w-3 animate-spin rounded-full border-2 border-green-300 dark:border-green-700 border-t-green-600 dark:border-t-green-400"></div>
+                <span class="text-xs">Đang tìm...</span>
+              </div>
+
+              <!-- No matches -->
+              <div v-else-if="compatibleCases.length === 0" class="rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-2">
+                <p class="text-xs text-yellow-800 dark:text-yellow-300">
+                  Không tìm thấy {{ selectedParts.vga ? 'Case' : 'VGA' }} phù hợp.
+                </p>
+              </div>
+
+              <!-- Compatible list -->
+              <div v-else class="space-y-1">
+                <div class="grid grid-cols-1 gap-1">
+                  <div 
+                    v-for="item in (showAllCases ? compatibleCases : compatibleCases.slice(0, 3))" 
+                    :key="item.id"
+                    class="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-slate-700 border border-green-100 dark:border-green-900 p-2 hover:border-green-300 dark:hover:border-green-700 transition cursor-pointer"
+                    @click="selectedParts.vga ? selectCaseFromSuggestion(item) : selectVGAFromSuggestion(item)"
+                  >
+                    <div class="flex-1 min-w-0">
+                      <p class="text-xs font-medium text-gray-900 dark:text-white truncate">{{ item.name }}</p>
+                      <p class="text-xs text-gray-600 dark:text-gray-400">
+                        {{ item.brand }}
+                        <span v-if="selectedParts.vga && item.max_gpu_length_mm">
+                          | Tối đa {{ item.max_gpu_length_mm }}mm
+                        </span>
+                        <span v-if="selectedParts.case && item.gpu_length_mm">
+                          | {{ item.gpu_length_mm }}mm
+                        </span>
+                      </p>
+                    </div>
+                    <div class="text-right shrink-0 ml-2">
+                      <p class="text-xs font-semibold text-green-600 dark:text-green-400">{{ formatPrice(item.price) }}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <button 
+                  v-if="!showAllCases && compatibleCases.length > 3"
+                  @click="showAllCases = true"
+                  class="text-xs text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 mt-1"
+                >
+                  Xem tất cả {{ compatibleCases.length }} →
                 </button>
               </div>
             </div>

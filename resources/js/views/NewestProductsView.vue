@@ -30,7 +30,7 @@ const filteredProducts = computed(() => {
     result = result.filter(p => p.name.toLowerCase().includes(query))
   }
 
-  return result.slice(0, 12)
+  return result.slice(0, 6)
 })
 
 async function fetchCategories() {

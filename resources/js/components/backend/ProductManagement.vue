@@ -148,11 +148,32 @@ async function saveProduct() {
 
     const response = await fetch(url, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
       body: JSON.stringify(payload),
     })
 
-    const result = await response.json()
+    let result
+    const text = await response.text()
+
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+      try {
+        const error = JSON.parse(text)
+        errorMessage = error.message || errorMessage
+      } catch {
+        // response is HTML or plain text, keep HTTP status message
+      }
+      throw new Error(errorMessage)
+    }
+
+    try {
+      result = JSON.parse(text)
+    } catch {
+      throw new Error('Phản hồi không hợp lệ từ server')
+    }
 
     if (result.status === 'success') {
       alert(isEditing.value ? 'Cập nhật sản phẩm thành công' : 'Tạo sản phẩm thành công')
@@ -174,8 +195,30 @@ async function deleteProduct(id, name) {
 
   loading.value = true
   try {
-    const response = await fetch(`/api/products/${id}`, { method: 'DELETE' })
-    const result = await response.json()
+    const response = await fetch(`/api/products/${id}`, {
+      method: 'DELETE',
+      headers: { Accept: 'application/json' },
+    })
+
+    let result
+    const text = await response.text()
+
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`
+      try {
+        const error = JSON.parse(text)
+        errorMessage = error.message || errorMessage
+      } catch {
+        // response is HTML or plain text, keep HTTP status message
+      }
+      throw new Error(errorMessage)
+    }
+
+    try {
+      result = JSON.parse(text)
+    } catch {
+      throw new Error('Phản hồi không hợp lệ từ server')
+    }
 
     if (result.status === 'success') {
       alert('Xóa sản phẩm thành công')

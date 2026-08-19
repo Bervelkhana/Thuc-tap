@@ -25,7 +25,7 @@ class UpdateProductRequest extends FormRequest
             'discount_percentage' => 'nullable|integer|min:0|max:100',
             'stock_quantity' => 'nullable|integer|min:0',
             'description' => 'nullable|string',
-            'thumbnail_url' => 'nullable|string|url|max:2048',
+            'thumbnail_url' => 'nullable|string|max:2048',
             'datasheet_pdf_url' => 'nullable|string|url|max:2048',
             'attributes' => 'nullable|array',
             'attributes.*.id' => 'required_with:attributes|integer|exists:attributes,id',
