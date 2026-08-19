@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import AiBuildView from '../views/AiBuildView.vue'
 import StartView from '../views/StartView.vue'
 import ProductList from '../components/ProductList.vue'
 import Checkout from '../components/Checkout.vue'
@@ -41,6 +42,9 @@ const routes = [
   // Admin routes
   { path: '/admin/orders', name: 'admin-orders', component: AdminOrderView },
   
+  // AI Build route
+  { path: '/ai-build', name: 'ai-build', component: AiBuildView },
+
   // PC Builder route
   { path: '/pc-builder', name: 'pc-builder', component: PCBuilderView },
 

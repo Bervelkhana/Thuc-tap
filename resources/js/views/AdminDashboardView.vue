@@ -90,7 +90,7 @@ onMounted(() => {
       <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         <div>
           <h1 class="text-2xl font-bold text-gray-900">🏪 TechGear Admin</h1>
-          <p class="text-sm text-gray-500">Xin chào, {{ adminStore.admin?.name }}</p>
+          <p class="text-sm text-gray-600">Xin chào, {{ adminStore.admin?.name }}</p>
         </div>
         <div class="flex gap-3">
           <button
@@ -134,7 +134,7 @@ onMounted(() => {
         <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-600">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-gray-500 text-sm">Tổng đơn hàng</p>
+              <p class="text-gray-600 text-sm">Tổng đơn hàng</p>
               <p class="text-3xl font-bold text-gray-900 mt-2">{{ stats.total_orders }}</p>
             </div>
             <div class="text-4xl text-blue-600 opacity-20">📋</div>
@@ -145,7 +145,7 @@ onMounted(() => {
         <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-600">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-gray-500 text-sm">Tổng sản phẩm</p>
+              <p class="text-gray-600 text-sm">Tổng sản phẩm</p>
               <p class="text-3xl font-bold text-gray-900 mt-2">{{ stats.total_products }}</p>
             </div>
             <div class="text-4xl text-green-600 opacity-20">📦</div>
@@ -156,7 +156,7 @@ onMounted(() => {
         <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-600">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-gray-500 text-sm">Doanh thu</p>
+              <p class="text-gray-600 text-sm">Doanh thu</p>
               <p class="text-3xl font-bold text-gray-900 mt-2">{{ (stats.total_revenue / 1000000).toFixed(1) }}M</p>
             </div>
             <div class="text-4xl text-purple-600 opacity-20">💰</div>
@@ -167,7 +167,7 @@ onMounted(() => {
         <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-orange-600">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-gray-500 text-sm">Đơn chờ xử lý</p>
+              <p class="text-gray-600 text-sm">Đơn chờ xử lý</p>
               <p class="text-3xl font-bold text-gray-900 mt-2">{{ stats.pending }}</p>
             </div>
             <div class="text-4xl text-orange-600 opacity-20">⏳</div>
@@ -185,7 +185,7 @@ onMounted(() => {
           >
             <div class="text-3xl mb-2">📦</div>
             <p class="font-semibold text-gray-900">Quản lý sản phẩm</p>
-            <p class="text-sm text-gray-500">Thêm, sửa, xóa sản phẩm</p>
+            <p class="text-sm text-gray-600">Thêm, sửa, xóa sản phẩm</p>
           </router-link>
           <router-link
             to="/backend/prebuilt"
@@ -193,7 +193,7 @@ onMounted(() => {
           >
             <div class="text-3xl mb-2">🧩</div>
             <p class="font-semibold text-gray-900">Quản lý cấu hình</p>
-            <p class="text-sm text-gray-500">Quản lý config PC được build sẵn</p>
+            <p class="text-sm text-gray-600">Quản lý config PC được build sẵn</p>
           </router-link>
           <router-link
             to="/backend/orders"
@@ -201,7 +201,7 @@ onMounted(() => {
           >
             <div class="text-3xl mb-2">📋</div>
             <p class="font-semibold text-gray-900">Quản lý đơn hàng</p>
-            <p class="text-sm text-gray-500">Xem và cập nhật đơn hàng</p>
+            <p class="text-sm text-gray-600">Xem và cập nhật đơn hàng</p>
           </router-link>
         </div>
       </div>
@@ -220,3 +220,4 @@ onMounted(() => {
   animation: spin 1s linear infinite;
 }
 </style>
+

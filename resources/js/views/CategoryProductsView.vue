@@ -67,7 +67,7 @@ async function fetchCategoryProducts(page = 1) {
       if (products.value.length > 0) {
         const categoryMap = {
           'CPU': '🧠',
-          'Mainboard': '🔧',
+          'MAIN': '🔧',
           'RAM': '📊',
           'VGA': '🎮',
           'SSD': '💾',
@@ -190,7 +190,7 @@ onMounted(() => {
           class="group bg-white rounded-lg border border-gray-200 overflow-hidden hover:border-gray-400 transition-all duration-300 hover:shadow-lg"
         >
           <!-- Product Image Placeholder -->
-          <div class="h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-400 group-hover:from-gray-200 group-hover:to-gray-300 transition">
+          <div class="h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-500 group-hover:from-gray-200 group-hover:to-gray-300 transition">
             <span v-if="product.thumbnail_url">
               <img :src="product.thumbnail_url" :alt="product.name" class="w-full h-full object-cover" />
             </span>
@@ -205,7 +205,7 @@ onMounted(() => {
 
             <div class="space-y-2">
               <p class="text-lg font-bold text-gray-900">{{ formatPrice(product.price) }}</p>
-              <p class="text-xs text-gray-500">Tồn kho: {{ product.stock_quantity }}</p>
+              <p class="text-xs text-gray-600">Tồn kho: {{ product.stock_quantity }}</p>
             </div>
 
             <!-- Add to Cart Button -->
@@ -215,7 +215,7 @@ onMounted(() => {
               :class="[
                 'w-full py-3 rounded-lg font-medium transition-all duration-200 text-sm',
                 product.stock_quantity === 0
-                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  ? 'bg-gray-200 text-gray-600 cursor-not-allowed'
                   : 'bg-black text-white hover:bg-gray-900 active:scale-95'
               ]"
             >
@@ -276,3 +276,5 @@ onMounted(() => {
   overflow: hidden;
 }
 </style>
+
+

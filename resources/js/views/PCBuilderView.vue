@@ -8,7 +8,7 @@ const router = useRouter()
 
 const componentTypes = [
   { key: 'cpu', label: 'CPU', icon: '🖥️' },
-  { key: 'mainboard', label: 'Mainboard', icon: '🔌' },
+  { key: 'MAIN', label: 'MAIN', icon: '🔌' },
   { key: 'ram', label: 'RAM', icon: '💾' },
   { key: 'vga', label: 'VGA', icon: '🎮' },
   { key: 'ssd', label: 'SSD', icon: '💿' },
@@ -19,7 +19,7 @@ const componentTypes = [
 
 const selectedParts = ref({
   cpu: null,
-  mainboard: null,
+  MAIN: null,
   ram: null,
   vga: null,
   ssd: null,
@@ -30,7 +30,7 @@ const selectedParts = ref({
 
 const searchInputs = ref({
   cpu: '',
-  mainboard: '',
+  MAIN: '',
   ram: '',
   vga: '',
   ssd: '',
@@ -46,7 +46,7 @@ const loadingGlobalSearch = ref(false)
 
 const searchResults = ref({
   cpu: [],
-  mainboard: [],
+  MAIN: [],
   ram: [],
   vga: [],
   ssd: [],
@@ -57,7 +57,7 @@ const searchResults = ref({
 
 const showResults = ref({
   cpu: false,
-  mainboard: false,
+  MAIN: false,
   ram: false,
   vga: false,
   ssd: false,
@@ -68,7 +68,7 @@ const showResults = ref({
 
 const loadingSearch = ref({
   cpu: false,
-  mainboard: false,
+  MAIN: false,
   ram: false,
   vga: false,
   ssd: false,
@@ -85,10 +85,10 @@ const isValidating = ref(false)
 const serverTotal = ref(0)
 const totalMismatch = ref(false)
 
-const compatibleMainboards = ref([])
+const compatibleMAINs = ref([])
 const cpuCompatibilityInfo = ref(null)
 const isLoadingCompatible = ref(false)
-const showAllMainboards = ref(false)
+const showAllMAINs = ref(false)
 
 function extractSocket(name) {
   const sockets = ['LGA1700', 'LGA1200', 'AM5', 'AM4', 'TRX4']
@@ -150,7 +150,7 @@ async function validateCompatibility() {
 watch(
   () => [
     selectedParts.value.cpu,
-    selectedParts.value.mainboard,
+    selectedParts.value.MAIN,
     selectedParts.value.ram,
     selectedParts.value.vga,
     selectedParts.value.ssd,
@@ -167,51 +167,51 @@ watch(
   () => selectedParts.value.cpu,
   (newCpu) => {
     if (newCpu) {
-      fetchCompatibleMainboards(newCpu.id)
+      fetchCompatibleMAINs(newCpu.id)
     } else {
-      compatibleMainboards.value = []
+      compatibleMAINs.value = []
       cpuCompatibilityInfo.value = null
     }
-    showAllMainboards.value = false
+    showAllMAINs.value = false
   }
 )
 
-async function fetchCompatibleMainboards(cpuId) {
+async function fetchCompatibleMAINs(cpuId) {
   if (!cpuId) {
-    compatibleMainboards.value = []
+    compatibleMAINs.value = []
     cpuCompatibilityInfo.value = null
     return
   }
 
   isLoadingCompatible.value = true
   try {
-    const response = await fetch(`/api/pc-builder/compatible-mainboards?cpu_id=${cpuId}`)
+    const response = await fetch(`/api/pc-builder/compatible-MAINs?cpu_id=${cpuId}`)
     const data = await response.json()
 
     if (data.status === 'success') {
-      compatibleMainboards.value = data.data.mainboards
+      compatibleMAINs.value = data.data.MAINs
       cpuCompatibilityInfo.value = {
         cpu: data.data.cpu,
         total: data.data.total,
       }
     } else {
-      compatibleMainboards.value = []
+      compatibleMAINs.value = []
       cpuCompatibilityInfo.value = null
     }
   } catch (error) {
-    console.error('Error fetching compatible mainboards:', error)
-    compatibleMainboards.value = []
+    console.error('Error fetching compatible MAINs:', error)
+    compatibleMAINs.value = []
     cpuCompatibilityInfo.value = null
   } finally {
     isLoadingCompatible.value = false
   }
 }
 
-function selectMainboard(mainboard) {
-  selectedParts.value.mainboard = mainboard
-  searchInputs.value.mainboard = ''
-  searchResults.value.mainboard = []
-  showResults.value.mainboard = false
+function selectMAIN(MAIN) {
+  selectedParts.value.MAIN = MAIN
+  searchInputs.value.MAIN = ''
+  searchResults.value.MAIN = []
+  showResults.value.MAIN = false
   validateCompatibility()
 }
 
@@ -254,8 +254,8 @@ function selectProductFromGlobalSearch(categoryKey, product) {
   searchInputs.value[categoryKey] = ''
 
   if (categoryKey === 'cpu') {
-    selectedParts.value.mainboard = null
-    searchInputs.value.mainboard = ''
+    selectedParts.value.MAIN = null
+    searchInputs.value.MAIN = ''
   }
 
   successMessage.value = `✅ Đã chọn ${product.name}`
@@ -282,7 +282,7 @@ async function searchProducts(categoryKey) {
       search: query
     })
 
-    if (categoryKey === 'mainboard' && selectedParts.value.cpu) {
+    if (categoryKey === 'MAIN' && selectedParts.value.cpu) {
       params.append('cpu_id', selectedParts.value.cpu.id)
     }
 
@@ -310,8 +310,8 @@ function selectProduct(categoryKey, product) {
   showResults.value[categoryKey] = false
 
   if (categoryKey === 'cpu') {
-    selectedParts.value.mainboard = null
-    searchInputs.value.mainboard = ''
+    selectedParts.value.MAIN = null
+    searchInputs.value.MAIN = ''
   }
 
   successMessage.value = `✅ Đã chọn ${product.name}`
@@ -350,9 +350,9 @@ function clearAllParts() {
     searchResults.value[type.key] = []
     showResults.value[type.key] = false
   })
-  compatibleMainboards.value = []
+  compatibleMAINs.value = []
   cpuCompatibilityInfo.value = null
-  showAllMainboards.value = false
+  showAllMAINs.value = false
   validateCompatibility()
 }
 
@@ -387,22 +387,12 @@ function handleGlobalKeyDown(event) {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+  <div class="min-h-screen bg-[var(--bg-body)] font-body transition-colors duration-300">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
       <div class="flex flex-col lg:flex-row gap-6">
         <!-- LEFT: Component Selection -->
         <div class="flex-1 min-w-0 space-y-4">
-          <!-- Header -->
-          <div class="flex items-center justify-between mb-4">
-            <button
-              @click="goHome"
-              class="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition font-medium"
-            >
-              🏠 Tech Gear
-            </button>
-            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">🖥️ Xây dựng PC của bạn</h1>
-          </div>
-          <p class="text-gray-600 mb-6">Tìm kiếm và chọn các linh kiện phù hợp. Nhập tên sản phẩm rồi nhấn Enter</p>
+          <p class="text-gray-600 dark:text-gray-400 mb-6">Tìm kiếm và chọn các linh kiện phù hợp. Nhập tên sản phẩm rồi nhấn Enter</p>
 
           <!-- Global Search Bar -->
           <div class="mb-6 relative">
@@ -440,7 +430,7 @@ function handleGlobalKeyDown(event) {
                       <div class="flex justify-between items-start">
                         <div class="flex-1 min-w-0">
                           <p class="font-semibold text-gray-900 text-sm truncate">{{ product.name }}</p>
-                          <p class="text-xs text-gray-500">{{ product.sku }}</p>
+                          <p class="text-xs text-gray-600">{{ product.sku }}</p>
                         </div>
                         <p class="font-bold text-blue-600 text-sm ml-2">{{ formatPrice(product.price) }}</p>
                       </div>
@@ -468,11 +458,11 @@ function handleGlobalKeyDown(event) {
 
           <!-- PC Builder Form -->
           <div class="space-y-3">
-            <div v-for="component in componentTypes" :key="component.key" class="bg-white rounded-lg shadow p-4">
+            <div v-for="component in componentTypes" :key="component.key" class="bg-white dark:bg-slate-800 rounded-lg shadow p-4">
               <!-- Header -->
               <div class="flex items-center mb-3">
                 <span class="text-2xl mr-2">{{ component.icon }}</span>
-                <h2 class="text-lg font-bold text-gray-900">{{ component.label }}</h2>
+                <h2 class="text-lg font-bold text-gray-900 dark:text-white">{{ component.label }}</h2>
               </div>
 
               <!-- Search Input -->
@@ -484,7 +474,7 @@ function handleGlobalKeyDown(event) {
                   @focus="showResults[component.key] = searchResults[component.key].length > 0"
                   type="text"
                   :placeholder="`Nhập tên ${component.label}...`"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 transition text-sm"
+                  class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 dark:focus:border-cyan-400 transition text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
                 />
                 <button
                   @click="searchProducts(component.key)"
@@ -497,25 +487,25 @@ function handleGlobalKeyDown(event) {
 
               <!-- Search Results Dropdown -->
               <div v-if="showResults[component.key]" class="relative mb-3">
-                <div class="absolute top-0 left-0 right-0 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-64 overflow-y-auto">
-                  <div v-if="loadingSearch[component.key]" class="p-3 text-center text-gray-500 text-sm">
+                <div class="absolute top-0 left-0 right-0 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-lg z-10 max-h-64 overflow-y-auto">
+                  <div v-if="loadingSearch[component.key]" class="p-3 text-center text-gray-600 dark:text-gray-400 text-sm">
                     Đang tìm kiếm...
                   </div>
-                  <div v-else-if="searchResults[component.key].length === 0" class="p-3 text-center text-gray-500 text-sm">
+                  <div v-else-if="searchResults[component.key].length === 0" class="p-3 text-center text-gray-600 dark:text-gray-400 text-sm">
                     Không tìm thấy sản phẩm
                   </div>
-                  <div v-else class="divide-y">
+                  <div v-else class="divide-y divide-gray-200 dark:divide-slate-700">
                     <div
                       v-for="product in searchResults[component.key]"
                       :key="product.id"
                       @click="selectProduct(component.key, product)"
-                      class="p-3 hover:bg-blue-50 cursor-pointer transition"
+                      class="p-3 hover:bg-blue-50 dark:hover:bg-slate-700 cursor-pointer transition"
                     >
                       <div class="flex justify-between items-start">
                         <div class="flex-1 min-w-0">
-                          <p class="font-semibold text-gray-900 text-sm">{{ product.name }}</p>
-                          <p class="text-xs text-gray-500">SKU: {{ product.sku }}</p>
-                          <p class="text-xs text-gray-400 mt-1">Tồn kho: {{ product.stock_quantity }}</p>
+                          <p class="font-semibold text-gray-900 dark:text-white text-sm">{{ product.name }}</p>
+                          <p class="text-xs text-gray-600 dark:text-gray-400">SKU: {{ product.sku }}</p>
+                          <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">Tồn kho: {{ product.stock_quantity }}</p>
                         </div>
                         <p class="font-bold text-blue-600 text-sm ml-2">{{ formatPrice(product.price) }}</p>
                       </div>
@@ -525,15 +515,15 @@ function handleGlobalKeyDown(event) {
               </div>
 
               <!-- Selected Product Display -->
-              <div v-if="selectedParts[component.key]" class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div v-if="selectedParts[component.key]" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
                 <div class="flex items-start justify-between gap-2">
                   <div class="flex-1 min-w-0">
-                    <p class="text-xs text-gray-600 mb-1">Đã chọn:</p>
-                    <p class="font-bold text-gray-900 text-sm truncate">{{ selectedParts[component.key].name }}</p>
-                    <p class="text-xs text-gray-600 mt-1">SKU: {{ selectedParts[component.key].sku }}</p>
+                    <p class="text-xs text-gray-600 dark:text-gray-400 mb-1">Đã chọn:</p>
+                    <p class="font-bold text-gray-900 dark:text-white text-sm truncate">{{ selectedParts[component.key].name }}</p>
+                    <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">SKU: {{ selectedParts[component.key].sku }}</p>
                   </div>
                   <div class="text-right shrink-0">
-                    <p class="text-lg font-bold text-blue-600">{{ formatPrice(selectedParts[component.key].price) }}</p>
+                    <p class="text-lg font-bold text-blue-600 dark:text-blue-400">{{ formatPrice(selectedParts[component.key].price) }}</p>
                     <button
                       @click="removePart(component.key)"
                       class="mt-1 px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-xs font-medium"
@@ -545,8 +535,8 @@ function handleGlobalKeyDown(event) {
               </div>
 
               <!-- Empty State -->
-              <div v-else class="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                <p class="text-gray-500 text-sm">Chưa chọn sản phẩm</p>
+              <div v-else class="bg-gray-50 dark:bg-slate-700/50 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-lg p-4 text-center">
+                <p class="text-gray-600 dark:text-gray-400 text-sm">Chưa chọn sản phẩm</p>
               </div>
             </div>
           </div>
@@ -556,17 +546,17 @@ function handleGlobalKeyDown(event) {
         <div class="lg:w-[380px] shrink-0">
           <div class="sticky top-24 space-y-4">
             <!-- Selected Parts Summary -->
-            <div v-if="hasSelectedParts" class="bg-white rounded-lg shadow p-4">
-              <h3 class="text-sm font-semibold text-gray-900 mb-2">Linh kiện đã chọn</h3>
+            <div v-if="hasSelectedParts" class="bg-white dark:bg-slate-800 rounded-lg shadow p-4">
+              <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">Linh kiện đã chọn</h3>
               <div class="space-y-1">
                 <div v-for="part in selectedPartsSummary" :key="part.key" class="flex justify-between text-xs">
-                  <span class="text-gray-600">{{ part.label }}:</span>
-                  <span class="text-gray-900 font-medium truncate ml-2">{{ part.name || 'Chưa chọn' }}</span>
+                  <span class="text-gray-600 dark:text-gray-400">{{ part.label }}:</span>
+                  <span class="text-gray-900 dark:text-white font-medium truncate ml-2">{{ part.name || 'Chưa chọn' }}</span>
                 </div>
               </div>
               <button
                 @click="clearAllParts"
-                class="mt-3 w-full px-3 py-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-xs font-medium transition"
+                class="mt-3 w-full px-3 py-1.5 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-slate-600 text-xs font-medium transition"
               >
                 Xóa tất cả
               </button>
@@ -574,21 +564,21 @@ function handleGlobalKeyDown(event) {
 
             <!-- Compatibility Result -->
             <Transition name="compatibility">
-              <div v-if="compatibilityResult" class="bg-white rounded-lg shadow p-4">
-                <h3 class="text-sm font-semibold text-gray-900 mb-2">Kết quả kiểm tra tương thích</h3>
+              <div v-if="compatibilityResult" class="bg-white dark:bg-slate-800 rounded-lg shadow p-4">
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white mb-2">Kết quả kiểm tra tương thích</h3>
                 
                 <!-- Errors -->
                 <div v-if="compatibilityResult.errors?.length" class="space-y-2">
                   <div 
                     v-for="error in compatibilityResult.errors" 
                     :key="error.type"
-                    class="rounded-lg bg-red-50 border border-red-200 p-2"
+                    class="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-2"
                   >
                     <div class="flex items-start gap-2">
-                      <span class="text-red-600 font-bold text-xs">✕</span>
+                      <span class="text-red-600 dark:text-red-400 font-bold text-xs">✕</span>
                       <div>
-                        <p class="text-xs font-medium text-red-800">{{ error.message }}</p>
-                        <p v-if="error.type === 'gpu_case_length_mismatch' && error.details" class="text-xs text-red-600 mt-1">
+                        <p class="text-xs font-medium text-red-800 dark:text-red-300">{{ error.message }}</p>
+                        <p v-if="error.type === 'gpu_case_length_mismatch' && error.details" class="text-xs text-red-600 dark:text-red-400 mt-1">
                           GPU: {{ error.details.gpu_length_mm }}mm | Case: {{ error.details.case_max_gpu_length_mm }}mm | 
                           Vượt quá: {{ error.details.excess_mm }}mm
                         </p>
@@ -602,33 +592,33 @@ function handleGlobalKeyDown(event) {
                   <div 
                     v-for="warning in compatibilityResult.warnings" 
                     :key="warning.type"
-                    class="rounded-lg bg-yellow-50 border border-yellow-200 p-2"
+                    class="rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-2"
                   >
                     <div class="flex items-start gap-2">
-                      <span class="text-yellow-600 font-bold text-xs">⚠</span>
-                      <p class="text-xs text-yellow-800">{{ warning.message }}</p>
+                      <span class="text-yellow-600 dark:text-yellow-400 font-bold text-xs">⚠</span>
+                      <p class="text-xs text-yellow-800 dark:text-yellow-300">{{ warning.message }}</p>
                     </div>
                   </div>
                 </div>
             
                 <!-- Success -->
-                <div v-if="compatibilityResult.is_compatible && !compatibilityResult.errors?.length" class="rounded-lg bg-green-50 border border-green-200 p-2">
+                <div v-if="compatibilityResult.is_compatible && !compatibilityResult.errors?.length" class="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-2">
                   <div class="flex items-center gap-2">
-                    <span class="text-green-600 font-bold text-xs">✓</span>
-                    <p class="text-xs font-medium text-green-800">
+                    <span class="text-green-600 dark:text-green-400 font-bold text-xs">✓</span>
+                    <p class="text-xs font-medium text-green-800 dark:text-green-300">
                       Cấu hình tương thích
                     </p>
                   </div>
                   
                   <!-- GPU-Case detail -->
-                  <div v-if="compatibilityResult.details?.gpu_case" class="mt-1 text-xs text-green-700">
+                  <div v-if="compatibilityResult.details?.gpu_case" class="mt-1 text-xs text-green-700 dark:text-green-400">
                     <p>GPU vừa Case (còn dư {{ compatibilityResult.details.gpu_case.remaining_space_mm }}mm)</p>
                   </div>
                   
                   <!-- Cooler-CPU Socket Compatibility -->
                   <div v-if="compatibilityResult.details?.cooler_cpu" class="mt-1 text-xs" :class="{
-                    'text-green-700': compatibilityResult.details.cooler_cpu.status === 'compatible',
-                    'text-gray-600': compatibilityResult.details.cooler_cpu.status === 'unknown'
+                    'text-green-700 dark:text-green-400': compatibilityResult.details.cooler_cpu.status === 'compatible',
+                    'text-gray-600 dark:text-gray-400': compatibilityResult.details.cooler_cpu.status === 'unknown'
                   }">
                     <p v-if="compatibilityResult.details.cooler_cpu.status === 'compatible'">
                       ✓ Cooler hỗ trợ socket {{ compatibilityResult.details.cooler_cpu.cpu_socket }}
@@ -640,81 +630,81 @@ function handleGlobalKeyDown(event) {
                 </div>
           
                 <!-- Loading -->
-                <div v-if="isValidating" class="mt-2 flex items-center gap-2 text-gray-600">
-                  <div class="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-black"></div>
+                <div v-if="isValidating" class="mt-2 flex items-center gap-2 text-gray-600 dark:text-gray-400">
+                  <div class="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 dark:border-slate-600 border-t-black dark:border-t-white"></div>
                   <span class="text-xs">Đang kiểm tra...</span>
                 </div>
               </div>
             </Transition>
 
-            <!-- Auto-suggested Mainboards -->
-            <div v-if="cpuCompatibilityInfo && selectedParts.cpu" class="bg-white rounded-lg shadow p-4">
+            <!-- Auto-suggested MAINs -->
+            <div v-if="cpuCompatibilityInfo && selectedParts.cpu" class="bg-white dark:bg-slate-800 rounded-lg shadow p-4">
               <div class="flex items-center justify-between mb-2">
-                <h3 class="text-xs font-semibold text-blue-900">
-                  Mainboard tương thích
+                <h3 class="text-xs font-semibold text-blue-900 dark:text-blue-300">
+                  MAIN tương thích
                 </h3>
-                <span class="text-xs text-blue-600">
+                <span class="text-xs text-blue-600 dark:text-blue-400">
                   {{ cpuCompatibilityInfo.cpu.socket_type }}
                 </span>
               </div>
 
               <!-- Loading -->
-              <div v-if="isLoadingCompatible" class="flex items-center gap-2 text-blue-600">
-                <div class="h-3 w-3 animate-spin rounded-full border-2 border-blue-300 border-t-blue-600"></div>
+              <div v-if="isLoadingCompatible" class="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+                <div class="h-3 w-3 animate-spin rounded-full border-2 border-blue-300 dark:border-blue-700 border-t-blue-600 dark:border-t-blue-400"></div>
                 <span class="text-xs">Đang tìm...</span>
               </div>
 
-              <!-- No compatible mainboards -->
-              <div v-else-if="compatibleMainboards.length === 0" class="rounded-lg bg-yellow-50 border border-yellow-200 p-2">
-                <p class="text-xs text-yellow-800">
-                  Không tìm thấy mainboard tương thích.
+              <!-- No compatible MAINs -->
+              <div v-else-if="compatibleMAINs.length === 0" class="rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-2">
+                <p class="text-xs text-yellow-800 dark:text-yellow-300">
+                  Không tìm thấy MAIN tương thích.
                 </p>
               </div>
 
-              <!-- Compatible mainboards list -->
+              <!-- Compatible MAINs list -->
               <div v-else class="space-y-1">
                 <div class="grid grid-cols-1 gap-1">
                   <div 
-                    v-for="mb in (showAllMainboards ? compatibleMainboards : compatibleMainboards.slice(0, 3))" 
+                    v-for="mb in (showAllMAINs ? compatibleMAINs : compatibleMAINs.slice(0, 3))" 
                     :key="mb.id"
-                    class="flex items-center justify-between rounded-lg bg-gray-50 border border-blue-100 p-2 hover:border-blue-300 transition cursor-pointer"
-                    @click="selectMainboard(mb)"
+                    class="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-slate-700 border border-blue-100 dark:border-blue-900 p-2 hover:border-blue-300 dark:hover:border-blue-700 transition cursor-pointer"
+                    @click="selectMAIN(mb)"
                   >
                     <div class="flex-1 min-w-0">
-                      <p class="text-xs font-medium text-gray-900 truncate">{{ mb.name }}</p>
-                      <p class="text-xs text-gray-500">
+                      <p class="text-xs font-medium text-gray-900 dark:text-white truncate">{{ mb.name }}</p>
+                      <p class="text-xs text-gray-600 dark:text-gray-400">
                         {{ mb.brand }} | {{ mb.socket_type }}
                       </p>
                     </div>
                     <div class="text-right shrink-0 ml-2">
-                      <p class="text-xs font-semibold text-blue-600">{{ formatPrice(mb.price) }}</p>
+                      <p class="text-xs font-semibold text-blue-600 dark:text-blue-400">{{ formatPrice(mb.price) }}</p>
                     </div>
                   </div>
                 </div>
                 
                 <!-- Show more button -->
                 <button 
-                  v-if="!showAllMainboards && compatibleMainboards.length > 3"
-                  @click="showAllMainboards = true"
-                  class="text-xs text-blue-600 hover:text-blue-800 mt-1"
+                  v-if="!showAllMAINs && compatibleMAINs.length > 3"
+                  @click="showAllMAINs = true"
+                  class="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 mt-1"
                 >
-                  Xem tất cả {{ compatibleMainboards.length }} →
+                  Xem tất cả {{ compatibleMAINs.length }} →
                 </button>
               </div>
             </div>
 
              <!-- Summary Section -->
-             <div class="bg-white rounded-lg shadow p-4">
+             <div class="bg-white dark:bg-slate-800 rounded-lg shadow p-4">
                <div class="mb-3">
-                 <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Tổng giá cấu hình</p>
-                 <p class="text-2xl font-bold text-blue-600">{{ formatPrice(serverTotal) }}</p>
-                 <p v-if="totalMismatch" class="text-xs text-yellow-600 mt-1">
-                   Tổng giá không khớp. Đang hiển thị giá từ server.
-                 </p>
-               </div>
+                  <p class="text-xs text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-1">Tổng giá cấu hình</p>
+                  <p class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ formatPrice(serverTotal) }}</p>
+                  <p v-if="totalMismatch" class="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+                    Tổng giá không khớp. Đang hiển thị giá từ server.
+                  </p>
+                </div>
               <button
                 @click="addAllToCart"
-                :disabled="!selectedParts.cpu || !selectedParts.mainboard"
+                :disabled="!selectedParts.cpu || !selectedParts.MAIN"
                 class="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm transition"
               >
                 🛒 Thêm vào giỏ hàng
@@ -742,3 +732,5 @@ input:focus {
   transform: translateY(-10px);
 }
 </style>
+
+

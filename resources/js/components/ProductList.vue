@@ -42,7 +42,7 @@ onMounted(fetchProducts)
       </router-link>
     </header>
 
-    <p v-if="loading" class="text-gray-500">Đang tải...</p>
+    <p v-if="loading" class="text-gray-600">Đang tải...</p>
     <p v-if="error" class="text-red-500">{{ error }}</p>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -52,7 +52,7 @@ onMounted(fetchProducts)
         class="border rounded-lg p-4 flex flex-col hover:shadow-md transition"
       >
         <h2 class="text-lg font-medium text-gray-800">{{ p.name }}</h2>
-        <p class="text-sm text-gray-500 mb-2">{{ p.category?.name }}</p>
+        <p class="text-sm text-gray-600 mb-2">{{ p.category?.name }}</p>
         <p class="text-xl font-semibold text-blue-600 mb-4">{{ formatPrice(p.price) }}</p>
         <button
           @click="cart.addToCart(p)"
@@ -64,3 +64,4 @@ onMounted(fetchProducts)
     </div>
   </div>
 </template>
+

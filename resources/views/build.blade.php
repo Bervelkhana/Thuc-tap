@@ -84,7 +84,7 @@
     <body>
         <div class="container">
             <div class="hero">
-                <a href="/" style="text-decoration:none;color:#6b7280;font-size:12px;letter-spacing:.3em;text-transform:uppercase;">TechGear</a>
+                <a href="/browse" style="text-decoration:none;color:#6b7280;font-size:12px;letter-spacing:.3em;text-transform:uppercase;">TechGear</a>
                 <h1 style="margin:12px 0 8px;font-size:32px;">Xây dựng cấu hình</h1>
                 <p style="margin:0;color:#6b7280;">Chọn linh kiện theo từng danh mục để bắt đầu build máy.</p>
             </div>
@@ -122,3 +122,6 @@
         </div>
     </body>
 </html>
+
+
+

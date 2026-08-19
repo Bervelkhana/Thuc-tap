@@ -11,7 +11,7 @@
     <main class="mx-auto min-h-screen max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
         <section class="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
             <div class="border-b border-gray-100 bg-gray-50 px-6 py-6 sm:px-8">
-                <a href="/ai-build" class="text-xs font-semibold uppercase tracking-[0.3em] text-gray-500">TechGear</a>
+                <a href="/ai-build" class="text-xs font-semibold uppercase tracking-[0.3em] text-gray-600">TechGear</a>
                 <h1 class="mt-3 text-3xl font-bold text-gray-900">Kết quả cấu hình bằng AI</h1>
                 <p class="mt-2 max-w-2xl text-sm text-gray-600">AI đã đọc ngân sách, mục đích sử dụng và dữ liệu sản phẩm hiện có để đề xuất cấu hình.</p>
             </div>
@@ -27,12 +27,12 @@
                     <aside class="border-b border-gray-100 bg-gray-50 p-6 sm:p-8 lg:border-b-0 lg:border-r lg:border-t-0">
                         <div class="space-y-4">
                             <div class="rounded-2xl border border-gray-200 bg-white p-4">
-                                <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">Trạng thái</div>
+                                <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-600">Trạng thái</div>
                                 <div class="mt-1 text-lg font-bold text-gray-900">{{ strtoupper((string) data_get($result, 'status', 'unknown')) }}</div>
                             </div>
 
                             <div class="rounded-2xl border border-gray-200 bg-white p-4">
-                                <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">Ngân sách</div>
+                                <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-600">Ngân sách</div>
                                 <div class="mt-1 text-2xl font-bold text-gray-900">{{ number_format((int) data_get($input, 'budget', data_get($result, 'budget', 0)), 0, ',', '.') }} VND</div>
                             </div>
 
@@ -73,7 +73,7 @@
                                 @foreach ($items as $item)
                                     <article class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
                                         <div class="flex items-center justify-between gap-3">
-                                            <h2 class="text-sm font-semibold uppercase tracking-[0.2em] text-gray-500">{{ $item['category'] ?? '' }}</h2>
+                                            <h2 class="text-sm font-semibold uppercase tracking-[0.2em] text-gray-600">{{ $item['category'] ?? '' }}</h2>
                                             <span class="text-xs font-semibold {{ !empty($item['matched']) ? 'text-emerald-700' : 'text-amber-700' }}">
                                                 {{ !empty($item['matched']) ? 'Matched' : 'Fallback' }}
                                             </span>
@@ -81,11 +81,11 @@
                                         <div class="mt-3 text-base font-semibold text-gray-900">{{ $item['name'] ?? 'Không chọn' }}</div>
                                         <div class="mt-1 text-sm text-gray-600">{{ number_format((int) ($item['price'] ?? 0), 0, ',', '.') }} VND</div>
                                         @if (!empty($item['match_source']))
-                                            <div class="mt-2 text-xs text-gray-500">Nguồn khớp: {{ $item['match_source'] }}</div>
+                                            <div class="mt-2 text-xs text-gray-600">Nguồn khớp: {{ $item['match_source'] }}</div>
                                         @endif
                                         <p class="mt-3 text-sm leading-6 text-gray-700">{{ $item['reason'] ?? '' }}</p>
                                         @if (!empty($item['id']))
-                                            <div class="mt-3 rounded-xl bg-white px-3 py-2 text-xs text-gray-500">Product ID: {{ $item['id'] }}</div>
+                                            <div class="mt-3 rounded-xl bg-white px-3 py-2 text-xs text-gray-600">Product ID: {{ $item['id'] }}</div>
                                         @endif
                                     </article>
                                 @endforeach
@@ -107,4 +107,5 @@
     </main>
 </body>
 </html>
+
 

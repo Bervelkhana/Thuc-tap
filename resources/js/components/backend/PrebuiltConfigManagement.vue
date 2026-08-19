@@ -11,7 +11,7 @@ const formErrors = ref({})
 // ─── Component definitions ────────────────────────────────────────────
 const COMPONENTS = [
   { key: 'cpu',        label: 'CPU',         slug: 'cpu',        placeholder: 'Nhập tên CPU để tìm kiếm...' },
-  { key: 'mainboard',  label: 'Mainboard',   slug: 'mainboard',  placeholder: 'Nhập tên Mainboard để tìm kiếm...' },
+  { key: 'MAIN',  label: 'MAIN',   slug: 'main',  placeholder: 'Nhập tên MAIN để tìm kiếm...' },
   { key: 'ram',        label: 'RAM',         slug: 'ram',        placeholder: 'Nhập tên RAM để tìm kiếm...' },
   { key: 'vga',        label: 'VGA',         slug: 'vga',        placeholder: 'Nhập tên VGA để tìm kiếm...' },
   { key: 'ssd',        label: 'SSD',         slug: 'ssd',        placeholder: 'Nhập tên SSD để tìm kiếm...' },
@@ -22,7 +22,7 @@ const COMPONENTS = [
 
 const icons = {
   cpu:    '🧠',
-  mainboard: '🔲',
+  MAIN: '🔲',
   ram:    '💾',
   vga:    '🎮',
   ssd:    '💿',
@@ -394,7 +394,7 @@ onMounted(() => {
     <div class="flex items-center justify-between mb-6">
       <div>
         <h2 class="text-2xl font-bold text-gray-900">🧩 Quản lý cấu hình xây sẵn</h2>
-        <p class="text-sm text-gray-500 mt-1">Tạo và quản lý các cấu hình được hiển thị trên trang Cấu hình xây sẵn</p>
+        <p class="text-sm text-gray-600 mt-1">Tạo và quản lý các cấu hình được hiển thị trên trang Cấu hình xây sẵn</p>
       </div>
       <button @click="openAddForm" class="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-900 transition font-medium">
         + Thêm cấu hình
@@ -462,7 +462,7 @@ onMounted(() => {
         <!-- Modal header -->
         <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
           <h3 class="text-lg font-bold text-gray-900">{{ isEditing ? '✏️ Sửa cấu hình' : '➕ Thêm cấu hình xây sẵn' }}</h3>
-          <button @click="showForm = false" class="text-2xl text-gray-400 hover:text-gray-600">✕</button>
+          <button @click="showForm = false" class="text-2xl text-gray-500 hover:text-gray-600">✕</button>
         </div>
 
         <div class="p-6 space-y-5">
@@ -486,7 +486,7 @@ onMounted(() => {
               <div class="px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 font-semibold">
                 {{ formatPrice(totalPrice) }}
               </div>
-              <p class="text-xs text-gray-500 mt-0.5">Dựa trên sản phẩm đã chọn</p>
+              <p class="text-xs text-gray-600 mt-0.5">Dựa trên sản phẩm đã chọn</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Thứ tự</label>
@@ -510,7 +510,7 @@ onMounted(() => {
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-2">Chọn sản phẩm cấu thành *</label>
             <div v-if="formErrors.components" class="mb-2 text-xs text-red-600 bg-red-50 px-3 py-2 rounded">{{ formErrors.components }}</div>
-            <div v-if="selectedCount > 0" class="mb-2 text-xs text-gray-500">Đã chọn {{ selectedCount }}/{{ COMPONENTS.length }} linh kiện</div>
+            <div v-if="selectedCount > 0" class="mb-2 text-xs text-gray-600">Đã chọn {{ selectedCount }}/{{ COMPONENTS.length }} linh kiện</div>
 
             <div class="space-y-3 border border-gray-200 rounded-xl p-4 bg-gray-50 max-h-[60vh] overflow-y-auto">
               <div v-for="comp in COMPONENTS" :key="comp.key" data-search-block
@@ -527,7 +527,7 @@ onMounted(() => {
                     <div class="flex items-center justify-between gap-2 p-3 rounded-lg bg-emerald-50 border border-emerald-200">
                       <div class="min-w-0 flex-1">
                         <p class="text-sm font-medium text-gray-900 truncate">{{ selectedComponents[comp.key].name }}</p>
-                        <p class="text-xs text-gray-500">{{ formatPrice(selectedComponents[comp.key].price) }}</p>
+                        <p class="text-xs text-gray-600">{{ formatPrice(selectedComponents[comp.key].price) }}</p>
                       </div>
                       <button @click="deselectProduct(comp.key)"
                               class="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 text-sm font-bold transition"
@@ -550,7 +550,7 @@ onMounted(() => {
                     />
 
                     <!-- Loading indicator inside input area -->
-                    <div v-if="searchState[comp.key].loading" class="mt-1 text-xs text-gray-400 pl-1">
+                    <div v-if="searchState[comp.key].loading" class="mt-1 text-xs text-gray-500 pl-1">
                       Đang tìm kiếm...
                     </div>
 
@@ -565,21 +565,21 @@ onMounted(() => {
                       >
                         <div class="min-w-0 flex-1">
                           <p class="text-sm text-gray-900 truncate">{{ product.name }}</p>
-                          <p class="text-xs text-gray-500">{{ formatPrice(product.price) }}</p>
+                          <p class="text-xs text-gray-600">{{ formatPrice(product.price) }}</p>
                         </div>
-                        <span class="shrink-0 text-xs text-gray-400">Chọn</span>
+                        <span class="shrink-0 text-xs text-gray-500">Chọn</span>
                       </div>
                     </div>
 
                     <!-- No results message -->
                     <div v-if="searchState[comp.key].open && !searchState[comp.key].loading && searchState[comp.key].query && searchState[comp.key].results.length === 0"
-                         class="mt-1 border border-gray-200 rounded-lg bg-white px-4 py-3 text-sm text-gray-500 text-center">
+                         class="mt-1 border border-gray-200 rounded-lg bg-white px-4 py-3 text-sm text-gray-600 text-center">
                       Không tìm thấy kết quả nào cho "{{ searchState[comp.key].query }}"
                     </div>
 
                     <!-- Hint when input is focused but no query yet -->
                     <div v-if="searchState[comp.key].open && !searchState[comp.key].loading && !searchState[comp.key].query"
-                         class="mt-1 text-xs text-gray-400 px-1">
+                         class="mt-1 text-xs text-gray-500 px-1">
                       Gõ từ khóa để tìm kiếm sản phẩm {{ comp.label }}
                     </div>
                   </div>
@@ -613,3 +613,6 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
+
+

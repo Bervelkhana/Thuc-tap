@@ -25,7 +25,7 @@ final class AiBuilderController extends Controller
 
     public function index(): View
     {
-        return view('ai-build');
+        return view('welcome');
     }
 
     public function process(Request $request): RedirectResponse|\Illuminate\Http\JsonResponse

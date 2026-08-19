@@ -40,7 +40,7 @@ async function fetchCategories() {
     if (result.status === 'success') {
       const iconMap = {
         'CPU': '🧠',
-        'Mainboard': '🔧',
+        'MAIN': '🔧',
         'RAM': '📊',
         'VGA': '🎮',
         'SSD': '💾',
@@ -51,7 +51,7 @@ async function fetchCategories() {
 
       const slugMap = {
         'CPU': 'cpu',
-        'Mainboard': 'main',
+        'MAIN': 'main',
         'RAM': 'ram',
         'VGA': 'vga',
         'SSD': 'ssd',
@@ -60,7 +60,7 @@ async function fetchCategories() {
         'CASE': 'case',
       }
 
-      const categoryOrder = ['CPU', 'Mainboard', 'RAM', 'VGA', 'SSD', 'PSU', 'COOLER', 'CASE']
+      const categoryOrder = ['CPU', 'MAIN', 'RAM', 'VGA', 'SSD', 'PSU', 'COOLER', 'CASE']
 
       categories.value = result.data
         .map(cat => ({
@@ -168,242 +168,83 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-white font-system">
-    <!-- HEADER -->
-    <header class="sticky top-0 z-50 relative bg-white border-b border-gray-100 shadow-sm">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-        <router-link to="/home" class="text-xl font-semibold text-gray-900 hover:text-gray-700 transition">
-          ← TechGear
-        </router-link>
-
-        <div class="flex items-center gap-4 sm:gap-6">
-          <div class="hidden md:flex items-center bg-gray-100 rounded-lg px-4 py-2 flex-1 max-w-xs">
-            <input
-              v-model="searchQuery"
-              @input="updateSearch"
-              type="text"
-              placeholder="Tìm kiếm sản phẩm..."
-              class="bg-transparent outline-none text-sm text-gray-700 placeholder-gray-500 w-full"
-            />
-            <span class="text-gray-400">🔍</span>
-          </div>
-
-          <button @click="showCart = !showCart" class="relative group cursor-pointer pointer-events-auto transition-all duration-200">
-            <span class="text-2xl group-hover:scale-110">🛒</span>
-            <span v-if="cartCount > 0" class="absolute -top-2 -right-3 bg-black text-white text-xs font-bold px-2 py-1 rounded-full">
-              {{ cartCount }}
-            </span>
-          </button>
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12 space-y-8">
+    <div class="mb-6 sm:mb-8">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 class="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-widest">Sản phẩm mới</h2>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">{{ filteredProducts.length }} sản phẩm</p>
         </div>
-      </div>
-
-      <div class="md:hidden px-4 pb-4">
-        <div class="flex items-center bg-gray-100 rounded-lg px-4 py-2">
-          <input
-            v-model="searchQuery"
-            @input="updateSearch"
-            type="text"
-            placeholder="Tìm kiếm..."
-            class="bg-transparent outline-none text-sm text-gray-700 placeholder-gray-500 w-full"
-          />
-          <span class="text-gray-400">🔍</span>
-        </div>
-      </div>
-    </header>
-
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 lg:py-12">
-      <div class="flex flex-col lg:flex-row gap-6 lg:gap-8">
-        <aside class="w-full lg:w-[280px] xl:w-[300px] shrink-0 order-2 lg:order-1">
-          <div class="sticky top-24 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-            <div class="px-5 py-4 border-b border-gray-100 bg-gray-50">
-              <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-widest">Danh mục</h2>
-            </div>
-
-            <div class="p-3 border-b border-gray-100 space-y-2">
-              <router-link to="/browse" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 border-2 bg-black text-white border-black hover:bg-gray-900">
-                <span class="text-xl shrink-0">🆕</span>
-                <span class="text-sm font-medium leading-tight flex-1">Sản phẩm mới</span>
-              </router-link>
-              <router-link to="/browse-prebuilt" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 border-2 bg-white text-gray-800 border-transparent hover:border-gray-200 hover:bg-gray-50">
-                <span class="text-xl shrink-0">🧩</span>
-                <span class="text-sm font-medium leading-tight flex-1">Cấu hình xây sẵn</span>
-              </router-link>
-              <a href="/ai-build" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 border-2 bg-white text-gray-800 border-transparent hover:border-gray-200 hover:bg-gray-50">
-                <span class="text-xl shrink-0">🤖</span>
-                <span class="text-sm font-medium leading-tight flex-1">Xây dựng cấu hình bằng AI</span>
-              </a>
-              <a href="/pc-builder" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 border-2 bg-white text-gray-800 border-transparent hover:border-gray-200 hover:bg-gray-50">
-                <span class="text-xl shrink-0">🔧</span>
-                <span class="text-sm font-medium leading-tight flex-1">Xây dựng cấu hình</span>
-              </a>
-            </div>
-
-            <div class="p-3 space-y-2">
-              <a
-                v-for="category in categories"
-                :key="category.id"
-                :href="`/browser-${category.slug}`"
-                class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 border-2 bg-white text-gray-800 border-transparent hover:border-gray-200 hover:bg-gray-50"
-              >
-                <span class="text-xl shrink-0">{{ category.icon }}</span>
-                <span class="text-sm font-medium leading-tight flex-1">{{ category.name }}</span>
-              </a>
-            </div>
-          </div>
-        </aside>
-
-        <main class="flex-1 order-1 lg:order-2 min-w-0">
-          <section>
-            <div class="mb-6 sm:mb-8">
-              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-widest">Sản phẩm mới</h2>
-                  <p class="text-sm text-gray-500 mt-2">{{ filteredProducts.length }} sản phẩm</p>
-                </div>
-              </div>
-            </div>
-
-            <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              <div v-for="i in 6" :key="i" class="animate-pulse rounded-2xl border border-gray-200 p-4">
-                <div class="aspect-[4/3] bg-gray-200 rounded-xl mb-4"></div>
-                <div class="h-4 bg-gray-200 rounded mb-3"></div>
-                <div class="h-4 bg-gray-200 rounded w-2/3"></div>
-              </div>
-            </div>
-
-            <div v-else-if="error" class="bg-red-50 rounded-2xl p-8 text-center border border-red-200">
-              <p class="text-red-600">{{ error }}</p>
-              <button @click="fetchProducts" class="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
-                Thử lại
-              </button>
-            </div>
-
-            <div v-else-if="filteredProducts.length === 0" class="bg-gray-50 rounded-2xl p-8 sm:p-12 text-center border border-gray-200">
-              <p class="text-gray-600">Không tìm thấy sản phẩm phù hợp</p>
-            </div>
-
-            <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              <div
-                v-for="product in filteredProducts"
-                :key="product.id"
-                class="group bg-white rounded-2xl border border-gray-200 overflow-hidden hover:border-gray-400 transition-all duration-300 hover:shadow-lg flex flex-col"
-              >
-                <div class="aspect-[4/3] bg-gray-50 flex items-center justify-center overflow-hidden">
-                  <img
-                    v-if="product.thumbnail_url"
-                    :src="product.thumbnail_url"
-                    :alt="product.name"
-                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <div v-else class="text-5xl text-gray-300">🛍️</div>
-                </div>
-
-                <div class="p-4 sm:p-5 space-y-3 sm:space-y-4 flex flex-col flex-1">
-                  <div>
-                    <p class="text-xs uppercase tracking-widest text-gray-400 mb-1 sm:mb-2">
-                      {{ product.stock_quantity > 0 ? 'Còn hàng' : 'Hết hàng' }}
-                    </p>
-                    <h3 class="text-base sm:text-lg font-semibold text-gray-900 leading-tight line-clamp-2">
-                      {{ product.name }}
-                    </h3>
-                  </div>
-
-                  <p class="text-xs sm:text-sm text-gray-500 line-clamp-2">{{ product.description }}</p>
-
-                  <div class="flex items-center justify-between gap-3 sm:gap-4 pt-2 mt-auto">
-                    <div>
-                      <p class="text-xs text-gray-400 uppercase tracking-widest">Giá</p>
-                      <p class="text-base sm:text-lg font-semibold text-black">{{ formatPrice(product.price) }}</p>
-                    </div>
-
-                    <button
-                      @click="addToCart(product)"
-                      :disabled="product.stock_quantity === 0"
-                      :class="[
-                        'inline-flex items-center justify-center px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition',
-                        product.stock_quantity === 0
-                          ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                          : 'bg-black text-white hover:bg-gray-900'
-                      ]"
-                    >
-                      {{ product.stock_quantity === 0 ? 'Hết' : 'Thêm vào' }}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-        </main>
       </div>
     </div>
 
-    <!-- MOBILE CART DRAWER -->
-    <transition name="slide-up">
-      <div
-        v-if="showCart"
-        class="fixed inset-0 z-50 bg-black/50"
-        @click="showCart = false"
-      ></div>
-    </transition>
+    <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <div v-for="i in 6" :key="i" class="animate-pulse rounded-2xl border border-gray-200 dark:border-slate-700 p-4">
+        <div class="aspect-[4/3] bg-gray-200 dark:bg-slate-700 rounded-xl mb-4"></div>
+        <div class="h-4 bg-gray-200 dark:bg-slate-700 rounded mb-3"></div>
+        <div class="h-4 bg-gray-200 dark:bg-slate-700 rounded w-2/3"></div>
+      </div>
+    </div>
 
-    <transition name="slide-up">
+    <div v-else-if="error" class="bg-red-50 dark:bg-red-900/20 rounded-2xl p-8 text-center border border-red-200 dark:border-red-800">
+      <p class="text-red-600 dark:text-red-400">{{ error }}</p>
+      <button @click="fetchProducts" class="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+        Thử lại
+      </button>
+    </div>
+
+    <div v-else-if="filteredProducts.length === 0" class="bg-gray-50 dark:bg-slate-800 rounded-2xl p-8 sm:p-12 text-center border border-gray-200 dark:border-slate-700">
+      <p class="text-gray-600 dark:text-gray-300">Không tìm thấy sản phẩm phù hợp</p>
+    </div>
+
+    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
       <div
-        v-if="showCart"
-        class="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl p-6 max-h-[80vh] overflow-y-auto"
+        v-for="product in filteredProducts"
+        :key="product.id"
+        class="group bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 overflow-hidden hover:border-cyan-400 dark:hover:border-cyan-500 transition-all duration-300 hover:shadow-xl hover:shadow-cyan-500/10 flex flex-col"
       >
-        <div class="flex justify-between items-center mb-6">
-          <h2 class="text-lg font-bold text-gray-900">🛒 Giỏ hàng</h2>
-          <button @click="showCart = false" class="text-2xl text-gray-400">✕</button>
+        <div class="aspect-[4/3] bg-gray-50 dark:bg-slate-700/50 flex items-center justify-center overflow-hidden">
+          <img
+            v-if="product.thumbnail_url"
+            :src="product.thumbnail_url"
+            :alt="product.name"
+            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+          <div v-else class="text-5xl text-gray-400 dark:text-slate-600">🛍️</div>
         </div>
 
-        <!-- Mobile Cart Items -->
-        <div v-if="cartStore.items.length === 0" class="text-center py-8">
-          <p class="text-gray-600">Giỏ hàng trống</p>
-        </div>
-
-        <div v-else class="space-y-4">
-          <div
-            v-for="item in cartStore.items"
-            :key="item.product_id"
-            class="flex gap-4 pb-4 border-b border-gray-200"
-          >
-            <div class="flex-1">
-              <p class="font-medium text-gray-900">{{ item.name }}</p>
-              <p class="text-sm text-gray-600">{{ formatPrice(item.price) }}</p>
-            </div>
-            <div class="flex items-center gap-2">
-              <button
-                @click="updateQuantity(item.product_id, item.quantity - 1)"
-                class="w-6 h-6 flex items-center justify-center bg-gray-100 rounded text-sm"
-              >
-                −
-              </button>
-              <span class="w-6 text-center font-semibold">{{ item.quantity }}</span>
-              <button
-                @click="updateQuantity(item.product_id, item.quantity + 1)"
-                class="w-6 h-6 flex items-center justify-center bg-gray-100 rounded text-sm"
-              >
-                +
-              </button>
-            </div>
+        <div class="p-4 sm:p-5 space-y-3 sm:space-y-4 flex flex-col flex-1">
+          <div>
+            <p class="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 mb-1 sm:mb-2">
+              {{ product.stock_quantity > 0 ? 'Còn hàng' : 'Hết hàng' }}
+            </p>
+            <h3 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white leading-tight line-clamp-2">
+              {{ product.name }}
+            </h3>
           </div>
 
-          <div class="border-t border-gray-200 pt-4 space-y-4">
-            <div class="flex justify-between font-bold">
-              <span>Tổng:</span>
-              <span>{{ formatPrice(cartTotal) }}</span>
+          <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{{ product.description }}</p>
+
+          <div class="space-y-3 pt-2 mt-auto">
+            <div>
+              <p class="text-xs text-gray-500 dark:text-gray-500 uppercase tracking-widest">Giá</p>
+              <p class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate">{{ formatPrice(product.price) }}</p>
             </div>
-            <router-link
-              to="/checkout-new"
-              class="block w-full text-center bg-black text-white py-3 rounded-xl font-medium"
+            <button
+              @click="addToCart(product)"
+              :disabled="product.stock_quantity === 0"
+              class="w-full inline-flex items-center justify-center px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition"
+              :class="product.stock_quantity === 0
+                ? 'bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-gray-400 cursor-not-allowed'
+                : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100'"
             >
-              Thanh toán
-            </router-link>
+              {{ product.stock_quantity === 0 ? 'Hết' : 'Thêm vào' }}
+            </button>
           </div>
         </div>
       </div>
-    </transition>
-  </div>
+    </div>
+  </section>
 </template>
 
 <style scoped>
@@ -436,3 +277,5 @@ onMounted(() => {
   transform: translateY(100%);
 }
 </style>
+
+

@@ -107,38 +107,22 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-white font-system">
-    <!-- Header -->
-    <header class="sticky top-0 z-50 bg-white border-b border-gray-100">
-      <div class="max-w-7xl mx-auto px-8 py-6 flex items-center justify-between">
-        <h1 class="text-xl font-semibold text-gray-900">Catalog</h1>
-        <div class="flex items-center gap-6">
-          <button class="text-sm text-gray-600 hover:text-gray-900">About</button>
-          <button class="relative group cursor-pointer">
-            <span class="text-sm text-gray-600 group-hover:text-gray-900">Cart</span>
-            <span v-if="cartStore.cartCount > 0" class="absolute -top-2 -right-4 bg-black text-white text-xs font-medium px-2 py-1 rounded-full">
-              {{ cartStore.cartCount }}
-            </span>
-          </button>
-        </div>
-      </div>
-    </header>
-
-    <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-8 py-12">
-      <div class="grid grid-cols-1 lg:grid-cols-4 gap-12">
+  <div class="min-h-screen bg-[var(--bg-body)] font-body transition-colors duration-300">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
+        
         <!-- Sidebar Filters -->
         <div class="lg:col-span-1">
           <div class="space-y-8">
             <!-- Filter Title -->
             <div class="space-y-4">
-              <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-widest">Filters</h3>
-              <div class="w-8 h-px bg-gray-900"></div>
+              <h3 class="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-widest">Filters</h3>
+              <div class="w-8 h-px bg-gray-900 dark:bg-white"></div>
             </div>
 
             <!-- Category Filter -->
             <div class="space-y-3">
-              <h4 class="text-xs font-medium text-gray-700 uppercase tracking-wide">Category</h4>
+              <h4 class="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">Category</h4>
               <div class="space-y-2">
                 <label class="flex items-center gap-3 cursor-pointer group">
                   <input 
@@ -147,7 +131,7 @@ onMounted(() => {
                     type="radio"
                     class="w-4 h-4 border-gray-300 rounded"
                   >
-                  <span class="text-sm text-gray-600 group-hover:text-gray-900">All</span>
+                  <span class="text-sm text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white">All</span>
                 </label>
                 <label v-for="cat in categories" :key="cat.id" class="flex items-center gap-3 cursor-pointer group">
                   <input 
@@ -156,34 +140,34 @@ onMounted(() => {
                     type="radio"
                     class="w-4 h-4 border-gray-300 rounded"
                   >
-                  <span class="text-sm text-gray-600 group-hover:text-gray-900">{{ cat.name }}</span>
+                  <span class="text-sm text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white">{{ cat.name }}</span>
                 </label>
               </div>
             </div>
 
             <!-- Price Filter -->
             <div class="space-y-3">
-              <h4 class="text-xs font-medium text-gray-700 uppercase tracking-wide">Price Range</h4>
+              <h4 class="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">Price Range</h4>
               <div class="space-y-2">
                 <input 
                   v-model="filters.min_price" 
                   type="number" 
                   placeholder="Min" 
-                  class="w-full px-3 py-2 border border-gray-200 rounded text-sm placeholder-gray-400"
+                  class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded text-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
                 >
                 <input 
                   v-model="filters.max_price" 
                   type="number" 
                   placeholder="Max" 
-                  class="w-full px-3 py-2 border border-gray-200 rounded text-sm placeholder-gray-400"
+                  class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded text-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
                 >
               </div>
             </div>
 
             <!-- Sort -->
             <div class="space-y-3">
-              <h4 class="text-xs font-medium text-gray-700 uppercase tracking-wide">Sort By</h4>
-              <select v-model="filters.sort" class="w-full px-3 py-2 border border-gray-200 rounded text-sm">
+              <h4 class="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">Sort By</h4>
+              <select v-model="filters.sort" class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400">
                 <option value="created_at">Newest</option>
                 <option value="price_asc">Price: Low to High</option>
                 <option value="price_desc">Price: High to Low</option>
@@ -193,7 +177,7 @@ onMounted(() => {
             <!-- Reset Filters -->
             <button 
               @click="resetFilters"
-              class="w-full px-4 py-2 bg-gray-100 text-gray-900 text-sm font-medium rounded hover:bg-gray-200 transition"
+              class="w-full px-4 py-2 bg-gray-100 dark:bg-slate-800 text-gray-900 dark:text-white text-sm font-medium rounded hover:bg-gray-200 dark:hover:bg-slate-700 transition"
             >
               Reset Filters
             </button>
@@ -205,29 +189,29 @@ onMounted(() => {
           <!-- Results Info -->
           <div class="space-y-4">
             <div class="flex items-center justify-between">
-              <h2 class="text-sm font-semibold text-gray-900 uppercase tracking-widest">Products</h2>
-              <span class="text-xs text-gray-600">{{ totalProducts }} results</span>
+              <h2 class="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-widest">Products</h2>
+              <span class="text-xs text-gray-600 dark:text-gray-400">{{ totalProducts }} results</span>
             </div>
-            <div class="w-8 h-px bg-gray-900"></div>
+            <div class="w-8 h-px bg-gray-900 dark:bg-white"></div>
           </div>
 
           <!-- Loading State -->
           <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <div v-for="i in 6" :key="i" class="space-y-4">
-              <div class="h-48 bg-gray-100 rounded-lg animate-pulse"></div>
-              <div class="h-4 bg-gray-100 rounded w-2/3 animate-pulse"></div>
-              <div class="h-4 bg-gray-100 rounded w-1/2 animate-pulse"></div>
+              <div class="h-48 bg-gray-100 dark:bg-slate-700 rounded-lg animate-pulse"></div>
+              <div class="h-4 bg-gray-100 dark:bg-slate-700 rounded w-2/3 animate-pulse"></div>
+              <div class="h-4 bg-gray-100 dark:bg-slate-700 rounded w-1/2 animate-pulse"></div>
             </div>
           </div>
 
           <!-- Error State -->
-          <div v-else-if="error" class="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
-            <p class="text-gray-600">{{ error }}</p>
+          <div v-else-if="error" class="bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-8 text-center">
+            <p class="text-gray-600 dark:text-gray-300">{{ error }}</p>
           </div>
 
           <!-- Empty State -->
-          <div v-else-if="products.length === 0" class="bg-gray-50 border border-gray-200 rounded-lg p-12 text-center">
-            <p class="text-gray-600">No products found. Try adjusting your filters.</p>
+          <div v-else-if="products.length === 0" class="bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-12 text-center">
+            <p class="text-gray-600 dark:text-gray-300">No products found. Try adjusting your filters.</p>
           </div>
 
           <!-- Products Grid -->
@@ -235,9 +219,9 @@ onMounted(() => {
             <article
               v-for="product in products"
               :key="product.id"
-              class="group bg-white rounded-lg border border-gray-100 overflow-hidden hover:border-gray-300 transition-all duration-300"
+              class="group bg-white dark:bg-slate-800 rounded-lg border border-gray-100 dark:border-slate-700 overflow-hidden hover:border-gray-300 dark:hover:border-slate-600 transition-all duration-300"
             >
-               <div class="aspect-square bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-gray-100 transition duration-300 overflow-hidden">
+               <div class="aspect-square bg-gray-50 dark:bg-slate-700/50 flex items-center justify-center text-gray-500 dark:text-slate-500 group-hover:bg-gray-100 dark:group-hover:bg-slate-700 transition duration-300 overflow-hidden">
                  <img 
                    v-if="product.thumbnail_url" 
                    :src="product.thumbnail_url" 
@@ -248,13 +232,13 @@ onMounted(() => {
                </div>
               
               <div class="p-6 space-y-4">
-                <h4 class="text-sm font-medium text-gray-900 line-clamp-2">
+                <h4 class="text-sm font-medium text-gray-900 dark:text-white line-clamp-2">
                   {{ product.name }}
                 </h4>
                 
                 <div class="space-y-2">
-                  <p class="text-lg font-semibold text-gray-900">{{ formatPrice(product.price) }}</p>
-                  <p class="text-xs text-gray-500">
+                  <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ formatPrice(product.price) }}</p>
+                  <p class="text-xs text-gray-600 dark:text-gray-400">
                     Stock: {{ product.stock_quantity }}
                   </p>
                 </div>
@@ -262,7 +246,7 @@ onMounted(() => {
                 <button 
                   @click="addToCart(product)"
                   :disabled="product.stock_quantity === 0"
-                  class="w-full mt-4 bg-black text-white py-3 rounded-lg font-medium hover:bg-gray-900 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="w-full mt-4 bg-black dark:bg-white text-white dark:text-gray-900 py-3 rounded-lg font-medium hover:bg-gray-900 dark:hover:bg-gray-100 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {{ product.stock_quantity > 0 ? 'Add to Cart' : 'Out of Stock' }}
                 </button>
@@ -275,19 +259,19 @@ onMounted(() => {
             <button 
               @click="fetchProducts(currentPage - 1)"
               :disabled="currentPage === 1"
-              class="px-4 py-2 border border-gray-200 rounded text-sm font-medium hover:border-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="px-4 py-2 border border-gray-200 dark:border-slate-600 rounded text-sm font-medium hover:border-gray-900 dark:hover:border-white disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
             >
               Previous
             </button>
             
             <div class="flex items-center gap-2">
-              <span class="text-sm text-gray-600">Page {{ currentPage }} of {{ lastPage }}</span>
+              <span class="text-sm text-gray-600 dark:text-gray-400">Page {{ currentPage }} of {{ lastPage }}</span>
             </div>
             
             <button 
               @click="fetchProducts(currentPage + 1)"
               :disabled="currentPage === lastPage"
-              class="px-4 py-2 border border-gray-200 rounded text-sm font-medium hover:border-gray-900 disabled:opacity-50 disabled:cursor-not-allowed"
+              class="px-4 py-2 border border-gray-200 dark:border-slate-600 rounded text-sm font-medium hover:border-gray-900 dark:hover:border-white disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 dark:text-gray-300"
             >
               Next
             </button>
@@ -305,3 +289,4 @@ onMounted(() => {
   -moz-osx-font-smoothing: grayscale;
 }
 </style>
+

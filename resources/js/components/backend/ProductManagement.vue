@@ -340,7 +340,7 @@ onMounted(() => {
           <h3 class="text-lg font-bold text-gray-900">
             {{ isEditing ? '✏️ Sửa sản phẩm' : '➕ Thêm sản phẩm' }}
           </h3>
-          <button @click="showForm = false" class="text-2xl text-gray-400 hover:text-gray-600">✕</button>
+          <button @click="showForm = false" class="text-2xl text-gray-500 hover:text-gray-600">✕</button>
         </div>
 
         <div class="p-6 space-y-4">
@@ -394,7 +394,7 @@ onMounted(() => {
                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
                 placeholder="0"
               />
-              <p class="text-xs text-gray-500 mt-1">Nhập 0 để bỏ giảm giá. Tối đa 100%</p>
+              <p class="text-xs text-gray-600 mt-1">Nhập 0 để bỏ giảm giá. Tối đa 100%</p>
             </div>
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Danh mục *</label>
@@ -450,3 +450,4 @@ onMounted(() => {
     </div>
   </div>
 </template>
+

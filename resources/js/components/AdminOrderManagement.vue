@@ -339,7 +339,7 @@ defineExpose({
             </div>
             <button
               @click="closeDetails"
-              class="text-2xl text-gray-400 hover:text-gray-600"
+              class="text-2xl text-gray-500 hover:text-gray-600"
             >
               ×
             </button>
@@ -467,3 +467,4 @@ defineExpose({
   -moz-osx-font-smoothing: grayscale;
 }
 </style>
+

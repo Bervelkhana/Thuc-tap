@@ -229,7 +229,7 @@ onMounted(() => {
             <td class="px-4 py-3 text-sm font-semibold text-gray-900">#{{ order.id }}</td>
             <td class="px-4 py-3 text-sm text-gray-900">
               <div class="font-medium">{{ order.customer_name || 'N/A' }}</div>
-              <div class="text-xs text-gray-500">{{ order.customer_email || 'N/A' }}</div>
+              <div class="text-xs text-gray-600">{{ order.customer_email || 'N/A' }}</div>
             </td>
             <td class="px-4 py-3 text-sm text-gray-600">
               {{ formatDate(order.created_at) }}
@@ -270,7 +270,7 @@ onMounted(() => {
           <h3 class="text-lg font-bold text-gray-900">
             📦 Chi tiết đơn hàng #{{ selectedOrder.id }}
           </h3>
-          <button @click="showDetails = false" class="text-2xl text-gray-400 hover:text-gray-600">✕</button>
+          <button @click="showDetails = false" class="text-2xl text-gray-500 hover:text-gray-600">✕</button>
         </div>
 
         <div class="p-6 space-y-6">
@@ -361,3 +361,4 @@ onMounted(() => {
     </div>
   </div>
 </template>
+

@@ -14,7 +14,7 @@ const outOfStockMessage = ref('')
 
 const categoryOrder = [
   { id: 8, name: 'CPU', icon: '🖥️' },
-  { id: 9, name: 'Mainboard', icon: '🔌' },
+  { id: 9, name: 'MAIN', icon: '🔌' },
   { id: 10, name: 'RAM', icon: '💾' },
   { id: 11, name: 'SSD', icon: '💿' },
   { id: 12, name: 'VGA', icon: '🎮' },
@@ -101,12 +101,12 @@ onMounted(fetchConfig)
         <div class="grid lg:grid-cols-2 gap-0">
           <div class="aspect-[4/3] bg-gray-50 flex items-center justify-center overflow-hidden">
             <img v-if="config.thumbnail_url" :src="config.thumbnail_url" :alt="config.name" class="w-full h-full object-cover" />
-            <div v-else class="text-6xl text-gray-300">🧩</div>
+            <div v-else class="text-6xl text-gray-400">🧩</div>
           </div>
 
           <div class="p-6 lg:p-8 space-y-6">
             <div>
-              <p class="text-xs uppercase tracking-widest text-gray-400 mb-2">
+              <p class="text-xs uppercase tracking-widest text-gray-500 mb-2">
                 {{ config.is_featured ? 'Nổi bật' : 'Cấu hình xây sẵn' }}
               </p>
               <h1 class="text-3xl font-bold text-gray-900">{{ config.name }}</h1>
@@ -139,7 +139,7 @@ onMounted(fetchConfig)
               <button 
                 @click="addWholeBundleToCart" 
                 :disabled="!canAddToCart()"
-                :class="['flex-1 px-4 py-3 rounded-xl font-medium transition', canAddToCart() ? 'bg-black text-white hover:bg-gray-900' : 'bg-gray-300 text-gray-500 cursor-not-allowed']"
+                :class="['flex-1 px-4 py-3 rounded-xl font-medium transition', canAddToCart() ? 'bg-black text-white hover:bg-gray-900' : 'bg-gray-300 text-gray-600 cursor-not-allowed']"
               >
                 Thêm cả bộ vào giỏ
               </button>
@@ -159,7 +159,7 @@ onMounted(fetchConfig)
               <div class="flex items-center justify-between rounded-xl border" :class="item.stock_quantity < (item.pivot?.quantity || 1) * selectedQuantity ? 'border-red-200 bg-red-50' : 'border-gray-200'">
                 <div class="px-4 py-3">
                   <p class="font-medium text-gray-900">{{ cat.icon }} {{ item.name }}</p>
-                  <p class="text-sm text-gray-500">
+                  <p class="text-sm text-gray-600">
                     Số lượng cần: {{ (item.pivot?.quantity || 1) * selectedQuantity }} 
                     <span v-if="item.stock_quantity < (item.pivot?.quantity || 1) * selectedQuantity" class="text-red-600 font-semibold"> (Còn: {{ item.stock_quantity }})</span>
                   </p>
@@ -169,7 +169,7 @@ onMounted(fetchConfig)
             </template>
           </div>
         </div>
-        <div v-else class="text-sm text-gray-500 bg-gray-50 rounded-xl p-4">Chưa có sản phẩm cấu thành.</div>
+        <div v-else class="text-sm text-gray-600 bg-gray-50 rounded-xl p-4">Chưa có sản phẩm cấu thành.</div>
       </div>
     </div>
   </div>
@@ -180,3 +180,5 @@ onMounted(fetchConfig)
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
 }
 </style>
+
+

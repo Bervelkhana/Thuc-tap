@@ -119,7 +119,7 @@ async function submitOrder() {
       <div class="border rounded-lg p-6 bg-white">
         <h2 class="text-lg font-medium text-gray-800 mb-4">Đơn hàng của bạn</h2>
 
-        <p v-if="cart.items.length === 0" class="text-gray-500">Giỏ hàng đang trống.</p>
+        <p v-if="cart.items.length === 0" class="text-gray-600">Giỏ hàng đang trống.</p>
 
         <ul v-else class="divide-y">
           <li v-for="i in cart.items" :key="i.product_id" class="py-3 flex justify-between items-center">
@@ -144,3 +144,4 @@ async function submitOrder() {
     </div>
   </div>
 </template>
+

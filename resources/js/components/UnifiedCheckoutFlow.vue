@@ -123,7 +123,7 @@ function formatPrice(price) {
         </div>
         <span
           v-if="s < 4"
-          class="mx-2 text-gray-400"
+          class="mx-2 text-gray-500"
         >→</span>
       </div>
     </div>
@@ -144,7 +144,7 @@ function formatPrice(price) {
       <h2 class="text-lg font-semibold text-gray-900 mb-4">Giỏ hàng</h2>
       <div
         v-if="cart.items.length === 0"
-        class="text-gray-500 text-sm"
+        class="text-gray-600 text-sm"
       >
         Giỏ hàng đang trống.
       </div>
@@ -159,7 +159,7 @@ function formatPrice(price) {
         >
           <div>
             <p class="font-medium text-gray-900">{{ item.name }}</p>
-            <p class="text-xs text-gray-500">Số lượng: {{ item.quantity }}</p>
+            <p class="text-xs text-gray-600">Số lượng: {{ item.quantity }}</p>
           </div>
           <p class="font-semibold text-gray-900">{{ formatPrice(item.price * item.quantity) }}</p>
         </div>
@@ -322,3 +322,4 @@ function formatPrice(price) {
     </div>
   </div>
 </template>
+

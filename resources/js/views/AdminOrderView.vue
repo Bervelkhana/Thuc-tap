@@ -5,3 +5,4 @@ import AdminOrderManagement from '../components/AdminOrderManagement.vue'
 <template>
   <AdminOrderManagement />
 </template>
+

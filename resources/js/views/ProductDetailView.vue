@@ -36,7 +36,7 @@ function formatPrice(v) {
   <div class="min-h-screen bg-gray-50">
     <div class="max-w-6xl mx-auto px-4 py-6">
       <!-- ===== BREADCRUMB ===== -->
-      <nav class="text-sm text-gray-500 mb-6">
+      <nav class="text-sm text-gray-600 mb-6">
         <a href="#" class="hover:text-blue-600">Trang chủ</a>
         <span class="mx-2">/</span>
         <a href="#" class="hover:text-blue-600">{{ product.category }}</a>
@@ -48,7 +48,7 @@ function formatPrice(v) {
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
         <!-- Gallery ảnh -->
         <div>
-          <div class="aspect-square bg-white border rounded-xl flex items-center justify-center text-gray-400 mb-3">
+          <div class="aspect-square bg-white border rounded-xl flex items-center justify-center text-gray-500 mb-3">
             Ảnh chính #{{ activeImage + 1 }}
           </div>
           <div class="flex gap-3">
@@ -57,7 +57,7 @@ function formatPrice(v) {
               :key="i"
               @click="activeImage = i"
               :class="[
-                'w-16 h-16 bg-gray-100 border rounded-lg flex items-center justify-center text-xs text-gray-400',
+                'w-16 h-16 bg-gray-100 border rounded-lg flex items-center justify-center text-xs text-gray-500',
                 activeImage === i ? 'ring-2 ring-blue-500' : '',
               ]"
             >
@@ -69,7 +69,7 @@ function formatPrice(v) {
         <!-- Thông tin & Add to cart -->
         <div>
           <h1 class="text-2xl font-bold text-gray-800">{{ product.name }}</h1>
-          <p class="text-sm text-gray-500 mt-1">SKU: {{ product.sku }}</p>
+          <p class="text-sm text-gray-600 mt-1">SKU: {{ product.sku }}</p>
 
           <p class="text-3xl font-bold text-blue-700 my-4">{{ formatPrice(product.price) }}</p>
 
@@ -113,7 +113,7 @@ function formatPrice(v) {
               'px-6 py-3 text-sm font-medium transition',
               activeTab === tab.key
                 ? 'border-b-2 border-blue-600 text-blue-600'
-                : 'text-gray-500 hover:text-gray-700',
+                : 'text-gray-600 hover:text-gray-700',
             ]"
           >
             {{ tab.label }}
@@ -155,3 +155,4 @@ function formatPrice(v) {
     </div>
   </div>
 </template>
+
