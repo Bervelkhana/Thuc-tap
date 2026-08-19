@@ -70,10 +70,6 @@ function handleLogout() {
   router.push('/login-backend')
 }
 
-function goToBackend() {
-  router.push('/backend')
-}
-
 onMounted(() => {
   if (!adminStore.isAuthenticated) {
     router.push('/login-backend')
@@ -93,12 +89,6 @@ onMounted(() => {
           <p class="text-sm text-gray-600">Xin chào, {{ adminStore.admin?.name }}</p>
         </div>
         <div class="flex gap-3">
-          <button
-            @click="goToBackend"
-            class="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
-          >
-            Quản lý
-          </button>
           <button
             @click="handleLogout"
             class="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition"

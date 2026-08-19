@@ -113,10 +113,10 @@ onMounted(() => {
 
 <template>
   <div class="min-h-screen transition-colors duration-300" :class="isDark ? 'dark' : ''">
-    <div class="min-h-screen bg-[var(--bg-body)] text-[var(--text-primary)] font-body">
+    <div class="min-h-screen bg-[var(--bg-body)] text-[var(--text-primary)] font-body pt-16 lg:pt-16">
 
       <!-- ===== HEADER ===== -->
-      <header class="sticky top-0 z-50 backdrop-blur-xl bg-[var(--bg-glass)] border-b border-[var(--border-color)] shadow-sm transition-colors duration-300">
+      <header class="sticky top-0 z-[9999] h-16 lg:h-16 backdrop-blur-xl bg-white/95 dark:bg-slate-900/95 border-b border-gray-200 dark:border-slate-700 shadow-sm transition-colors duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div class="flex items-center justify-between h-16 lg:h-18">
 
@@ -225,7 +225,7 @@ onMounted(() => {
       <Transition name="fade">
         <div
           v-if="isMobileMenuOpen && showSidebar"
-          class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
+          class="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden"
           @click="toggleMobileMenu"
         />
       </Transition>
@@ -239,7 +239,7 @@ onMounted(() => {
             <aside
               v-if="showSidebar"
               :class="[
-                'fixed inset-y-0 left-0 z-50 w-72 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700 shadow-2xl transform transition-transform duration-300 lg:static lg:translate-x-0 lg:w-64 xl:w-72 lg:shrink-0 lg:block lg:shadow-none lg:border-none lg:bg-transparent lg:dark:bg-transparent',
+                'fixed inset-y-0 left-0 z-40 w-72 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700 shadow-2xl transform transition-transform duration-300 lg:static lg:translate-x-0 lg:w-64 xl:w-72 lg:shrink-0 lg:block lg:shadow-none lg:border-none lg:bg-transparent lg:dark:bg-transparent',
                 isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
               ]"
             >

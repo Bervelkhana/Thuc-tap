@@ -10,7 +10,11 @@ class MainboardVariantsSeed extends Seeder
 {
     public function run(): void
     {
-        $category = Category::firstOrCreate(['name' => 'Mainboard'], ['parent_id' => null]);
+        $category = Category::where('slug', 'main')->first();
+
+        if (!$category) {
+            $category = Category::firstOrCreate(['name' => 'MAIN'], ['slug' => 'main', 'parent_id' => null]);
+        }
 
         $mainboards = [
             ['socket' => 'LGA1700', 'chipset' => 'B760', 'platform' => 'intel', 'base' => 2200000],

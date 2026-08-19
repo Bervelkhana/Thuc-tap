@@ -46,18 +46,17 @@ async function submitOrder() {
   error.value = ''
 
   try {
-    const payload = {
-      user_id: 1,
-      customer_name: shippingAddress.value.name,
-      customer_email: shippingAddress.value.email,
-      customer_phone: shippingAddress.value.phone,
-      delivery_address: shippingAddress.value.address,
-      payment_method: paymentMethod.value,
-      items: cart.items.map((item) => ({
-        product_id: item.product_id,
-        quantity: item.quantity,
-      })),
-    }
+      const payload = {
+        customer_name: shippingAddress.value.name,
+        customer_email: shippingAddress.value.email,
+        customer_phone: shippingAddress.value.phone,
+        delivery_address: shippingAddress.value.address,
+        payment_method: paymentMethod.value,
+        items: cart.items.map((item) => ({
+          product_id: item.product_id,
+          quantity: item.quantity,
+        })),
+      }
 
     const response = await fetch('/api/orders', {
       method: 'POST',
@@ -142,12 +141,12 @@ function formatPrice(price) {
       class="bg-white rounded-lg shadow p-6"
     >
       <h2 class="text-lg font-semibold text-gray-900 mb-4">Giỏ hàng</h2>
-      <div
-        v-if="cart.items.length === 0"
-        class="text-gray-600 text-sm"
-      >
-        Giỏ hàng đang trống.
-      </div>
+        <div
+          v-if="cart.items.length === 0"
+          class="text-gray-700 text-sm"
+        >
+          Giỏ hàng đang trống.
+        </div>
       <div
         v-else
         class="space-y-3"
@@ -157,11 +156,35 @@ function formatPrice(price) {
           :key="item.product_id"
           class="flex items-center justify-between border-b border-gray-100 pb-3"
         >
-          <div>
-            <p class="font-medium text-gray-900">{{ item.name }}</p>
-            <p class="text-xs text-gray-600">Số lượng: {{ item.quantity }}</p>
+          <div class="flex-1 min-w-0">
+            <p class="font-medium text-gray-900 truncate">{{ item.name }}</p>
+            <p class="text-xs text-gray-600 mt-1">Đơn giá: {{ formatPrice(item.price) }}</p>
           </div>
-          <p class="font-semibold text-gray-900">{{ formatPrice(item.price * item.quantity) }}</p>
+          <div class="flex items-center gap-3 ml-4">
+            <div class="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+              <button
+                @click="cart.updateQuantity(item.product_id, item.quantity - 1)"
+                :disabled="item.quantity <= 1"
+                class="px-2.5 py-1 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                −
+              </button>
+              <span class="px-3 py-1 text-sm font-semibold text-gray-900 bg-white border-x border-gray-300">{{ item.quantity }}</span>
+              <button
+                @click="cart.updateQuantity(item.product_id, item.quantity + 1)"
+                class="px-2.5 py-1 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                +
+              </button>
+            </div>
+            <button
+              @click="cart.removeFromCart(item.product_id)"
+              class="px-2 py-1 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+            >
+              Xóa
+            </button>
+          </div>
+          <p class="font-semibold text-gray-900 ml-4 min-w-[100px] text-right">{{ formatPrice(item.price * item.quantity) }}</p>
         </div>
         <div class="flex items-center justify-between pt-2">
           <span class="font-semibold text-gray-900">Tạm tính</span>
@@ -193,7 +216,7 @@ function formatPrice(price) {
           <input
             v-model="shippingAddress.name"
             type="text"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-gray-900 text-sm"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-gray-900 text-sm bg-white text-gray-900 placeholder-gray-500"
           />
         </div>
         <div>
@@ -203,7 +226,7 @@ function formatPrice(price) {
           <input
             v-model="shippingAddress.email"
             type="email"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-gray-900 text-sm"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-gray-900 text-sm bg-white text-gray-900 placeholder-gray-500"
           />
         </div>
         <div>
@@ -213,7 +236,7 @@ function formatPrice(price) {
           <input
             v-model="shippingAddress.phone"
             type="tel"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-gray-900 text-sm"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-gray-900 text-sm bg-white text-gray-900 placeholder-gray-500"
           />
         </div>
         <div>
@@ -223,7 +246,7 @@ function formatPrice(price) {
           <textarea
             v-model="shippingAddress.address"
             rows="3"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-gray-900 text-sm"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-gray-900 text-sm bg-white text-gray-900 placeholder-gray-500"
           ></textarea>
         </div>
       </div>

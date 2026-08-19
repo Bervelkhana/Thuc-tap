@@ -233,7 +233,7 @@ onMounted(() => {
           </option>
         </select>
       </div>
-      <p class="text-sm text-gray-600">Tìm thấy {{ total }} sản phẩm</p>
+      <p class="text-sm text-gray-700">Tìm thấy {{ total }} sản phẩm</p>
     </div>
 
     <!-- PRODUCTS TABLE -->
@@ -350,7 +350,7 @@ onMounted(() => {
               <input
                 v-model="formData.name"
                 type="text"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black bg-white text-gray-900 placeholder-gray-500"
                 placeholder="VD: Intel Core i7"
               />
             </div>
@@ -359,7 +359,7 @@ onMounted(() => {
               <input
                 v-model="formData.sku"
                 type="text"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black bg-white text-gray-900 placeholder-gray-500"
                 placeholder="VD: CPU-INTEL-I7"
               />
             </div>
@@ -371,7 +371,7 @@ onMounted(() => {
               <input
                 v-model="formData.price"
                 type="number"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black bg-white text-gray-900 placeholder-gray-500"
                 placeholder="0"
               />
             </div>
@@ -380,7 +380,7 @@ onMounted(() => {
               <input
                 v-model="formData.stock_quantity"
                 type="number"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black bg-white text-gray-900 placeholder-gray-500"
                 placeholder="0"
               />
             </div>
@@ -391,7 +391,7 @@ onMounted(() => {
                 type="number"
                 min="0"
                 max="100"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black bg-white text-gray-900 placeholder-gray-500"
                 placeholder="0"
               />
               <p class="text-xs text-gray-600 mt-1">Nhập 0 để bỏ giảm giá. Tối đa 100%</p>
@@ -400,7 +400,7 @@ onMounted(() => {
               <label class="block text-sm font-medium text-gray-700 mb-1">Danh mục *</label>
               <select
                 v-model="formData.category_id"
-                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black bg-white text-gray-900"
               >
                 <option value="">-- Chọn danh mục --</option>
                 <option v-for="cat in categories" :key="cat.id" :value="cat.id">
@@ -415,7 +415,7 @@ onMounted(() => {
             <textarea
               v-model="formData.description"
               rows="3"
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black bg-white text-gray-900 placeholder-gray-500"
               placeholder="Mô tả chi tiết sản phẩm..."
             ></textarea>
           </div>
@@ -425,7 +425,7 @@ onMounted(() => {
             <input
               v-model="formData.thumbnail_url"
               type="text"
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-black bg-white text-gray-900 placeholder-gray-500"
               placeholder="https://..."
             />
           </div>

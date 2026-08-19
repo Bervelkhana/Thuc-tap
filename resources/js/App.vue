@@ -1,33 +1,43 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import ChatBoxAI from './components/ChatBoxAI.vue'
 import MainLayout from './layouts/MainLayout.vue'
+import AdminLayout from './layouts/AdminLayout.vue'
 
 const route = useRoute()
 
-const showChatBox = computed(() => route.path !== '/login-backend')
+const isAdminRoute = computed(() => {
+  return route.path.startsWith('/admin') || route.path.startsWith('/backend')
+})
+
+const showChatBox = computed(() => {
+  if (route.path === '/login-backend') return false
+  if (isAdminRoute.value) return false
+  return true
+})
 
 const hideSidebarRoutes = [
   '/',
   '/home',
   '/checkout-new',
   '/checkout',
-  '/login-backend',
-  '/admin',
-  '/admin/dashboard',
 ]
 
 const showSidebar = computed(() => {
-  if (route.path.startsWith('/admin')) return false
+  if (isAdminRoute.value) return false
   return !hideSidebarRoutes.includes(route.path)
 })
 </script>
 
 <template>
-  <MainLayout :show-sidebar="showSidebar">
+  <AdminLayout v-if="isAdminRoute">
+    <router-view />
+  </AdminLayout>
+  <MainLayout v-else-if="route.path !== '/login-backend'" :show-sidebar="!hideSidebar">
     <router-view />
   </MainLayout>
+  <router-view v-else />
 
   <ChatBoxAI v-if="showChatBox" />
 </template>

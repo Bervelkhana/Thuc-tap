@@ -39,15 +39,14 @@ async function submitOrder() {
 
   loading.value = true
   try {
-    // POST giỏ hàng + thông tin khách. Backend nhận items[{product_id, quantity}]
-    const { data } = await axios.post('/api/orders', {
-      user_id: 1, // demo: gắn với tài khoản demo (sẽ thay bằng auth ở bước phân quyền)
-      customer: { ...form },
-      items: cart.items.map((i) => ({
-        product_id: i.product_id,
-        quantity: i.quantity,
-      })),
-    })
+      // POST giỏ hàng + thông tin khách. Backend nhận items[{product_id, quantity}]
+      const { data } = await axios.post('/api/orders', {
+        customer: { ...form },
+        items: cart.items.map((i) => ({
+          product_id: i.product_id,
+          quantity: i.quantity,
+        })),
+      })
 
     // Thành công: lưu kết quả để hiển thị, rồi làm sạch giỏ hàng
     result.value = data.data
@@ -92,16 +91,16 @@ async function submitOrder() {
         <h2 class="text-lg font-medium text-gray-800 mb-4">Thông tin giao hàng</h2>
 
         <label class="block mb-3">
-          <span class="text-sm text-gray-600">Họ và tên</span>
-          <input v-model="form.name" type="text" class="mt-1 w-full border rounded px-3 py-2" />
+          <span class="text-sm text-gray-700 font-medium">Họ và tên</span>
+          <input v-model="form.name" type="text" class="mt-1 w-full border border-gray-300 rounded px-3 py-2 bg-white text-gray-900 placeholder-gray-500" />
         </label>
         <label class="block mb-3">
-          <span class="text-sm text-gray-600">Số điện thoại</span>
-          <input v-model="form.phone" type="text" class="mt-1 w-full border rounded px-3 py-2" />
+          <span class="text-sm text-gray-700 font-medium">Số điện thoại</span>
+          <input v-model="form.phone" type="text" class="mt-1 w-full border border-gray-300 rounded px-3 py-2 bg-white text-gray-900 placeholder-gray-500" />
         </label>
         <label class="block mb-3">
-          <span class="text-sm text-gray-600">Địa chỉ giao hàng</span>
-          <textarea v-model="form.address" rows="3" class="mt-1 w-full border rounded px-3 py-2"></textarea>
+          <span class="text-sm text-gray-700 font-medium">Địa chỉ giao hàng</span>
+          <textarea v-model="form.address" rows="3" class="mt-1 w-full border border-gray-300 rounded px-3 py-2 bg-white text-gray-900 placeholder-gray-500"></textarea>
         </label>
 
         <p v-if="error" class="text-red-500 text-sm mb-3">{{ error }}</p>
@@ -119,7 +118,7 @@ async function submitOrder() {
       <div class="border rounded-lg p-6 bg-white">
         <h2 class="text-lg font-medium text-gray-800 mb-4">Đơn hàng của bạn</h2>
 
-        <p v-if="cart.items.length === 0" class="text-gray-600">Giỏ hàng đang trống.</p>
+        <p v-if="cart.items.length === 0" class="text-gray-700">Giỏ hàng đang trống.</p>
 
         <ul v-else class="divide-y">
           <li v-for="i in cart.items" :key="i.product_id" class="py-3 flex justify-between items-center">
