@@ -34,16 +34,19 @@ Route::post('/orders', [OrderController::class, 'store']);
 
 // Admin Auth routes
 Route::post('/admin/login', [AdminAuthController::class, 'login']);
-Route::post('/admin/logout', [AdminAuthController::class, 'logout']);
+Route::post('/admin/logout', [AdminAuthController::class, 'logout'])->middleware('auth:sanctum');
+Route::get('/admin/me', [AdminAuthController::class, 'me'])->middleware('auth:sanctum', 'role:admin,super_admin');
 
 // Admin routes
-Route::get('/admin/stats', [AdminOrderController::class, 'stats']);
-Route::get('/admin/orders', [AdminOrderController::class, 'index']);
-Route::get('/admin/orders/{order}', [AdminOrderController::class, 'show']);
-Route::patch('/admin/orders/{order}', [AdminOrderController::class, 'updateStatus']);
-Route::patch('/admin/orders/{order}/status', [AdminOrderController::class, 'updateStatus']);
-Route::post('/admin/orders/{order}/cancel', [AdminOrderController::class, 'cancel']);
-Route::delete('/admin/orders/{order}', [AdminOrderController::class, 'destroy']);
+Route::middleware(['auth:sanctum', 'role:admin,super_admin'])->group(function () {
+    Route::get('/admin/stats', [AdminOrderController::class, 'stats']);
+    Route::get('/admin/orders', [AdminOrderController::class, 'index']);
+    Route::get('/admin/orders/{order}', [AdminOrderController::class, 'show']);
+    Route::patch('/admin/orders/{order}', [AdminOrderController::class, 'updateStatus']);
+    Route::patch('/admin/orders/{order}/status', [AdminOrderController::class, 'updateStatus']);
+    Route::post('/admin/orders/{order}/cancel', [AdminOrderController::class, 'cancel']);
+    Route::delete('/admin/orders/{order}', [AdminOrderController::class, 'destroy']);
+});
 
 // PC Builder routes
 Route::get('/pc-builder/components', [PCBuilderController::class, 'getComponentsByCategory']);

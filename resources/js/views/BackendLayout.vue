@@ -1,13 +1,17 @@
 <script setup>
 import { ref, defineAsyncComponent, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAdminStore } from '../stores/adminStore'
 import PrebuiltConfigManagement from '../components/backend/PrebuiltConfigManagement.vue'
 
 const ProductManagement = defineAsyncComponent(() => import('../components/backend/ProductManagement.vue'))
 const OrderManagement = defineAsyncComponent(() => import('../components/backend/OrderManagement.vue'))
 
 const route = useRoute()
+const adminStore = useAdminStore()
 const activeTab = ref('products')
+const isAuthenticated = ref(false)
+const authChecking = ref(true)
 
 const getActiveTabFromRoute = () => {
   const path = route.path
@@ -16,15 +20,60 @@ const getActiveTabFromRoute = () => {
   return 'products'
 }
 
+async function checkAuth() {
+  authChecking.value = true
+  try {
+    const headers = { 'Content-Type': 'application/json' }
+    if (adminStore.token) {
+      headers['Authorization'] = `Bearer ${adminStore.token}`
+    }
+
+    const response = await fetch('/api/admin/me', {
+      headers,
+      credentials: 'same-origin',
+    })
+
+    if (response.ok) {
+      const result = await response.json()
+      isAuthenticated.value = result.status === 'success'
+    } else {
+      isAuthenticated.value = false
+    }
+  } catch {
+    isAuthenticated.value = false
+  } finally {
+    authChecking.value = false
+  }
+}
+
 onMounted(() => {
+  checkAuth()
   activeTab.value = getActiveTabFromRoute()
 })
 </script>
 
 <template>
   <div class="min-h-screen bg-gray-100">
-    <!-- NAVBAR -->
-    <nav class="bg-white shadow-md sticky top-0 z-40">
+    <!-- Auth Check -->
+    <div v-if="authChecking" class="flex items-center justify-center min-h-screen">
+      <p class="text-gray-600">Đang kiểm tra quyền truy cập...</p>
+    </div>
+
+    <div v-else-if="!isAuthenticated" class="flex items-center justify-center min-h-screen">
+      <div class="text-center space-y-4">
+        <p class="text-gray-900 text-xl font-semibold">Bạn cần đăng nhập để truy cập trang này</p>
+        <a
+          href="/admin/login"
+          class="inline-block px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-900 transition"
+        >
+          Đăng nhập admin
+        </a>
+      </div>
+    </div>
+
+    <template v-else>
+      <!-- NAVBAR -->
+      <nav class="bg-white shadow-md sticky top-0 z-40">
       <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         <router-link to="/admin/dashboard" class="text-2xl font-bold text-gray-900 hover:text-gray-700">
           🏪 Backend
@@ -93,5 +142,6 @@ onMounted(() => {
         </div>
       </div>
     </div>
+    </template>
   </div>
 </template>

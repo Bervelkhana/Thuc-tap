@@ -14,9 +14,6 @@ const messages = ref([
   }
 ])
 
-const streamingAssistantId = ref(null)
-const streamingText = ref('')
-
 const hasMessages = computed(() => messages.value.length > 0)
 const showSuggestions = computed(() => !hasInteracted.value && messages.value.length <= 1)
 
@@ -89,126 +86,62 @@ async function sendMessage(text) {
   isLoading.value = true
 
   const assistantId = Date.now() + 1
-  streamingAssistantId.value = assistantId
-  streamingText.value = ''
-
   messages.value.push({
     id: assistantId,
     role: 'assistant',
-    text: ''
+    text: 'Đang suy nghĩ...'
   })
 
   try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 60000)
-
-    const response = await fetch('/api/chat/stream', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'text/event-stream',
-      },
-      credentials: 'same-origin',
-      body: JSON.stringify({
-        message: messageText,
-        history
-      }),
-      signal: controller.signal
-    })
-
-    clearTimeout(timeoutId)
-
-    if (!response.ok) {
-      throw new Error('HTTP ' + response.status)
-    }
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder('utf-8')
-    let buffer = ''
-
-    while (true) {
-      const { done, value } = await reader.read()
-
-      if (done) {
-        break
-      }
-
-      buffer += decoder.decode(value, { stream: true })
-
-      let newlineIndex
-      while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
-        const line = buffer.slice(0, newlineIndex)
-        buffer = buffer.slice(newlineIndex + 1)
-
-        const trimmed = line.trim()
-
-        if (trimmed === '' || trimmed.startsWith(':')) {
-          continue
-        }
-
-        if (trimmed.startsWith('data: ')) {
-          const data = trimmed.slice(6)
-
-          if (data === '[DONE]') {
-            continue
-          }
-
-          try {
-            const parsed = JSON.parse(data)
-
-            if (parsed.error) {
-              streamingText.value += parsed.error
-              updateStreamingMessage()
-              continue
-            }
-
-            const content = parsed.content
-
-            if (typeof content === 'string' && content !== '') {
-              streamingText.value += content
-              updateStreamingMessage()
-            }
-
-            if (parsed.done) {
-              continue
-            }
-          } catch {
-            // Incomplete JSON in buffer, wait for next chunk
-          }
-        }
-      }
-    }
-
-    if (streamingText.value === '') {
-      streamingText.value = 'Không nhận được phản hồi từ AI.'
-      updateStreamingMessage()
+    const result = await sendMessageWithRetry(messageText, history)
+    const assistantMessage = messages.value.find(m => m.id === assistantId)
+    if (assistantMessage) {
+      assistantMessage.text = result?.data?.reply || 'Không nhận được phản hồi từ AI.'
     }
   } catch (error) {
-    console.error('[Chat Stream Error]', error)
-
-    if (error instanceof TypeError && String(error.message).toLowerCase().includes('failed to fetch')) {
-      streamingText.value = 'Lỗi mạng hoặc không thể kết nối tới server. Vui lòng kiểm tra kết nối hoặc thử lại sau.'
-    } else if (error.name === 'AbortError') {
-      streamingText.value = 'Yêu cầu mất quá nhiều thời gian. Vui lòng thử lại sau.'
-    } else {
-      streamingText.value = error?.message || 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại.'
+    console.error('[Chat Error]', error)
+    const assistantMessage = messages.value.find(m => m.id === assistantId)
+    if (assistantMessage) {
+      if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+        assistantMessage.text = 'Lỗi mạng hoặc không thể kết nối tới server. Vui lòng kiểm tra kết nối hoặc thử lại sau.'
+      } else if (error.message.includes('timeout') || error.message.includes('TIMEOUT')) {
+        assistantMessage.text = 'Yêu cầu mất quá nhiều thời gian. Vui lòng thử lại sau.'
+      } else {
+        assistantMessage.text = 'Có lỗi xảy ra. Vui lòng thử lại sau.'
+      }
     }
-
-    updateStreamingMessage()
   } finally {
     isLoading.value = false
-    streamingAssistantId.value = null
-    streamingText.value = ''
   }
 }
 
-function updateStreamingMessage() {
-  const target = streamingAssistantId.value
-  if (!target) return
+async function sendMessageWithRetry(messageText, history, maxRetries = 2) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          message: messageText,
+          history: history,
+        }),
+      })
 
-  const idx = messages.value.findIndex(m => m.id === target)
-  if (idx !== -1) {
-    messages.value[idx].text = streamingText.value
+      if (!response.ok) {
+        throw new Error('HTTP ' + response.status)
+      }
+
+      return await response.json()
+    } catch (error) {
+      if (i === maxRetries - 1) {
+        throw error
+      }
+      await new Promise(resolve => setTimeout(resolve, 1000))
+    }
   }
 }
 

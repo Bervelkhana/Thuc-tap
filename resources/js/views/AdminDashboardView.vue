@@ -20,15 +20,28 @@ async function fetchDashboardData() {
   try {
     loading.value = true
     error.value = null
-    
-    const response = await fetch('/api/admin/stats')
-    
+
+    const headers = { 'Content-Type': 'application/json' }
+    if (adminStore.token) {
+      headers['Authorization'] = `Bearer ${adminStore.token}`
+    }
+
+    const response = await fetch('/api/admin/stats', {
+      headers,
+      credentials: 'same-origin',
+    })
+
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        adminStore.logout()
+        router.push('/login-backend')
+        return
+      }
       throw new Error(`Failed to fetch stats: ${response.statusText}`)
     }
-    
+
     const data = await response.json()
-    
+
     if (data.status === 'success') {
       stats.value = {
         total_orders: data.data.total_orders || 0,

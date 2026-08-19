@@ -7,12 +7,17 @@ use App\Models\Category;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Cache;
 
 class NvidiaNimChatService
 {
     protected string $apiKey;
     protected string $apiUrl;
     protected string $model;
+    protected int $timeout;
+    protected int $connectTimeout;
+    protected int $retryCount;
+    protected string $fallbackModel;
     protected ProductService $productService;
     protected IntentAnalyzerService $intentAnalyzer;
 
@@ -20,7 +25,11 @@ class NvidiaNimChatService
     {
         $this->apiKey = trim((string) config('services.nvidia_nim.api_key', ''));
         $this->apiUrl = rtrim((string) config('services.nvidia_nim.base_url', 'https://integrate.api.nvidia.com/v1'), '/');
-        $this->model = (string) config('services.nvidia_nim.model', 'meta/llama-3.1-70b-instruct');
+        $this->model = (string) config('services.nvidia_nim.model', 'meta/llama-3.1-8b-instruct');
+        $this->timeout = (int) config('services.nvidia_nim.timeout', 30);
+        $this->connectTimeout = (int) config('services.nvidia_nim.connect_timeout', 10);
+        $this->retryCount = (int) config('services.nvidia_nim.retry_count', 1);
+        $this->fallbackModel = (string) config('services.nvidia_nim.fallback_model', 'meta/llama-3.1-8b-instruct');
         $this->productService = $productService;
         $this->intentAnalyzer = $intentAnalyzer;
     }
@@ -42,35 +51,116 @@ class NvidiaNimChatService
             // Xử lý message hợp lệ cho API
             $messages = $this->buildMessages($this->getSystemPrompt(), $productContext, $userMessage, $conversationHistory);
 
-            // ========== GỌI API BẰNG LARAVEL HTTP FACADE ==========
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $this->apiKey,
-                'Content-Type'  => 'application/json; charset=utf-8',
-            ])
-            ->timeout(15)
-            ->connectTimeout(10)
-            ->post($this->apiUrl . '/chat/completions', [
-                'model'       => $this->model,
-                'messages'    => $messages,
-                'temperature' => 0.7,
-                'max_tokens'  => 800, // Tăng lên 800 vì 300 token thường bị cắt cụt câu tiếng Việt
-                'stream'      => false,
+            Log::info('NVIDIA NIM Chat Request', [
+                'model' => $this->model,
+                'message_length' => strlen($userMessage),
+                'history_count' => count($conversationHistory),
+                'timeout' => $this->timeout,
             ]);
+
+            // ========== GỌI API BẰNG LARAVEL HTTP FACADE ==========
+            $maxRetries = $this->retryCount;
+            $retryDelay = 500;
+            $response = null;
+
+            for ($i = 0; $i < $maxRetries; $i++) {
+                $response = Http::withHeaders([
+                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Content-Type'  => 'application/json; charset=utf-8',
+                ])
+                ->timeout($this->timeout)
+                ->connectTimeout($this->connectTimeout)
+                ->post($this->apiUrl . '/chat/completions', [
+                    'model'       => $this->model,
+                    'messages'    => $messages,
+                    'temperature' => 0.7,
+                    'max_tokens'  => 200,
+                    'stream'      => false,
+                ]);
+
+                Log::info('NVIDIA NIM Chat Response', [
+                    'attempt' => $i + 1,
+                    'status' => $response->status(),
+                    'time' => $response->handlerStats()['total_time'] ?? null,
+                    'body_preview' => substr($response->body(), 0, 200),
+                ]);
+
+                if (!$response->failed() || !$response->timedOut()) {
+                    break;
+                }
+
+                if ($i < $maxRetries - 1) {
+                    Log::info("NVIDIA NIM retry {$i}/{$maxRetries} after timeout");
+                    usleep($retryDelay * 1000);
+                }
+            }
+
+            // =========== FALLBACK MODEL NỐI TIMEOUT ===========
+            if ($response->failed() && $response->timedOut()) {
+                Log::warning('NVIDIA NIM timeout with primary model, trying fallback model', [
+                    'model' => $this->model,
+                    'fallback_model' => $this->fallbackModel,
+                ]);
+
+                $response = Http::withHeaders([
+                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'Content-Type'  => 'application/json; charset=utf-8',
+                ])
+                ->timeout(20)
+                ->connectTimeout($this->connectTimeout)
+                ->post($this->apiUrl . '/chat/completions', [
+                    'model'       => $this->fallbackModel,
+                    'messages'    => $messages,
+                    'temperature' => 0.7,
+                    'max_tokens'  => 200,
+                    'stream'      => false,
+                ]);
+
+                Log::info('NVIDIA NIM Fallback Model Response', [
+                    'status' => $response->status(),
+                    'time' => $response->handlerStats()['total_time'] ?? null,
+                    'body_preview' => substr($response->body(), 0, 200),
+                ]);
+
+                if ($response->failed()) {
+                    Log::error('NVIDIA NIM fallback model also failed', [
+                        'status' => $response->status(),
+                        'body' => substr($response->body(), 0, 500),
+                    ]);
+                }
+            }
 
             // =========== BẮT LỖI TỪ API (HTTP 4xx, 5xx) ===========
             if ($response->failed()) {
                 $status = $response->status();
-                $body = $response->body();
+
+                if ($response->timedOut()) {
+                    Log::error('NVIDIA NIM timeout', ['model' => $this->model]);
+                    return $this->getFallbackResponse($userMessage, $productContext, 'Server AI đang bận (timeout). Vui lòng thử lại sau.');
+                }
+
+                if ($response->connectionError()) {
+                    Log::error('NVIDIA NIM connection error', ['model' => $this->model]);
+                    return $this->getFallbackResponse($userMessage, $productContext, 'Không thể kết nối đến AI. Vui lòng thử lại sau.');
+                }
+
+                if ($status === 401) {
+                    Log::error('NVIDIA NIM invalid API key');
+                    return $this->getFallbackResponse($userMessage, $productContext, 'API key không hợp lệ.');
+                }
+
+                if ($status === 429) {
+                    Log::error('NVIDIA NIM rate limited');
+                    return $this->getFallbackResponse($userMessage, $productContext, 'Đang quá nhiều yêu cầu. Vui lòng thử lại sau.');
+                }
 
                 Log::error('NVIDIA NIM API Error', [
                     'status' => $status,
-                    'body_preview' => substr($body, 0, 500),
+                    'body_preview' => substr($response->body(), 0, 500),
                     'model' => $this->model,
                 ]);
 
                 $message = match ($status) {
-                    401 => 'API key không hợp lệ hoặc đã hết hạn.',
-                    429 => 'Đang quá nhiều yêu cầu. Vui lòng thử lại sau.',
                     500, 502, 503 => 'Server AI đang bận. Vui lòng thử lại sau.',
                     default => "Lỗi từ AI API: HTTP {$status}",
                 };
@@ -129,7 +219,6 @@ class NvidiaNimChatService
 
     protected function buildMessages(string $systemPrompt, string $productContext, string $userMessage, array $history): array
     {
-        // 1. Gộp System Prompt và Context thành MỘT message duy nhất để tránh lỗi 400
         $fullSystemContent = $systemPrompt;
         if (!empty($productContext)) {
             $fullSystemContent .= "\n\nDữ liệu sản phẩm hiện có:\n" . $productContext;
@@ -139,10 +228,8 @@ class NvidiaNimChatService
             ['role' => 'system', 'content' => $fullSystemContent]
         ];
 
-        // 2. Trim History
-        $trimmedHistory = count($history) > 4 ? array_slice($history, -4) : $history;
+        $trimmedHistory = count($history) > 2 ? array_slice($history, -2) : $history;
 
-        // 3. Chuẩn hóa History (Đảm bảo luồng user/assistant xen kẽ, không có role liên tiếp)
         $lastRole = 'system';
         foreach ($trimmedHistory as $msg) {
             if (isset($msg['role'], $msg['content']) && trim($msg['content']) !== '') {
@@ -156,9 +243,7 @@ class NvidiaNimChatService
             }
         }
 
-        // 4. Đẩy User Message hiện tại vào
         if ($lastRole === 'user') {
-            // Nếu message trước đó cũng là user (VD: lỗi UI gửi đúp), thì gộp nội dung lại thay vì ghi đè
             $messages[count($messages) - 1]['content'] .= "\n\n" . $userMessage;
         } else {
             $messages[] = [
@@ -215,16 +300,16 @@ class NvidiaNimChatService
             if ($primaryIntent['confidence'] > 0.6) {
                 switch ($primaryIntent['type']) {
                     case 'stock_check':
-                        $context = $this->productService->getProductsContext(5);
+                        $context = $this->productService->getProductsContext(3);
                         break;
                     case 'category_search':
                         if (!empty($primaryIntent['category'])) {
-                            $context = $this->productService->getProductsByCategoryContext($primaryIntent['category'], 3);
+                            $context = $this->productService->getProductsByCategoryContext($primaryIntent['category'], 2);
                         }
                         break;
                     case 'product_search':
                         if (!empty($extractedInfo['product_name'])) {
-                            $context = $this->productService->getProductsByNameContext($extractedInfo['product_name'], 3);
+                            $context = $this->productService->getProductsByNameContext($extractedInfo['product_name'], 2);
                         }
                         break;
                 }
@@ -241,27 +326,18 @@ class NvidiaNimChatService
 
     protected function getSystemPrompt(): string
     {
-        // Sử dụng Nowdoc (<<<'PROMPT') của PHP để code sạch hơn, không cần nối chuỗi (.)
         return <<<'PROMPT'
-        Bạn là chuyên gia tư vấn mua sắm của TechGear, chuyên về linh kiện và cấu hình PC.
+        Bạn là chuyên gia tư vấn TechGear. Trả lời ngắn gọn, thân thiện, 100% tiếng Việt.
 
-        [VAI TRÒ & THÁI ĐỘ]
-        - Chuyên nghiệp, thân thiện, tư vấn tận tâm. Xưng hô là "mình/TechGear" và gọi khách là "bạn".
-        - Luôn giữ thái độ hỗ trợ, trả lời ngắn gọn, súc tích, đi thẳng vào trọng tâm.
+        [NGUYÊN TẮC]
+        1. Chỉ tư vấn theo "Dữ liệu sản phẩm hiện có". Không bịa tên/giá/spec không có trong kho.
+        2. Hết hàng: nói "Hiện tại đang tạm hết mã này, bạn tham khảo sang mẫu khác nhé..." hoặc hỏi thêm nhu cầu.
+        3. Thiếu thông tin build PC: hỏi ngân sách tối đa và mục đích sử dụng (Gaming, Đồ họa, Code, Văn phòng).
+        4. Ngoài chủ đề công nghệ: từ chối khéo, đưa về linh kiện PC.
 
-        [NGUYÊN TẮC CỐT LÕI - TUYỆT ĐỐI TUÂN THỦ]
-        1. BÁM SÁT DỮ LIỆU KHO (RAG): Chỉ tư vấn dựa trên "Dữ liệu sản phẩm hiện có" được cung cấp. Tuyệt đối không tự bịa (hallucinate) tên sản phẩm, thông số hoặc giá cả không có trong kho.
-        2. XỬ LÝ HẾT HÀNG: Nếu khách hỏi sản phẩm không có trong dữ liệu kho, hãy trả lời: "Hiện tại TechGear đang tạm hết mã này, bạn tham khảo sang các mẫu sau nhé..." (nếu có gợi ý) hoặc hỏi thêm nhu cầu.
-        3. KHAI THÁC THÔNG TIN: Nếu khách yêu cầu build PC nhưng chưa rõ, BẮT BUỘC phải hỏi lại 2 yếu tố: Mức ngân sách tối đa và Mục đích sử dụng chính (Gaming, Đồ họa, Code, Văn phòng...).
-        4. GIỚI HẠN CHỦ ĐỀ: Từ chối lịch sự và khéo léo lùi về chủ đề công nghệ nếu khách hỏi các vấn đề ngoài lề (chính trị, tôn giáo, đời sống...).
-
-        [ĐỊNH DẠNG ĐẦU RA]
-        - Sử dụng Markdown để trình bày.
-        - In đậm **Tên sản phẩm** và **Giá tiền**.
-        - Sử dụng gạch đầu dòng (-) khi liệt kê linh kiện hoặc ưu điểm.
-        - Trình bày thoáng, cách dòng rõ ràng giữa các đoạn.
-
-        QUAN TRỌNG: Giao tiếp 100% bằng tiếng Việt tự nhiên.
+        [ĐỊNH DẠNG]
+        - Markdown cơ bản: **Tên sản phẩm**, **Giá**, gạch đầu dòng (-).
+        - Ngắn gọn, đi thẳng vào trọng tâm.
         PROMPT;
     }
 
@@ -289,13 +365,14 @@ class NvidiaNimChatService
                 'Authorization' => 'Bearer ' . $this->apiKey,
                 'Content-Type' => 'application/json; charset=utf-8',
             ])
-            ->timeout(60)
-            ->connectTimeout(10)
+            ->timeout($this->timeout)
+            ->connectTimeout($this->connectTimeout)
+            ->retry($this->retryCount, 1000)
             ->post($this->apiUrl . '/chat/completions', [
                 'model' => $this->model,
                 'messages' => $messages,
                 'temperature' => 0.7,
-                'max_tokens' => 800,
+                'max_tokens' => 200,
                 'stream' => true,
             ]);
 
@@ -307,6 +384,16 @@ class NvidiaNimChatService
                     'body_preview' => substr($body, 0, 500),
                     'model' => $this->model,
                 ]);
+
+                if ($response->timedOut()) {
+                    $onChunk(['error' => 'Server AI đang bận (timeout). Vui lòng thử lại sau.']);
+                    return;
+                }
+
+                if ($response->connectionError()) {
+                    $onChunk(['error' => 'Không thể kết nối đến AI. Vui lòng thử lại sau.']);
+                    return;
+                }
 
                 $message = match ($status) {
                     401 => 'API key không hợp lệ hoặc đã hết hạn.',

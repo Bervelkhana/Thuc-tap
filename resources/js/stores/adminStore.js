@@ -14,11 +14,26 @@ export const useAdminStore = defineStore('admin', () => {
     localStorage.setItem('admin_token', data.token)
   }
 
-  function logout() {
-    admin.value = null
-    token.value = null
-    localStorage.removeItem('admin')
-    localStorage.removeItem('admin_token')
+  async function logout() {
+    try {
+      if (token.value) {
+        await fetch('/api/admin/logout', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token.value}`,
+            'Content-Type': 'application/json',
+          },
+          credentials: 'same-origin',
+        })
+      }
+    } catch {
+      // ignore logout errors
+    } finally {
+      admin.value = null
+      token.value = null
+      localStorage.removeItem('admin')
+      localStorage.removeItem('admin_token')
+    }
   }
 
   return {

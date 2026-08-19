@@ -1,11 +1,16 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAdminStore } from '../stores/adminStore'
 
-const orders = ref([])
+const router = useRouter()
+const adminStore = useAdminStore()
 const selectedOrder = ref(null)
 const loading = ref(false)
 const error = ref(null)
 const filterStatus = ref('all')
+const isAuthenticated = ref(false)
+const authChecking = ref(true)
 
 const statuses = ['all', 'pending', 'confirmed', 'shipped', 'delivered', 'cancelled']
 const statusColors = {
@@ -23,17 +28,52 @@ const filteredOrders = computed(() => {
   return orders.value.filter(o => o.status === filterStatus.value)
 })
 
+async function checkAuth() {
+  authChecking.value = true
+  try {
+    const response = await fetch('/api/admin/me', {
+      credentials: 'same-origin',
+    })
+    if (response.ok) {
+      const result = await response.json()
+      isAuthenticated.value = result.status === 'success'
+    } else {
+      isAuthenticated.value = false
+    }
+  } catch {
+    isAuthenticated.value = false
+  } finally {
+    authChecking.value = false
+  }
+}
+
 async function fetchOrders() {
+  if (!isAuthenticated.value) return
   loading.value = true
   error.value = null
   try {
-    const url = filterStatus.value === 'all' 
+    const url = filterStatus.value === 'all'
       ? '/api/admin/orders'
       : `/api/admin/orders?status=${filterStatus.value}`
-    
-    const response = await fetch(url)
+
+    const headers = { 'Content-Type': 'application/json' }
+    if (adminStore.token) {
+      headers['Authorization'] = `Bearer ${adminStore.token}`
+    }
+
+    const response = await fetch(url, {
+      headers,
+      credentials: 'same-origin',
+    })
+
+    if (response.status === 401 || response.status === 403) {
+      adminStore.logout()
+      window.location.href = '/login-backend'
+      return
+    }
+
     const result = await response.json()
-    
+
     if (result.status === 'success') {
       orders.value = result.data
     }
@@ -47,12 +87,24 @@ async function fetchOrders() {
 
 async function updateOrderStatus(orderId, newStatus) {
   try {
+    const headers = { 'Content-Type': 'application/json' }
+    if (adminStore.token) {
+      headers['Authorization'] = `Bearer ${adminStore.token}`
+    }
+
     const response = await fetch(`/api/admin/orders/${orderId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus })
+      headers,
+      body: JSON.stringify({ status: newStatus }),
+      credentials: 'same-origin',
     })
-    
+
+    if (response.status === 401 || response.status === 403) {
+      adminStore.logout()
+      window.location.href = '/login-backend'
+      return
+    }
+
     const result = await response.json()
     if (result.status === 'success') {
       const orderIndex = orders.value.findIndex(o => o.id === orderId)
@@ -70,12 +122,25 @@ async function updateOrderStatus(orderId, newStatus) {
 
 async function cancelOrder(orderId) {
   if (!confirm('Bạn có chắc chắn muốn hủy đơn hàng này?')) return
-  
+
   try {
+    const headers = { 'Content-Type': 'application/json' }
+    if (adminStore.token) {
+      headers['Authorization'] = `Bearer ${adminStore.token}`
+    }
+
     const response = await fetch(`/api/admin/orders/${orderId}/cancel`, {
-      method: 'POST'
+      method: 'POST',
+      headers,
+      credentials: 'same-origin',
     })
-    
+
+    if (response.status === 401 || response.status === 403) {
+      adminStore.logout()
+      window.location.href = '/login-backend'
+      return
+    }
+
     const result = await response.json()
     if (result.status === 'success') {
       const orderIndex = orders.value.findIndex(o => o.id === orderId)
@@ -107,15 +172,35 @@ function closeDetails() {
   selectedOrder.value = null
 }
 
-onMounted(() => {
-  fetchOrders()
+onMounted(async () => {
+  await checkAuth()
+  if (isAuthenticated.value) {
+    fetchOrders()
+  }
 })
 </script>
 
 <template>
   <div class="min-h-screen bg-white font-system">
+    <!-- Auth Check -->
+    <div v-if="authChecking" class="flex items-center justify-center min-h-screen">
+      <p class="text-gray-600">Đang kiểm tra quyền truy cập...</p>
+    </div>
+
+    <div v-else-if="!isAuthenticated" class="flex items-center justify-center min-h-screen">
+      <div class="text-center space-y-4">
+        <p class="text-gray-900 text-xl font-semibold">Bạn cần đăng nhập để truy cập trang này</p>
+        <a
+          href="/admin/login"
+          class="inline-block px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-900 transition"
+        >
+          Đăng nhập admin
+        </a>
+      </div>
+    </div>
+
     <!-- Header -->
-    <header class="sticky top-0 z-40 bg-white border-b border-gray-100">
+    <header v-else class="sticky top-0 z-40 bg-white border-b border-gray-100">
       <div class="max-w-7xl mx-auto px-8 py-6">
         <h1 class="text-2xl font-semibold text-gray-900">Quản lý đơn hàng</h1>
       </div>

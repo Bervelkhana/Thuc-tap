@@ -26,6 +26,19 @@ Route::post('/ai-build/process', [AiBuilderController::class, 'process']);
 Route::get('/ai-build/result', [AiBuilderController::class, 'result'])->name('ai-build.result');
 Route::get('/browser-{slug}', [ProductBrowserController::class, 'showByCategory']);
 
+// Admin SPA entry points - Vue Router handles auth
+Route::get('/admin/dashboard', function () {
+    return view('welcome');
+})->name('admin.dashboard');
+
+Route::get('/admin/orders', function () {
+    return view('welcome');
+})->name('admin.orders');
+
+Route::get('/admin/products', function () {
+    return view('welcome');
+})->name('admin.products');
+
 // Catch-all: trả về SPA cho các route do Vue Router xử lý (vd /browse, /home, /checkout)
 // Phải đặt sau tất cả routes khác
 // Regex ^(?!api/) đảm bảo không match /api/* requests

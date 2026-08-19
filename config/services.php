@@ -38,7 +38,12 @@ return [
     'nvidia_nim' => [
         'api_key' => env('NVIDIA_NIM_API_KEY'),
         'base_url' => env('NVIDIA_NIM_BASE_URL', 'https://integrate.api.nvidia.com/v1'),
-        'model' => env('NVIDIA_NIM_MODEL', 'meta/llama-3.1-70b-instruct'),
+        'model' => env('NVIDIA_NIM_MODEL', 'meta/llama-3.1-8b-instruct'),
+        'timeout' => (int) env('NVIDIA_NIM_TIMEOUT', 30),
+        'connect_timeout' => (int) env('NVIDIA_NIM_CONNECT_TIMEOUT', 10),
+        'retry_count' => (int) env('NVIDIA_NIM_RETRY_COUNT', 1),
+        'fallback_model' => env('NVIDIA_NIM_FALLBACK_MODEL', 'meta/llama-3.1-8b-instruct'),
+        'demo_mode' => env('AI_TEST_MODE', false),
     ],
 
 ];
