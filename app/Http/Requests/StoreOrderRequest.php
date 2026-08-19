@@ -14,6 +14,7 @@ class StoreOrderRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'user_id' => 'nullable|integer|exists:users,id',
             'customer_name' => 'required|string|max:100',
             'customer_email' => 'required|email|max:100',
             'customer_phone' => 'required|regex:/^0\d{9,10}$/',

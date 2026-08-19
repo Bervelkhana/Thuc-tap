@@ -27,6 +27,9 @@ class UpdateProductRequest extends FormRequest
             'description' => 'nullable|string',
             'thumbnail_url' => 'nullable|string|url|max:2048',
             'datasheet_pdf_url' => 'nullable|string|url|max:2048',
+            'attributes' => 'nullable|array',
+            'attributes.*.id' => 'required_with:attributes|integer|exists:attributes,id',
+            'attributes.*.value' => 'required_with:attributes|nullable',
         ];
     }
 

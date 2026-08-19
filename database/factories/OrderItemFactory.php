@@ -16,10 +16,13 @@ class OrderItemFactory extends Factory
         return [
             'order_id' => Order::factory(),
             'product_id' => Product::factory(),
-            'product_name' => $this->faker->words(3, true),
-            'product_price' => $this->faker->numberBetween(500000, 30000000),
             'quantity' => $this->faker->numberBetween(1, 10),
-            'subtotal' => $this->faker->numberBetween(500000, 30000000),
+            'price' => $this->faker->numberBetween(500000, 30000000),
+            'snapshot' => [
+                'name' => $this->faker->words(3, true),
+                'price' => $this->faker->numberBetween(500000, 30000000),
+                'thumbnail_url' => $this->faker->imageUrl(200, 200),
+            ],
         ];
     }
 }

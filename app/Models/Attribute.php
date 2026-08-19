@@ -11,7 +11,13 @@ class Attribute extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name'];
+    const TYPE_STRING = 'string';
+    const TYPE_NUMBER = 'number';
+    const TYPE_BOOLEAN = 'boolean';
+    const TYPE_DATE = 'date';
+    const TYPE_JSON = 'json';
+
+    protected $fillable = ['name', 'code', 'type', 'is_required'];
 
     // Các danh mục sử dụng thuộc tính này
     public function categories(): BelongsToMany
@@ -29,7 +35,7 @@ class Attribute extends Model
     public function products(): BelongsToMany
     {
         return $this->belongsToMany(Product::class, 'product_attribute_values')
-            ->withPivot('value')
+            ->withPivot('value_string', 'value_number', 'value_boolean', 'value_date', 'value_json')
             ->withTimestamps();
     }
 }

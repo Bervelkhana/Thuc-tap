@@ -8,13 +8,14 @@ use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
 use App\Models\Category;
 use App\Models\Product;
+use App\Services\ProductAttributeService;
 use App\Services\ProductService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
-    public function __construct(private ProductService $productService)
+    public function __construct(private ProductService $productService, private ProductAttributeService $productAttributeService)
     {
     }
 
@@ -355,7 +356,18 @@ class ProductController extends Controller
     {
         try {
             $product = Product::findOrFail($id);
-            $product->update($request->validated());
+            $validated = $request->validated();
+            $product->update($validated);
+
+            if (isset($validated['attributes'])) {
+                foreach ($validated['attributes'] as $attr) {
+                    $this->productAttributeService->setAttributeValue(
+                        $product->id,
+                        $attr['id'],
+                        $attr['value']
+                    );
+                }
+            }
 
             return response()->json([
                 'status' => 'success',

@@ -5,47 +5,59 @@ namespace App\Services;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
-use DB;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Exception;
 
 class OrderService
 {
-    protected ProductService $productService;
+    protected ?ProductService $productService = null;
 
-    public function __construct(ProductService $productService)
+    public function __construct(ProductService $productService = null)
     {
         $this->productService = $productService;
     }
 
-    /**
-     * Tạo order từ validated data
-     */
     public function createOrder(array $validated): Order
     {
-        // Extract items từ validated data
         $items = $validated['items'] ?? [];
-        
+
+        if (empty($items)) {
+            throw new Exception('Danh sách sản phẩm không được để trống.');
+        }
+
         return DB::transaction(function () use ($validated, $items) {
-            // Validate tất cả items trước
+            $productIds = array_column($items, 'product_id');
+
+            $products = Product::whereIn('id', $productIds)
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
             foreach ($items as $item) {
-                if (!$this->productService->checkStock($item['product_id'], $item['quantity'])) {
-                    throw new Exception("Sản phẩm {$item['product_id']} không đủ tồn kho");
+                $productId = $item['product_id'];
+                $quantity = (int) ($item['quantity'] ?? 0);
+
+                if (! isset($products[$productId])) {
+                    throw new Exception("Sản phẩm #{$productId} không tồn tại.");
+                }
+
+                if ($quantity <= 0) {
+                    throw new Exception("Số lượng sản phẩm phải lớn hơn 0.");
+                }
+
+                if ($products[$productId]->stock_quantity < $quantity) {
+                    throw new Exception("Sản phẩm {$products[$productId]->name} không đủ hàng.");
                 }
             }
 
-            // Tính total amount từ items
-            $totalAmount = 0;
-            foreach ($items as $item) {
-                $product = Product::findOrFail($item['product_id']);
-                $totalAmount += $product->price * $item['quantity'];
-            }
+            $this->assertCpuMainboardCompatible($items, $products);
 
-            // Tạo order
             $order = Order::create([
                 'user_id' => $validated['user_id'] ?? null,
-                'total_amount' => $totalAmount,
+                'status' => Order::STATUS_PENDING,
+                'total_amount' => 0,
                 'payment_method' => $validated['payment_method'] ?? 'cod',
-                'status' => 'pending',
                 'customer_name' => $validated['customer_name'] ?? null,
                 'customer_email' => $validated['customer_email'] ?? null,
                 'customer_phone' => $validated['customer_phone'] ?? null,
@@ -53,81 +65,124 @@ class OrderService
                 'notes' => $validated['notes'] ?? null,
             ]);
 
-            // Tạo order items và giảm tồn kho
-            foreach ($items as $item) {
-                $product = Product::find($item['product_id']);
+            $total = 0;
 
-                OrderItem::create([
+            foreach ($items as $item) {
+                $product = $products[$item['product_id']];
+                $quantity = (int) $item['quantity'];
+
+                $product->stock_quantity -= $quantity;
+                $product->save();
+
+                $orderItem = OrderItem::create([
                     'order_id' => $order->id,
-                    'product_id' => $item['product_id'],
+                    'product_id' => $product->id,
+                    'quantity' => $quantity,
                     'price' => $product->price,
-                    'quantity' => $item['quantity'],
+                    'snapshot' => [
+                        'name' => $product->name,
+                        'price' => $product->price,
+                        'thumbnail_url' => $product->thumbnail_url,
+                    ],
                 ]);
 
-                // Giảm tồn kho
-                $this->productService->decreaseStock($item['product_id'], $item['quantity']);
+                $total += $product->price * $quantity;
             }
+
+            $order->total_amount = $total;
+            $order->snapshot = [
+                'items' => $order->items()->with('product')->get()->map(function (OrderItem $item) {
+                    return [
+                        'product_id' => $item->product_id,
+                        'name' => $item->snapshot['name'] ?? ($item->product->name ?? null),
+                        'price' => $item->snapshot['price'] ?? $item->price,
+                        'quantity' => $item->quantity,
+                        'subtotal' => ($item->snapshot['price'] ?? $item->price) * $item->quantity,
+                    ];
+                })->toArray(),
+                'total' => $total,
+                'created_at' => $order->created_at?->toIso8601String(),
+            ];
+            $order->save();
+
+            Log::info('Order created', ['order_id' => $order->id, 'total' => $total]);
 
             return $order;
         });
     }
 
-    /**
-     * Lấy chi tiết order
-     */
     public function getOrder(int $orderId): Order
     {
         return Order::with('items')->findOrFail($orderId);
     }
 
-    /**
-     * Lấy danh sách orders của user
-     */
     public function getUserOrders(int $userId, array $params = [])
     {
         $query = Order::where('user_id', $userId)
-                      ->with('items')
-                      ->orderBy('created_at', 'desc');
+            ->with('items')
+            ->orderBy('created_at', 'desc');
 
-        // Filter by status
-        if (!empty($params['status'])) {
+        if (! empty($params['status'])) {
             $query->where('status', $params['status']);
         }
 
-        $perPage = (int)($params['per_page'] ?? 10);
+        $perPage = (int) ($params['per_page'] ?? 10);
+
         return $query->paginate($perPage);
     }
 
-    /**
-     * Cập nhật status order
-     */
     public function updateOrderStatus(int $orderId, string $status): Order
     {
-        $order = Order::findOrFail($orderId);
-        $order->update(['status' => $status]);
+        $order = Order::lockForUpdate()->findOrFail($orderId);
+
+        if (! $order->transitionTo($status)) {
+            throw new Exception('Không thể chuyển trạng thái order này.');
+        }
+
         return $order;
     }
 
-    /**
-     * Hủy order và hoàn tồn kho
-     */
     public function cancelOrder(int $orderId): bool
     {
         return DB::transaction(function () use ($orderId) {
-            $order = Order::findOrFail($orderId);
+            $order = Order::lockForUpdate()->findOrFail($orderId);
 
-            if (!in_array($order->status, ['pending', 'confirmed'])) {
-                throw new Exception('Không thể hủy order ở trạng thái này');
+            if (! $order->canTransitionTo(Order::STATUS_CANCELLED)) {
+                throw new Exception('Không thể hủy order ở trạng thái này.');
             }
 
-            // Hoàn tồn kho
-            foreach ($order->items as $item) {
-                $this->productService->increaseStock($item->product_id, $item->quantity);
-            }
+            $order->transitionTo(Order::STATUS_CANCELLED);
 
-            // Cập nhật status
-            $order->update(['status' => 'cancelled']);
+            Log::info('Order cancelled', ['order_id' => $order->id]);
+
             return true;
         });
+    }
+
+    private function assertCpuMainboardCompatible(array $items, $products): void
+    {
+        $cpu = null;
+        $mainboard = null;
+
+        foreach ($items as $item) {
+            $product = $products[$item['product_id']] ?? null;
+            if (! $product) {
+                continue;
+            }
+
+            $categoryName = strtolower($product->category->name ?? '');
+
+            if (str_contains($categoryName, 'cpu') || str_contains($categoryName, 'vi xử lý')) {
+                $cpu = $product;
+            }
+
+            if (str_contains($categoryName, 'mainboard') || str_contains($categoryName, 'bo mạch chủ')) {
+                $mainboard = $product;
+            }
+        }
+
+        if ($cpu && $mainboard && $cpu->socket_type && $mainboard->socket_type && $cpu->socket_type !== $mainboard->socket_type) {
+            throw new Exception('CPU và Mainboard không tương thích.');
+        }
     }
 }

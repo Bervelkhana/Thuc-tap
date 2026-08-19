@@ -65,28 +65,21 @@ class AdminOrderController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $request->validate([
-            'status' => 'required|in:pending,confirmed,shipped,delivered,cancelled',
+            'status' => ['required', 'string', 'in:pending,processing,shipped,delivered,cancelled'],
         ]);
 
-        $order = Order::findOrFail($id);
-
-        // Kiểm tra luồng trạng thái hợp lệ - cho phép chuyển tới tất cả các trạng thái khác
-         $allStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
-         $validTransitions = [];
-         
-         foreach ($allStatuses as $status) {
-             $validTransitions[$status] = array_diff($allStatuses, [$status]);
-         }
+        $order = Order::lockForUpdate()->findOrFail($id);
 
         $newStatus = $request->input('status');
-        if (!in_array($newStatus, $validTransitions[$order->status] ?? [])) {
+
+        if (! $order->canTransitionTo($newStatus)) {
             return response()->json([
                 'status' => 'error',
                 'message' => "Không thể chuyển từ '{$order->status}' sang '{$newStatus}'",
             ], 422);
         }
 
-        $order->update(['status' => $newStatus]);
+        $order->transitionTo($newStatus);
 
         return response()->json([
             'status' => 'success',
