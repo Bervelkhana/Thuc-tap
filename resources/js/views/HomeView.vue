@@ -195,7 +195,7 @@ function closeModal() {
         </h2>
         
         <!-- Subheading -->
-        <p class="text-lg text-gray-600 dark:text-gray-400 leading-relaxed max-w-2xl mx-auto font-light">
+        <p class="text-lg text-gray-800 dark:text-gray-200 leading-relaxed max-w-2xl mx-auto font-light">
           Khám phá bộ sưu tập linh kiện máy tính premium với giá cạnh tranh. Tư vấn cấu hình thông minh bằng AI.
         </p>
         
@@ -212,7 +212,7 @@ function closeModal() {
         
         <!-- Secondary CTA -->
         <div class="pt-4">
-          <button class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white font-medium transition duration-200">
+          <button class="text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white font-medium transition duration-200">
             Xem AI PC Builder →
           </button>
         </div>
@@ -287,7 +287,7 @@ function closeModal() {
           :key="item.id"
           class="group bg-white dark:bg-slate-800 rounded-lg border border-gray-100 dark:border-slate-700 overflow-hidden hover:border-gray-300 dark:hover:border-slate-600 transition-all duration-300"
         >
-           <div class="aspect-square bg-gray-50 dark:bg-slate-700/50 flex items-center justify-center text-gray-500 dark:text-slate-500 group-hover:bg-gray-100 dark:group-hover:bg-slate-700 transition duration-300 relative overflow-hidden">
+           <div class="aspect-square bg-gray-50 dark:bg-slate-700/50 flex items-center justify-center text-gray-500 dark:text-slate-400 group-hover:bg-gray-100 dark:group-hover:bg-slate-700 transition duration-300 relative overflow-hidden">
              <img v-if="item.thumbnail_url" :src="item.thumbnail_url" :alt="item.name" class="w-full h-full object-contain">
              <span v-else>Product Image</span>
             <!-- Sale Badge -->
@@ -303,7 +303,7 @@ function closeModal() {
             
             <div class="space-y-2">
               <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ formatPrice(item.salePrice) }}</p>
-              <p v-if="item.discount > 0" class="text-xs text-gray-600 dark:text-gray-400 line-through">{{ formatPrice(item.price) }}</p>
+              <p v-if="item.discount > 0" class="text-xs text-gray-600 dark:text-gray-300 line-through">{{ formatPrice(item.price) }}</p>
             </div>
             
             <button class="w-full mt-6 bg-black dark:bg-white text-white dark:text-gray-900 py-3 rounded-lg font-medium hover:bg-gray-900 dark:hover:bg-gray-100 transition-colors duration-200">
@@ -351,7 +351,7 @@ function closeModal() {
           :key="item.id"
           class="group bg-white dark:bg-slate-800 rounded-lg border border-gray-100 dark:border-slate-700 overflow-hidden hover:border-gray-300 dark:hover:border-slate-600 transition-all duration-300"
         >
-           <div class="aspect-square bg-gray-50 dark:bg-slate-700/50 flex items-center justify-center text-gray-500 dark:text-slate-500 group-hover:bg-gray-100 dark:group-hover:bg-slate-700 transition duration-300 overflow-hidden">
+           <div class="aspect-square bg-gray-50 dark:bg-slate-700/50 flex items-center justify-center text-gray-500 dark:text-slate-400 group-hover:bg-gray-100 dark:group-hover:bg-slate-700 transition duration-300 overflow-hidden">
              <img v-if="item.thumbnail_url" :src="item.thumbnail_url" :alt="item.name" class="w-full h-full object-contain">
              <span v-else>Product Image</span>
            </div>
@@ -410,7 +410,7 @@ function closeModal() {
           :key="item.id"
           class="group bg-white dark:bg-slate-800 rounded-lg border border-gray-100 dark:border-slate-700 overflow-hidden hover:border-gray-300 dark:hover:border-slate-600 transition-all duration-300"
         >
-           <div class="aspect-square bg-gray-50 dark:bg-slate-700/50 flex items-center justify-center text-gray-500 dark:text-slate-500 group-hover:bg-gray-100 dark:group-hover:bg-slate-700 transition duration-300 overflow-hidden">
+           <div class="aspect-square bg-gray-50 dark:bg-slate-700/50 flex items-center justify-center text-gray-500 dark:text-slate-400 group-hover:bg-gray-100 dark:group-hover:bg-slate-700 transition duration-300 overflow-hidden">
              <img v-if="item.thumb" :src="item.thumb" :alt="item.name" class="w-full h-full object-contain">
              <span v-else>Product Image</span>
            </div>
@@ -428,7 +428,7 @@ function closeModal() {
             
             <div class="space-y-2">
               <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ formatPrice(item.price) }}</p>
-              <p class="text-xs text-gray-600 dark:text-gray-400 line-through">{{ formatPrice(item.oldPrice) }}</p>
+              <p class="text-xs text-gray-600 dark:text-gray-300 line-through">{{ formatPrice(item.oldPrice) }}</p>
             </div>
             
             <button class="w-full mt-6 bg-black dark:bg-white text-white dark:text-gray-900 py-3 rounded-lg font-medium hover:bg-gray-900 dark:hover:bg-gray-100 transition-colors duration-200">

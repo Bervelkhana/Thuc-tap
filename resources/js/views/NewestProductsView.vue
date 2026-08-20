@@ -173,7 +173,7 @@ onMounted(() => {
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h2 class="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-widest">Sản phẩm mới</h2>
-          <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">{{ filteredProducts.length }} sản phẩm</p>
+          <p class="text-sm text-gray-700 dark:text-gray-300 mt-2">{{ filteredProducts.length }} sản phẩm</p>
         </div>
       </div>
     </div>
@@ -210,12 +210,12 @@ onMounted(() => {
             :alt="product.name"
             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
-          <div v-else class="text-5xl text-gray-400 dark:text-slate-600">🛍️</div>
+          <div v-else class="text-5xl text-gray-400 dark:text-slate-500">🛍️</div>
         </div>
 
         <div class="p-4 sm:p-5 space-y-3 sm:space-y-4 flex flex-col flex-1">
           <div>
-            <p class="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 mb-1 sm:mb-2">
+            <p class="text-xs uppercase tracking-widest text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">
               {{ product.stock_quantity > 0 ? 'Còn hàng' : 'Hết hàng' }}
             </p>
             <h3 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white leading-tight line-clamp-2">
@@ -223,11 +223,11 @@ onMounted(() => {
             </h3>
           </div>
 
-          <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{{ product.description }}</p>
+          <p class="text-xs sm:text-sm text-gray-700 dark:text-gray-300 line-clamp-2">{{ product.description }}</p>
 
           <div class="space-y-3 pt-2 mt-auto">
             <div>
-              <p class="text-xs text-gray-500 dark:text-gray-500 uppercase tracking-widest">Giá</p>
+              <p class="text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest">Giá</p>
               <p class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate">{{ formatPrice(product.price) }}</p>
             </div>
             <button
@@ -235,7 +235,7 @@ onMounted(() => {
               :disabled="product.stock_quantity === 0"
               class="w-full inline-flex items-center justify-center px-3 sm:px-4 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition"
               :class="product.stock_quantity === 0
-                ? 'bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-gray-400 cursor-not-allowed'
+                ? 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 cursor-not-allowed'
                 : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100'"
             >
               {{ product.stock_quantity === 0 ? 'Hết' : 'Thêm vào' }}

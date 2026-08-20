@@ -13,7 +13,6 @@ const authChecking = ref(true)
 
 const statusColors = {
   pending: 'bg-yellow-100 text-yellow-800',
-  confirmed: 'bg-blue-100 text-blue-800',
   processing: 'bg-blue-100 text-blue-800',
   shipped: 'bg-purple-100 text-purple-800',
   delivered: 'bg-green-100 text-green-800',
@@ -32,6 +31,7 @@ async function checkAuth() {
   error.value = null
   try {
     const response = await fetch('/api/admin/me', {
+      headers: { Accept: 'application/json' },
       credentials: 'same-origin',
     })
     if (response.ok) {
@@ -56,7 +56,10 @@ async function fetchOrders() {
       ? '/api/admin/orders'
       : `/api/admin/orders?status=${filterStatus.value}`
 
-    const headers = { 'Content-Type': 'application/json' }
+    const headers = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    }
     if (adminStore.token) {
       headers['Authorization'] = `Bearer ${adminStore.token}`
     }
@@ -86,7 +89,10 @@ async function fetchOrders() {
 
 async function updateOrderStatus(orderId, newStatus) {
   try {
-    const headers = { 'Content-Type': 'application/json' }
+    const headers = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    }
     if (adminStore.token) {
       headers['Authorization'] = `Bearer ${adminStore.token}`
     }
@@ -123,7 +129,10 @@ async function cancelOrder(orderId) {
   if (!confirm('Bạn có chắc chắn muốn hủy đơn hàng này?')) return
 
   try {
-    const headers = { 'Content-Type': 'application/json' }
+    const headers = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    }
     if (adminStore.token) {
       headers['Authorization'] = `Bearer ${adminStore.token}`
     }
@@ -233,7 +242,7 @@ defineExpose({
       <div class="mb-8">
         <div class="flex gap-2 flex-wrap">
           <button
-            v-for="status in ['all', 'pending', 'confirmed', 'shipped', 'delivered', 'cancelled']"
+            v-for="status in ['all', 'pending', 'processing', 'shipped', 'delivered', 'cancelled']"
             :key="status"
             @click="filterStatus = status; fetchOrders()"
             :class="[
@@ -339,7 +348,7 @@ defineExpose({
             </div>
             <button
               @click="closeDetails"
-              class="text-2xl text-gray-500 hover:text-gray-600"
+              class="text-2xl text-gray-600 hover:text-gray-700"
             >
               ×
             </button>

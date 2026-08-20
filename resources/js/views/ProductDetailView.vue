@@ -48,7 +48,7 @@ function formatPrice(v) {
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
         <!-- Gallery ảnh -->
         <div>
-          <div class="aspect-square bg-white border rounded-xl flex items-center justify-center text-gray-500 mb-3">
+          <div class="aspect-square bg-white border rounded-xl flex items-center justify-center text-gray-600 mb-3">
             Ảnh chính #{{ activeImage + 1 }}
           </div>
           <div class="flex gap-3">
@@ -57,7 +57,7 @@ function formatPrice(v) {
               :key="i"
               @click="activeImage = i"
               :class="[
-                'w-16 h-16 bg-gray-100 border rounded-lg flex items-center justify-center text-xs text-gray-500',
+                'w-16 h-16 bg-gray-100 border rounded-lg flex items-center justify-center text-xs text-gray-600',
                 activeImage === i ? 'ring-2 ring-blue-500' : '',
               ]"
             >

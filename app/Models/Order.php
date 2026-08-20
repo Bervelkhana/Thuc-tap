@@ -70,9 +70,9 @@ class Order extends Model
     {
         $allowed = [
             self::STATUS_PENDING => [self::STATUS_PROCESSING, self::STATUS_CANCELLED],
-            self::STATUS_PROCESSING => [self::STATUS_SHIPPED, self::STATUS_CANCELLED],
-            self::STATUS_SHIPPED => [self::STATUS_DELIVERED],
-            self::STATUS_DELIVERED => [],
+            self::STATUS_PROCESSING => [self::STATUS_PENDING, self::STATUS_SHIPPED, self::STATUS_CANCELLED],
+            self::STATUS_SHIPPED => [self::STATUS_PROCESSING, self::STATUS_DELIVERED, self::STATUS_CANCELLED],
+            self::STATUS_DELIVERED => [self::STATUS_CANCELLED],
             self::STATUS_CANCELLED => [],
         ];
 

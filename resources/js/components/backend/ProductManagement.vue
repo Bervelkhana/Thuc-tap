@@ -383,7 +383,7 @@ onMounted(() => {
           <h3 class="text-lg font-bold text-gray-900">
             {{ isEditing ? '✏️ Sửa sản phẩm' : '➕ Thêm sản phẩm' }}
           </h3>
-          <button @click="showForm = false" class="text-2xl text-gray-500 hover:text-gray-600">✕</button>
+          <button @click="showForm = false" class="text-2xl text-gray-600 hover:text-gray-700">✕</button>
         </div>
 
         <div class="p-6 space-y-4">

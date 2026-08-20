@@ -17,6 +17,7 @@ import PrebuiltConfigDetailView from '../views/PrebuiltConfigDetailView.vue'
 import BackendLayout from '../views/BackendLayout.vue'
 import LoginBackendView from '../views/LoginBackendView.vue'
 import AdminDashboardView from '../views/AdminDashboardView.vue'
+import OrderSuccessView from '../views/OrderSuccessView.vue'
 import { useAdminStore } from '../stores/adminStore'
 
 const routes = [
@@ -33,6 +34,7 @@ const routes = [
   { path: '/category/:categoryId', name: 'category-products', component: CategoryProductsView },
   { path: '/product', name: 'product-detail', component: ProductDetailView },
   { path: '/checkout-new', name: 'checkout-view', component: CheckoutView },
+  { path: '/order-success/:id', name: 'order-success', component: OrderSuccessView },
   { path: '/browser-:slug', name: 'browser-category', component: ProductBrowserView, props: true },
   { path: '/browse', name: 'product-browser', component: NewestProductsView },
   { path: '/browse-prebuilt', name: 'browse-prebuilt', component: PrebuiltConfigsView },

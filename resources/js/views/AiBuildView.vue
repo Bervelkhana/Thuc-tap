@@ -97,11 +97,11 @@ onMounted(() => {
   <section class="max-w-5xl mx-auto px-4 py-10 sm:px-6 lg:px-8">
     <div class="overflow-hidden rounded-3xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
       <div class="border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50 px-6 py-6 sm:px-8">
-        <button @click="goBack" class="text-xs font-semibold uppercase tracking-[0.3em] text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">
+        <button @click="goBack" class="text-xs font-semibold uppercase tracking-[0.3em] text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
           ← TechGear
         </button>
         <h1 class="mt-3 text-3xl font-bold text-gray-900 dark:text-white">Xây dựng cấu hình bằng AI</h1>
-        <p class="mt-2 max-w-2xl text-sm text-gray-600 dark:text-gray-400">
+        <p class="mt-2 max-w-2xl text-sm text-gray-700 dark:text-gray-300">
           Nhập ngân sách và nhu cầu sử dụng, hệ thống sẽ gợi ý cấu hình phù hợp với linh kiện hiện có trong kho.
         </p>
       </div>
@@ -179,7 +179,7 @@ onMounted(() => {
             <div class="rounded-2xl border border-gray-200 dark:border-slate-700 bg-gradient-to-br from-white to-gray-50 dark:from-slate-800 dark:to-slate-700/50 p-5 shadow-sm">
               <div class="flex items-center justify-between gap-3">
                 <div>
-                  <div class="text-xs font-semibold uppercase tracking-[0.3em] text-gray-500 dark:text-gray-400">Kết quả AI Build</div>
+                  <div class="text-xs font-semibold uppercase tracking-[0.3em] text-gray-600 dark:text-gray-300">Kết quả AI Build</div>
                   <h3 class="mt-2 text-lg font-bold text-gray-900 dark:text-white">{{ result.summary || 'Cấu hình được đề xuất' }}</h3>
                 </div>
                 <div class="rounded-2xl bg-black dark:bg-white px-4 py-2 text-sm font-semibold text-white dark:text-gray-900">
@@ -192,28 +192,28 @@ onMounted(() => {
               <div v-if="result.configuration?.cpu" class="flex items-start gap-3 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
                 <div class="mt-0.5 text-lg">🔲</div>
                 <div class="min-w-0 flex-1">
-                  <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">CPU</div>
+                  <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-600 dark:text-gray-300">CPU</div>
                   <div class="mt-1 text-sm font-medium text-gray-900 dark:text-white">{{ result.configuration.cpu.name }}</div>
                 </div>
               </div>
               <div v-if="result.configuration?.mainboard" class="flex items-start gap-3 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
                 <div class="mt-0.5 text-lg">🗂️</div>
                 <div class="min-w-0 flex-1">
-                  <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Mainboard</div>
+                  <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-600 dark:text-gray-300">Mainboard</div>
                   <div class="mt-1 text-sm font-medium text-gray-900 dark:text-white">{{ result.configuration.mainboard.name }}</div>
                 </div>
               </div>
               <div v-if="result.configuration?.ram" class="flex items-start gap-3 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
                 <div class="mt-0.5 text-lg">🧠</div>
                 <div class="min-w-0 flex-1">
-                  <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">RAM</div>
+                  <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-600 dark:text-gray-300">RAM</div>
                   <div class="mt-1 text-sm font-medium text-gray-900 dark:text-white">{{ result.configuration.ram.name }}</div>
                 </div>
               </div>
               <div v-if="result.configuration?.vga" class="flex items-start gap-3 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
                 <div class="mt-0.5 text-lg">🎮</div>
                 <div class="min-w-0 flex-1">
-                  <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">VGA</div>
+                  <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-600 dark:text-gray-300">VGA</div>
                   <div class="mt-1 text-sm font-medium text-gray-900 dark:text-white">{{ result.configuration.vga.name }}</div>
                 </div>
               </div>
@@ -227,14 +227,14 @@ onMounted(() => {
               <div v-if="result.configuration?.psu" class="flex items-start gap-3 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
                 <div class="mt-0.5 text-lg">⚡</div>
                 <div class="min-w-0 flex-1">
-                  <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Nguồn (PSU)</div>
+                  <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-600 dark:text-gray-300">Nguồn (PSU)</div>
                   <div class="mt-1 text-sm font-medium text-gray-900 dark:text-white">{{ result.configuration.psu.name }}</div>
                 </div>
               </div>
               <div v-if="result.configuration?.case" class="flex items-start gap-3 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
                 <div class="mt-0.5 text-lg">📦</div>
                 <div class="min-w-0 flex-1">
-                  <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Vỏ Case</div>
+                  <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-600 dark:text-gray-300">Vỏ Case</div>
                   <div class="mt-1 text-sm font-medium text-gray-900 dark:text-white">{{ result.configuration.case.name }}</div>
                 </div>
               </div>
@@ -246,7 +246,7 @@ onMounted(() => {
                 <span>Tổng giá ước tính: {{ formatPrice(result.total_price || 0) }}</span>
               </div>
               <div v-if="result.notes?.length || result.ai_advice" class="mt-3 rounded-xl bg-gray-50 dark:bg-slate-700/50 p-4 text-sm text-gray-700 dark:text-gray-300">
-                <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">💡 Lời khuyên từ chuyên gia</div>
+                <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-600 dark:text-gray-300">💡 Lời khuyên từ chuyên gia</div>
                 <div class="mt-2 leading-relaxed" v-html="(result.notes?.length ? result.notes.join('<br>') : result.ai_advice)"></div>
               </div>
             </div>
@@ -255,11 +255,11 @@ onMounted(() => {
 
         <aside class="border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-700/50 p-6 sm:p-8 lg:border-t-0 lg:border-l">
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Kết quả AI build</h2>
-          <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          <p class="mt-2 text-sm text-gray-700 dark:text-gray-300">
             Kết quả sẽ trả về trực tiếp từ NVIDIA NIM. Nếu có lỗi, hệ thống sẽ hiển thị thông báo rõ ràng thay vì cấu hình dự phòng.
           </p>
 
-          <div v-if="!result && !errorMessage" class="mt-6 rounded-2xl border border-dashed border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 text-sm text-gray-600 dark:text-gray-400">
+          <div v-if="!result && !errorMessage" class="mt-6 rounded-2xl border border-dashed border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 p-6 text-sm text-gray-700 dark:text-gray-300">
             Chưa có dữ liệu đầu vào. Hãy chọn ngân sách và mục đích để tạo cấu hình.
           </div>
 

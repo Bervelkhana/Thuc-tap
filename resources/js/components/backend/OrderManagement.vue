@@ -1,5 +1,19 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useAdminStore } from '../../stores/adminStore'
+
+const adminStore = useAdminStore()
+
+function getAuthHeaders() {
+  const headers = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  }
+  if (adminStore.token) {
+    headers['Authorization'] = `Bearer ${adminStore.token}`
+  }
+  return headers
+}
 
 const orders = ref([])
 const products = ref([])
@@ -11,7 +25,7 @@ const showDetails = ref(false)
 
 const statusOptions = [
   { value: 'pending', label: '⏳ Đang chờ', color: 'yellow' },
-  { value: 'confirmed', label: '✅ Đã xác nhận', color: 'blue' },
+  { value: 'processing', label: '✅ Đã xác nhận', color: 'blue' },
   { value: 'shipped', label: '🚚 Đang giao', color: 'purple' },
   { value: 'delivered', label: '📦 Đã giao', color: 'green' },
   { value: 'cancelled', label: '❌ Đã huỷ', color: 'red' },
@@ -38,7 +52,9 @@ const filteredOrders = computed(() => {
 async function fetchOrders() {
   loading.value = true
   try {
-    const response = await fetch('/api/admin/orders?per_page=100')
+    const response = await fetch('/api/admin/orders?per_page=100', {
+      headers: getAuthHeaders(),
+    })
     const result = await response.json()
     if (result.status === 'success') {
       orders.value = result.data
@@ -78,7 +94,7 @@ async function updateStatus(orderId, newStatus) {
    try {
      const response = await fetch(`/api/admin/orders/${orderId}/status`, {
        method: 'PATCH',
-       headers: { 'Content-Type': 'application/json' },
+       headers: getAuthHeaders(),
        body: JSON.stringify({ status: newStatus })
      })
 
@@ -99,7 +115,7 @@ async function updateStatus(orderId, newStatus) {
    } finally {
      loading.value = false
    }
-}
+ }
 
 async function deleteOrder(orderId) {
    if (!confirm('Bạn chắc chắn muốn xóa đơn hàng này? Hành động này không thể hoàn tác.')) return
@@ -108,7 +124,7 @@ async function deleteOrder(orderId) {
    try {
      const response = await fetch(`/api/admin/orders/${orderId}`, {
        method: 'DELETE',
-       headers: { 'Content-Type': 'application/json' }
+       headers: getAuthHeaders()
      })
 
      const result = await response.json()
@@ -126,7 +142,7 @@ async function deleteOrder(orderId) {
    } finally {
      loading.value = false
    }
-}
+ }
 
 function formatDate(dateStr) {
   return new Date(dateStr).toLocaleString('vi-VN')
@@ -139,7 +155,7 @@ function formatPrice(price) {
 const stats = computed(() => ({
   total: orders.value.length,
   pending: orders.value.filter(o => o.status === 'pending').length,
-  confirmed: orders.value.filter(o => o.status === 'confirmed').length,
+  processing: orders.value.filter(o => o.status === 'processing').length,
   shipped: orders.value.filter(o => o.status === 'shipped').length,
   delivered: orders.value.filter(o => o.status === 'delivered').length,
   cancelled: orders.value.filter(o => o.status === 'cancelled').length,
@@ -168,7 +184,7 @@ onMounted(() => {
         <p class="text-xs text-yellow-600">Đang chờ</p>
       </div>
       <div class="bg-blue-50 rounded-lg p-4 border border-blue-200 text-center">
-        <p class="text-2xl font-bold text-blue-700">{{ stats.confirmed }}</p>
+        <p class="text-2xl font-bold text-blue-700">{{ stats.processing }}</p>
         <p class="text-xs text-blue-600">Đã xác nhận</p>
       </div>
       <div class="bg-purple-50 rounded-lg p-4 border border-purple-200 text-center">
@@ -270,7 +286,7 @@ onMounted(() => {
           <h3 class="text-lg font-bold text-gray-900">
             📦 Chi tiết đơn hàng #{{ selectedOrder.id }}
           </h3>
-          <button @click="showDetails = false" class="text-2xl text-gray-500 hover:text-gray-600">✕</button>
+          <button @click="showDetails = false" class="text-2xl text-gray-600 hover:text-gray-700">✕</button>
         </div>
 
         <div class="p-6 space-y-6">

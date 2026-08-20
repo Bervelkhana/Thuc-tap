@@ -269,7 +269,7 @@ onMounted(() => {
           <h2 class="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-widest">
             {{ activeCategoryName }}
           </h2>
-          <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">{{ showingRange }}</p>
+          <p class="text-sm text-gray-700 dark:text-gray-300 mt-2">{{ showingRange }}</p>
         </div>
       </div>
     </div>
@@ -278,7 +278,7 @@ onMounted(() => {
     <div v-if="recentDiscountProducts.length > 0 && !activeCategoryName" class="mb-8">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-bold text-red-600 dark:text-red-400">🔥 Vừa giảm giá</h2>
-        <span class="text-xs text-gray-600 dark:text-gray-400">3 sản phẩm vừa được chỉnh giá</span>
+        <span class="text-xs text-gray-600 dark:text-gray-300">3 sản phẩm vừa được chỉnh giá</span>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
         <div
@@ -296,22 +296,22 @@ onMounted(() => {
               :alt="product.name"
               class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
-            <div v-else class="text-5xl text-gray-400 dark:text-slate-600">🛍️</div>
+            <div v-else class="text-5xl text-gray-400 dark:text-slate-500">🛍️</div>
           </div>
           <div class="p-4 sm:p-5 space-y-3 sm:space-y-4 flex flex-col flex-1">
             <div>
-              <p class="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 mb-1 sm:mb-2">
+            <p class="text-xs uppercase tracking-widest text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">
                 {{ product.stock_quantity > 0 ? 'Còn hàng' : 'Hết hàng' }}
               </p>
               <h3 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white leading-tight line-clamp-2">
                 {{ product.name }}
               </h3>
             </div>
-            <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{{ product.description }}</p>
+            <p class="text-xs sm:text-sm text-gray-700 dark:text-gray-300 line-clamp-2">{{ product.description }}</p>
             <div class="flex items-center justify-between gap-3 sm:gap-4 pt-2 mt-auto">
               <div>
-                <p class="text-xs text-gray-500 dark:text-gray-500 uppercase tracking-widest">Giá</p>
-                <p class="text-xs text-gray-500 dark:text-gray-500 line-through">{{ formatPrice(product.price) }}</p>
+              <p class="text-xs text-gray-600 dark:text-gray-300 uppercase tracking-widest">Giá</p>
+                <p class="text-xs text-gray-600 dark:text-gray-300 line-through">{{ formatPrice(product.price) }}</p>
                 <p class="text-base sm:text-lg font-semibold text-red-600 dark:text-red-400">{{ formatPrice(product.sale_price) }}</p>
               </div>
               <button
@@ -320,7 +320,7 @@ onMounted(() => {
                 :class="[
                   'inline-flex items-center justify-center px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition',
                   product.stock_quantity === 0
-                    ? 'bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-gray-400 cursor-not-allowed'
+                    ? 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 cursor-not-allowed'
                     : 'bg-red-600 text-white hover:bg-red-700'
                 ]"
               >
@@ -367,14 +367,14 @@ onMounted(() => {
             :alt="product.name"
             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
-          <div v-else class="text-5xl text-gray-400 dark:text-slate-600">🛍️</div>
+           <div v-else class="text-5xl text-gray-400 dark:text-slate-500">🛍️</div>
           <span v-if="product.discount_percentage > 0" class="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-lg shadow-lg shadow-red-500/30">-{{ product.discount_percentage }}%</span>
         </div>
 
         <!-- Product Info -->
         <div class="p-4 sm:p-5 space-y-3 sm:space-y-4 flex flex-col flex-1">
           <div>
-            <p class="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-500 mb-1 sm:mb-2">
+            <p class="text-xs uppercase tracking-widest text-gray-600 dark:text-gray-400 mb-1 sm:mb-2">
               {{ product.stock_quantity > 0 ? 'Còn hàng' : 'Hết hàng' }}
             </p>
             <h3 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white leading-tight line-clamp-2">
@@ -382,13 +382,13 @@ onMounted(() => {
             </h3>
           </div>
 
-          <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-400 line-clamp-2">{{ product.description }}</p>
+          <p class="text-xs sm:text-sm text-gray-700 dark:text-gray-300 line-clamp-2">{{ product.description }}</p>
 
            <div class="flex items-center justify-between gap-3 sm:gap-4 pt-2 mt-auto">
              <div>
-               <p class="text-xs text-gray-500 dark:text-gray-500 uppercase tracking-widest">Giá</p>
+                 <p class="text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest">Giá</p>
                <div v-if="product.discount_percentage > 0">
-                 <p class="text-xs text-gray-500 dark:text-gray-500 line-through">{{ formatPrice(product.price) }}</p>
+                 <p class="text-xs text-gray-600 dark:text-gray-300 line-through">{{ formatPrice(product.price) }}</p>
                  <p class="text-base sm:text-lg font-semibold text-red-600 dark:text-red-400">{{ formatPrice(product.sale_price) }}</p>
                </div>
                <p v-else class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">{{ formatPrice(product.price) }}</p>
@@ -400,7 +400,7 @@ onMounted(() => {
               :class="[
                 'inline-flex items-center justify-center px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition',
                 product.stock_quantity === 0
-                  ? 'bg-gray-200 dark:bg-slate-700 text-gray-600 dark:text-gray-400 cursor-not-allowed'
+                   ? 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-300 cursor-not-allowed'
                   : 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-100'
               ]"
             >

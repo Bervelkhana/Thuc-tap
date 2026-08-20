@@ -74,7 +74,7 @@ onMounted(fetchConfigs)
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
       <div class="mb-6 sm:mb-8">
         <h2 class="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-widest">Cấu hình xây sẵn</h2>
-        <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">{{ totalCount }} cấu hình</p>
+        <p class="text-sm text-gray-600 dark:text-gray-300 mt-2">{{ totalCount }} cấu hình</p>
       </div>
 
       <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -105,7 +105,7 @@ onMounted(fetchConfigs)
 
           <div class="p-4 sm:p-5 space-y-3 sm:space-y-4 flex flex-col flex-1">
             <div>
-              <p class="text-xs uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1 sm:mb-2">
+              <p class="text-xs uppercase tracking-widest text-gray-600 dark:text-gray-300 mb-1 sm:mb-2">
                 {{ config.is_featured ? 'Nổi bật' : 'Xây sẵn' }}
               </p>
               <h3 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white leading-tight line-clamp-2">
@@ -113,11 +113,11 @@ onMounted(fetchConfigs)
               </h3>
             </div>
 
-            <p class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{{ config.description }}</p>
+             <p class="text-xs sm:text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{{ config.description }}</p>
 
             <div class="flex items-center justify-between gap-3 sm:gap-4 pt-2 mt-auto">
               <div>
-                <p class="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-widest">Giá</p>
+                 <p class="text-xs text-gray-600 dark:text-gray-300 uppercase tracking-widest">Giá</p>
                 <p class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate">{{ formatPrice(config.price) }}</p>
               </div>
 

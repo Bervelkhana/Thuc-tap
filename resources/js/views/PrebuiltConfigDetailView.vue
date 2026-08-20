@@ -101,12 +101,12 @@ onMounted(fetchConfig)
         <div class="grid lg:grid-cols-2 gap-0">
           <div class="aspect-[4/3] bg-gray-50 flex items-center justify-center overflow-hidden">
             <img v-if="config.thumbnail_url" :src="config.thumbnail_url" :alt="config.name" class="w-full h-full object-cover" />
-            <div v-else class="text-6xl text-gray-400">🧩</div>
+             <div v-else class="text-6xl text-gray-500">🧩</div>
           </div>
 
           <div class="p-6 lg:p-8 space-y-6">
             <div>
-              <p class="text-xs uppercase tracking-widest text-gray-500 mb-2">
+              <p class="text-xs uppercase tracking-widest text-gray-600 mb-2">
                 {{ config.is_featured ? 'Nổi bật' : 'Cấu hình xây sẵn' }}
               </p>
               <h1 class="text-3xl font-bold text-gray-900">{{ config.name }}</h1>

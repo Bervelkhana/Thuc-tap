@@ -462,7 +462,7 @@ onMounted(() => {
         <!-- Modal header -->
         <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
           <h3 class="text-lg font-bold text-gray-900">{{ isEditing ? '✏️ Sửa cấu hình' : '➕ Thêm cấu hình xây sẵn' }}</h3>
-          <button @click="showForm = false" class="text-2xl text-gray-500 hover:text-gray-600">✕</button>
+          <button @click="showForm = false" class="text-2xl text-gray-600 hover:text-gray-700">✕</button>
         </div>
 
         <div class="p-6 space-y-5">
@@ -550,7 +550,7 @@ onMounted(() => {
                     />
 
                     <!-- Loading indicator inside input area -->
-                    <div v-if="searchState[comp.key].loading" class="mt-1 text-xs text-gray-500 pl-1">
+                    <div v-if="searchState[comp.key].loading" class="mt-1 text-xs text-gray-600 pl-1">
                       Đang tìm kiếm...
                     </div>
 
@@ -567,7 +567,7 @@ onMounted(() => {
                           <p class="text-sm text-gray-900 truncate">{{ product.name }}</p>
                           <p class="text-xs text-gray-600">{{ formatPrice(product.price) }}</p>
                         </div>
-                        <span class="shrink-0 text-xs text-gray-500">Chọn</span>
+                        <span class="shrink-0 text-xs text-gray-600">Chọn</span>
                       </div>
                     </div>
 
@@ -578,8 +578,8 @@ onMounted(() => {
                     </div>
 
                     <!-- Hint when input is focused but no query yet -->
-                    <div v-if="searchState[comp.key].open && !searchState[comp.key].loading && !searchState[comp.key].query"
-                         class="mt-1 text-xs text-gray-500 px-1">
+                     <div v-if="searchState[comp.key].open && !searchState[comp.key].loading && !searchState[comp.key].query"
+                          class="mt-1 text-xs text-gray-600 px-1">
                       Gõ từ khóa để tìm kiếm sản phẩm {{ comp.label }}
                     </div>
                   </div>

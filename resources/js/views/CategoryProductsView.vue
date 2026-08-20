@@ -190,7 +190,7 @@ onMounted(() => {
           class="group bg-white rounded-lg border border-gray-200 overflow-hidden hover:border-gray-400 transition-all duration-300 hover:shadow-lg"
         >
           <!-- Product Image Placeholder -->
-          <div class="h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-500 group-hover:from-gray-200 group-hover:to-gray-300 transition">
+           <div class="h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center text-gray-600 group-hover:from-gray-200 group-hover:to-gray-300 transition">
             <span v-if="product.thumbnail_url">
               <img :src="product.thumbnail_url" :alt="product.name" class="w-full h-full object-cover" />
             </span>

@@ -147,7 +147,7 @@ class AdminOrderController extends Controller
                 'total_orders' => Order::count(),
                 'total_products' => Product::count(),
                 'pending' => Order::where('status', 'pending')->count(),
-                'confirmed' => Order::where('status', 'confirmed')->count(),
+                'processing' => Order::where('status', 'processing')->count(),
                 'shipped' => Order::where('status', 'shipped')->count(),
                 'delivered' => Order::where('status', 'delivered')->count(),
                 'cancelled' => Order::where('status', 'cancelled')->count(),

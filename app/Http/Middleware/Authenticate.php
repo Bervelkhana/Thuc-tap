@@ -14,8 +14,18 @@ class Authenticate extends Middleware
      */
     protected function redirectTo($request)
     {
-        if (! $request->expectsJson()) {
+        if ($request->is('api/*')) {
+            return null;
+        }
+
+        if ($request->expectsJson()) {
+            return null;
+        }
+
+        try {
             return route('login');
+        } catch (\Symfony\Component\Routing\Exception\RouteNotFoundException $e) {
+            return '/login';
         }
     }
 }

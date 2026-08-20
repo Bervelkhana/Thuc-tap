@@ -122,7 +122,7 @@ function formatPrice(price) {
         </div>
         <span
           v-if="s < 4"
-          class="mx-2 text-gray-500"
+           class="mx-2 text-gray-600"
         >→</span>
       </div>
     </div>

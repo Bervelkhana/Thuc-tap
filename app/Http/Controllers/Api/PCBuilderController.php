@@ -171,7 +171,7 @@ class PCBuilderController extends Controller
                     'socket_type' => $cpu->socket_type,
                     'memory_type' => $cpu->memory_type,
                 ],
-                'MAINs' => $mainboards,
+                'mainboards' => $mainboards,
                 'total' => $mainboards->count(),
             ], 'Compatible mainboards retrieved');
         } catch (\Exception $e) {

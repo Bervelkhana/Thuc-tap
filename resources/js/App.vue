@@ -22,11 +22,13 @@ const hideSidebarRoutes = [
   '/home',
   '/checkout-new',
   '/checkout',
+  '/order-success'
 ]
 
 const showSidebar = computed(() => {
   if (isAdminRoute.value) return false
-  return !hideSidebarRoutes.includes(route.path)
+  const path = route.path
+  return !hideSidebarRoutes.some((hiddenPath) => path === hiddenPath || path.startsWith(hiddenPath + '/'))
 })
 </script>
 

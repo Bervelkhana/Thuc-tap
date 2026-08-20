@@ -168,7 +168,7 @@ function handleSuggestionClick(question) {
               <p class="text-xs text-gray-600">Hỗ trợ mua sắm và tư vấn cấu hình</p>
             </div>
           </div>
-          <button class="text-gray-500 transition hover:text-gray-700" @click="toggleChat">✕</button>
+          <button class="text-gray-600 transition hover:text-gray-700" @click="toggleChat">✕</button>
         </div>
 
         <!-- Messages + Suggestions -->
@@ -181,7 +181,7 @@ function handleSuggestionClick(question) {
 
             <div class="space-y-3">
               <div v-for="group in suggestionGroups" :key="group.title" class="space-y-1.5">
-                <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{{ group.title }}</p>
+                <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-600">{{ group.title }}</p>
                 <div class="flex flex-wrap gap-1.5">
                   <button
                     v-for="question in group.items"
@@ -229,7 +229,7 @@ function handleSuggestionClick(question) {
               type="text"
               placeholder="Nhập câu hỏi..."
               :disabled="isLoading"
-              class="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-black disabled:bg-gray-50 disabled:text-gray-500"
+              class="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-black disabled:bg-gray-50 disabled:text-gray-600"
             />
             <button
               @click="sendMessage()"

@@ -112,8 +112,8 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen transition-colors duration-300" :class="isDark ? 'dark' : ''">
-    <div class="min-h-screen bg-[var(--bg-body)] text-[var(--text-primary)] font-body pt-16 lg:pt-16">
+  <div class="min-h-screen flex flex-col transition-colors duration-300" :class="isDark ? 'dark' : ''">
+    <div class="flex-1 flex flex-col bg-[var(--bg-body)] text-[var(--text-primary)] font-body pt-16 lg:pt-16">
 
       <!-- ===== HEADER ===== -->
       <header class="sticky top-0 z-[9999] h-16 lg:h-16 backdrop-blur-xl bg-white/95 dark:bg-slate-900/95 border-b border-gray-200 dark:border-slate-700 shadow-sm transition-colors duration-300">
@@ -159,7 +159,7 @@ onMounted(() => {
                   @keyup.enter="handleSearch"
                   type="text"
                   placeholder="Tìm kiếm linh kiện, CPU, VGA..."
-                  class="block w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition-all duration-200"
+                   class="block w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition-all duration-200"
                 />
               </div>
             </div>
@@ -214,7 +214,7 @@ onMounted(() => {
                 @keyup.enter="handleSearch"
                 type="text"
                 placeholder="Tìm kiếm sản phẩm..."
-                class="block w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition-all duration-200"
+                 class="block w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition-all duration-200"
               />
             </div>
           </div>
@@ -259,7 +259,7 @@ onMounted(() => {
               <div class="p-4 space-y-6 overflow-y-auto h-full">
                 <!-- Quick Links -->
                 <div class="space-y-1">
-                  <p class="px-3 text-[11px] font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-widest mb-2">Menu</p>
+                   <p class="px-3 text-[11px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2">Menu</p>
                   <nav class="space-y-1">
                     <router-link
                       to="/browse"
@@ -294,7 +294,7 @@ onMounted(() => {
 
                 <!-- Categories -->
                 <div class="space-y-1">
-                  <p class="px-3 text-[11px] font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-widest mb-2">Danh mục</p>
+                   <p class="px-3 text-[11px] font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-widest mb-2">Danh mục</p>
                   <nav class="space-y-1">
                     <router-link
                       v-for="category in orderedCategories"
@@ -329,6 +329,53 @@ onMounted(() => {
       </div>
 
     </div>
+
+    <!-- ===== FOOTER ===== -->
+    <footer class="bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700 mt-auto">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <!-- Brand -->
+          <div>
+            <div class="flex items-center gap-2 mb-3">
+              <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                TG
+              </div>
+              <span class="text-lg font-display font-bold text-gray-900 dark:text-white">TechGear</span>
+            </div>
+            <p class="text-sm text-gray-700 dark:text-gray-300">
+              Cửa hàng linh kiện máy tính uy tín, chất lượng.
+            </p>
+          </div>
+
+          <!-- Contact -->
+          <div>
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-3">Liên hệ</h3>
+            <div class="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+              <p>Hưng Gia</p>
+              <p>Email: <a href="mailto:hunggianguyenZX@gmail.com" class="text-cyan-600 dark:text-cyan-400 hover:underline">hunggianguyenZX@gmail.com</a></p>
+              <p>ĐT: <a href="tel:0906347095" class="text-cyan-600 dark:text-cyan-400 hover:underline">0906347095</a></p>
+            </div>
+          </div>
+
+          <!-- Quick Links -->
+          <div>
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider mb-3">Liên kết nhanh</h3>
+            <div class="space-y-2">
+              <router-link to="/browse" class="block text-sm text-gray-700 dark:text-gray-300 hover:text-cyan-600 dark:hover:text-cyan-400">Sản phẩm</router-link>
+              <router-link to="/pc-builder" class="block text-sm text-gray-700 dark:text-gray-300 hover:text-cyan-600 dark:hover:text-cyan-400">Xây dựng cấu hình</router-link>
+              <router-link to="/browse-prebuilt" class="block text-sm text-gray-700 dark:text-gray-300 hover:text-cyan-600 dark:hover:text-cyan-400">Cấu hình xây sẵn</router-link>
+            </div>
+          </div>
+        </div>
+
+        <!-- Copyright -->
+        <div class="border-t border-gray-200 dark:border-slate-700 mt-8 pt-6 text-center">
+          <p class="text-xs text-gray-600 dark:text-gray-300">
+            © {{ new Date().getFullYear() }} TechGear. All rights reserved. Designed by Hưng Gia.
+          </p>
+        </div>
+      </div>
+    </footer>
   </div>
 </template>
 

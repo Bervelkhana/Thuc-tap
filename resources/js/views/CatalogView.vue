@@ -131,7 +131,7 @@ onMounted(() => {
                     type="radio"
                     class="w-4 h-4 border-gray-300 rounded"
                   >
-                  <span class="text-sm text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white">All</span>
+                  <span class="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">All</span>
                 </label>
                 <label v-for="cat in categories" :key="cat.id" class="flex items-center gap-3 cursor-pointer group">
                   <input 
@@ -140,7 +140,7 @@ onMounted(() => {
                     type="radio"
                     class="w-4 h-4 border-gray-300 rounded"
                   >
-                  <span class="text-sm text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white">{{ cat.name }}</span>
+                  <span class="text-sm text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-white">{{ cat.name }}</span>
                 </label>
               </div>
             </div>
@@ -149,18 +149,18 @@ onMounted(() => {
             <div class="space-y-3">
               <h4 class="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">Price Range</h4>
               <div class="space-y-2">
-                <input 
-                  v-model="filters.min_price" 
-                  type="number" 
-                  placeholder="Min" 
-                  class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded text-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                >
-                <input 
-                  v-model="filters.max_price" 
-                  type="number" 
-                  placeholder="Max" 
-                  class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded text-sm placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
-                >
+                 <input 
+                   v-model="filters.min_price" 
+                   type="number" 
+                   placeholder="Min" 
+                   class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded text-sm placeholder-gray-500 dark:placeholder-gray-400 bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                 >
+                 <input 
+                   v-model="filters.max_price" 
+                   type="number" 
+                   placeholder="Max" 
+                   class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded text-sm placeholder-gray-500 dark:placeholder-gray-400 bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                 >
               </div>
             </div>
 
@@ -190,7 +190,7 @@ onMounted(() => {
           <div class="space-y-4">
             <div class="flex items-center justify-between">
               <h2 class="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-widest">Products</h2>
-              <span class="text-xs text-gray-600 dark:text-gray-400">{{ totalProducts }} results</span>
+               <span class="text-xs text-gray-600 dark:text-gray-300">{{ totalProducts }} results</span>
             </div>
             <div class="w-8 h-px bg-gray-900 dark:bg-white"></div>
           </div>
@@ -221,7 +221,7 @@ onMounted(() => {
               :key="product.id"
               class="group bg-white dark:bg-slate-800 rounded-lg border border-gray-100 dark:border-slate-700 overflow-hidden hover:border-gray-300 dark:hover:border-slate-600 transition-all duration-300"
             >
-               <div class="aspect-square bg-gray-50 dark:bg-slate-700/50 flex items-center justify-center text-gray-500 dark:text-slate-500 group-hover:bg-gray-100 dark:group-hover:bg-slate-700 transition duration-300 overflow-hidden">
+                <div class="aspect-square bg-gray-50 dark:bg-slate-700/50 flex items-center justify-center text-gray-500 dark:text-slate-400 group-hover:bg-gray-100 dark:group-hover:bg-slate-700 transition duration-300 overflow-hidden">
                  <img 
                    v-if="product.thumbnail_url" 
                    :src="product.thumbnail_url" 
@@ -238,7 +238,7 @@ onMounted(() => {
                 
                 <div class="space-y-2">
                   <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ formatPrice(product.price) }}</p>
-                  <p class="text-xs text-gray-600 dark:text-gray-400">
+                  <p class="text-xs text-gray-600 dark:text-gray-300">
                     Stock: {{ product.stock_quantity }}
                   </p>
                 </div>
@@ -265,7 +265,7 @@ onMounted(() => {
             </button>
             
             <div class="flex items-center gap-2">
-              <span class="text-sm text-gray-600 dark:text-gray-400">Page {{ currentPage }} of {{ lastPage }}</span>
+                  <span class="text-sm text-gray-600 dark:text-gray-300">Page {{ currentPage }} of {{ lastPage }}</span>
             </div>
             
             <button 
