@@ -106,7 +106,7 @@ function extractSocket(name) {
 async function validateCompatibility() {
   const selected = selectedParts.value
 
-  const hasComponents = Object.values(selected).filter(Boolean).length >= 2
+  const hasComponents = Object.values(selected).filter(Boolean).length >= 1
   if (!hasComponents) {
     compatibilityResult.value = null
     serverTotal.value = 0
@@ -140,7 +140,7 @@ async function validateCompatibility() {
     const result = data.data || {}
 
     compatibilityResult.value = result.compatibility || null
-    serverTotal.value = (int) (result.server_total || 0)
+    serverTotal.value = Number(result.server_total || 0)
     totalMismatch.value = result.is_total_valid === false
   } catch (error) {
     console.error('Validation error:', error)
@@ -161,6 +161,7 @@ watch(
     selectedParts.value.ssd,
     selectedParts.value.psu,
     selectedParts.value.case,
+    selectedParts.value.cooler,
   ],
   () => {
     validateCompatibility()
@@ -572,7 +573,7 @@ function handleGlobalKeyDown(event) {
                   @focus="showResults[component.key] = searchResults[component.key].length > 0"
                   type="text"
                   :placeholder="`Nhập tên ${component.label}...`"
-                   class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 dark:focus:border-cyan-400 transition text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:border-blue-500 dark:focus:border-cyan-400 transition text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder-gray-600 dark:placeholder-gray-300"
                 />
                 <button
                   @click="searchProducts(component.key)"

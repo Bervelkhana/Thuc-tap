@@ -210,7 +210,7 @@ onMounted(() => {
             :alt="product.name"
             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
-          <div v-else class="text-5xl text-gray-400 dark:text-slate-500">🛍️</div>
+           <div v-else class="text-5xl text-gray-600 dark:text-slate-400">🛍️</div>
         </div>
 
         <div class="p-4 sm:p-5 space-y-3 sm:space-y-4 flex flex-col flex-1">

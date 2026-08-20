@@ -153,13 +153,13 @@ onMounted(() => {
                    v-model="filters.min_price" 
                    type="number" 
                    placeholder="Min" 
-                   class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded text-sm placeholder-gray-500 dark:placeholder-gray-400 bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                    class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded text-sm placeholder-gray-600 dark:placeholder-gray-300 bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
                  >
                  <input 
                    v-model="filters.max_price" 
                    type="number" 
                    placeholder="Max" 
-                   class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded text-sm placeholder-gray-500 dark:placeholder-gray-400 bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
+                    class="w-full px-3 py-2 border border-gray-200 dark:border-slate-600 rounded text-sm placeholder-gray-600 dark:placeholder-gray-300 bg-white dark:bg-slate-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-400"
                  >
               </div>
             </div>
@@ -221,7 +221,7 @@ onMounted(() => {
               :key="product.id"
               class="group bg-white dark:bg-slate-800 rounded-lg border border-gray-100 dark:border-slate-700 overflow-hidden hover:border-gray-300 dark:hover:border-slate-600 transition-all duration-300"
             >
-                <div class="aspect-square bg-gray-50 dark:bg-slate-700/50 flex items-center justify-center text-gray-500 dark:text-slate-400 group-hover:bg-gray-100 dark:group-hover:bg-slate-700 transition duration-300 overflow-hidden">
+                 <div class="aspect-square bg-gray-50 dark:bg-slate-700/50 flex items-center justify-center text-gray-700 dark:text-slate-300 group-hover:bg-gray-100 dark:group-hover:bg-slate-700 transition duration-300 overflow-hidden">
                  <img 
                    v-if="product.thumbnail_url" 
                    :src="product.thumbnail_url" 

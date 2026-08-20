@@ -101,7 +101,7 @@ onMounted(fetchConfig)
         <div class="grid lg:grid-cols-2 gap-0">
           <div class="aspect-[4/3] bg-gray-50 flex items-center justify-center overflow-hidden">
             <img v-if="config.thumbnail_url" :src="config.thumbnail_url" :alt="config.name" class="w-full h-full object-cover" />
-             <div v-else class="text-6xl text-gray-500">🧩</div>
+              <div v-else class="text-6xl text-gray-700">🧩</div>
           </div>
 
           <div class="p-6 lg:p-8 space-y-6">

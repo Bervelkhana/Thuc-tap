@@ -100,7 +100,7 @@ onMounted(fetchConfigs)
         <div v-for="config in filteredConfigs" :key="config.id" class="group bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 overflow-hidden hover:border-cyan-400 dark:hover:border-cyan-500 transition-all duration-300 hover:shadow-xl hover:shadow-cyan-500/10 flex flex-col">
           <div class="aspect-[4/3] bg-gray-50 dark:bg-slate-700/50 flex items-center justify-center overflow-hidden">
             <img v-if="config.thumbnail_url" :src="config.thumbnail_url" :alt="config.name" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-            <div v-else class="text-5xl text-gray-300 dark:text-slate-600">🧩</div>
+             <div v-else class="text-5xl text-gray-600 dark:text-slate-400">🧩</div>
           </div>
 
           <div class="p-4 sm:p-5 space-y-3 sm:space-y-4 flex flex-col flex-1">

@@ -296,7 +296,7 @@ onMounted(() => {
               :alt="product.name"
               class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
-            <div v-else class="text-5xl text-gray-400 dark:text-slate-500">🛍️</div>
+             <div v-else class="text-5xl text-gray-600 dark:text-slate-400">🛍️</div>
           </div>
           <div class="p-4 sm:p-5 space-y-3 sm:space-y-4 flex flex-col flex-1">
             <div>
@@ -367,14 +367,14 @@ onMounted(() => {
             :alt="product.name"
             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
-           <div v-else class="text-5xl text-gray-400 dark:text-slate-500">🛍️</div>
+            <div v-else class="text-5xl text-gray-600 dark:text-slate-400">🛍️</div>
           <span v-if="product.discount_percentage > 0" class="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-lg shadow-lg shadow-red-500/30">-{{ product.discount_percentage }}%</span>
         </div>
 
         <!-- Product Info -->
         <div class="p-4 sm:p-5 space-y-3 sm:space-y-4 flex flex-col flex-1">
           <div>
-            <p class="text-xs uppercase tracking-widest text-gray-600 dark:text-gray-400 mb-1 sm:mb-2">
+             <p class="text-xs uppercase tracking-widest text-gray-700 dark:text-gray-300 mb-1 sm:mb-2">
               {{ product.stock_quantity > 0 ? 'Còn hàng' : 'Hết hàng' }}
             </p>
             <h3 class="text-base sm:text-lg font-semibold text-gray-900 dark:text-white leading-tight line-clamp-2">

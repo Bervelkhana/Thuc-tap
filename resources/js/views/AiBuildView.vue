@@ -220,7 +220,7 @@ onMounted(() => {
               <div v-if="result.configuration?.ssd" class="flex items-start gap-3 rounded-2xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
                 <div class="mt-0.5 text-lg">💾</div>
                 <div class="min-w-0 flex-1">
-                  <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">SSD</div>
+                   <div class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-700 dark:text-gray-300">SSD</div>
                   <div class="mt-1 text-sm font-medium text-gray-900 dark:text-white">{{ result.configuration.ssd.name }}</div>
                 </div>
               </div>

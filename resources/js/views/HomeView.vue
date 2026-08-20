@@ -287,7 +287,7 @@ function closeModal() {
           :key="item.id"
           class="group bg-white dark:bg-slate-800 rounded-lg border border-gray-100 dark:border-slate-700 overflow-hidden hover:border-gray-300 dark:hover:border-slate-600 transition-all duration-300"
         >
-           <div class="aspect-square bg-gray-50 dark:bg-slate-700/50 flex items-center justify-center text-gray-500 dark:text-slate-400 group-hover:bg-gray-100 dark:group-hover:bg-slate-700 transition duration-300 relative overflow-hidden">
+            <div class="aspect-square bg-gray-50 dark:bg-slate-700/50 flex items-center justify-center text-gray-700 dark:text-slate-300 group-hover:bg-gray-100 dark:group-hover:bg-slate-700 transition duration-300 relative overflow-hidden">
              <img v-if="item.thumbnail_url" :src="item.thumbnail_url" :alt="item.name" class="w-full h-full object-contain">
              <span v-else>Product Image</span>
             <!-- Sale Badge -->
@@ -351,7 +351,7 @@ function closeModal() {
           :key="item.id"
           class="group bg-white dark:bg-slate-800 rounded-lg border border-gray-100 dark:border-slate-700 overflow-hidden hover:border-gray-300 dark:hover:border-slate-600 transition-all duration-300"
         >
-           <div class="aspect-square bg-gray-50 dark:bg-slate-700/50 flex items-center justify-center text-gray-500 dark:text-slate-400 group-hover:bg-gray-100 dark:group-hover:bg-slate-700 transition duration-300 overflow-hidden">
+            <div class="aspect-square bg-gray-50 dark:bg-slate-700/50 flex items-center justify-center text-gray-700 dark:text-slate-300 group-hover:bg-gray-100 dark:group-hover:bg-slate-700 transition duration-300 overflow-hidden">
              <img v-if="item.thumbnail_url" :src="item.thumbnail_url" :alt="item.name" class="w-full h-full object-contain">
              <span v-else>Product Image</span>
            </div>
@@ -410,7 +410,7 @@ function closeModal() {
           :key="item.id"
           class="group bg-white dark:bg-slate-800 rounded-lg border border-gray-100 dark:border-slate-700 overflow-hidden hover:border-gray-300 dark:hover:border-slate-600 transition-all duration-300"
         >
-           <div class="aspect-square bg-gray-50 dark:bg-slate-700/50 flex items-center justify-center text-gray-500 dark:text-slate-400 group-hover:bg-gray-100 dark:group-hover:bg-slate-700 transition duration-300 overflow-hidden">
+            <div class="aspect-square bg-gray-50 dark:bg-slate-700/50 flex items-center justify-center text-gray-700 dark:text-slate-300 group-hover:bg-gray-100 dark:group-hover:bg-slate-700 transition duration-300 overflow-hidden">
              <img v-if="item.thumb" :src="item.thumb" :alt="item.name" class="w-full h-full object-contain">
              <span v-else>Product Image</span>
            </div>

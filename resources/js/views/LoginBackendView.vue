@@ -87,7 +87,7 @@ function handleKeydown(e) {
       <!-- Logo -->
       <div class="text-center mb-8">
         <h1 class="text-3xl font-bold text-white mb-2">TechGear</h1>
-        <p class="text-gray-500">Quản lý kho hàng</p>
+        <p class="text-gray-700">Quản lý kho hàng</p>
       </div>
 
       <!-- Login Form -->
@@ -99,7 +99,7 @@ function handleKeydown(e) {
 
         <!-- Email Input -->
         <div class="mb-4">
-          <label class="block text-gray-400 text-sm font-medium mb-2">Email</label>
+          <label class="block text-gray-600 text-sm font-medium mb-2">Email</label>
           <input
             v-model="email"
             type="email"
@@ -111,7 +111,7 @@ function handleKeydown(e) {
 
         <!-- Password Input -->
         <div class="mb-6">
-          <label class="block text-gray-400 text-sm font-medium mb-2">Mật khẩu</label>
+          <label class="block text-gray-600 text-sm font-medium mb-2">Mật khẩu</label>
           <input
             v-model="password"
             type="password"
@@ -141,7 +141,7 @@ function handleKeydown(e) {
 
       <!-- Back Link -->
       <div class="text-center mt-6">
-        <router-link to="/browse" class="text-gray-500 hover:text-gray-400 text-sm transition">
+        <router-link to="/browse" class="text-gray-700 hover:text-gray-600 text-sm transition">
           ← Quay lại trang chủ
         </router-link>
       </div>
