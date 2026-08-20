@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { Analytics } from '@vercel/analytics/vue'
 import ChatBoxAI from './components/ChatBoxAI.vue'
 import MainLayout from './layouts/MainLayout.vue'
 import AdminLayout from './layouts/AdminLayout.vue'
@@ -33,6 +34,7 @@ const showSidebar = computed(() => {
 </script>
 
 <template>
+  <Analytics />
   <AdminLayout v-if="isAdminRoute">
     <router-view />
   </AdminLayout>
