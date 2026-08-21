@@ -11,17 +11,43 @@ class ProductAttributeService
     {
         $attribute = Attribute::findOrFail($attributeId);
 
+        $typedValue = match ($attribute->type) {
+            Attribute::TYPE_NUMBER => (int) $value,
+            Attribute::TYPE_BOOLEAN => (bool) $value,
+            Attribute::TYPE_DATE => $value,
+            Attribute::TYPE_JSON => json_encode($value),
+            default => (string) $value,
+        };
+
+        $column = 'value_' . $attribute->type;
+
         ProductAttributeValue::updateOrCreate(
             ['product_id' => $productId, 'attribute_id' => $attributeId],
-            ['value' => $value]
+            ['value' => null, $column => $typedValue]
         );
     }
 
     public function getAttributeValue(int $productId, int $attributeId)
     {
-        return ProductAttributeValue::where('product_id', $productId)
+        $pav = ProductAttributeValue::where('product_id', $productId)
             ->where('attribute_id', $attributeId)
-            ->first()?->value;
+            ->first();
+
+        if (!$pav) {
+            return null;
+        }
+
+        $type = $pav->attribute->type ?? Attribute::TYPE_STRING;
+        $column = 'value_' . $type;
+        $value = $pav->$column ?? $pav->value;
+
+        return match ($type) {
+            Attribute::TYPE_JSON => json_decode($value, true),
+            Attribute::TYPE_NUMBER => is_numeric($value) ? (int) $value : $value,
+            Attribute::TYPE_BOOLEAN => (bool) $value,
+            Attribute::TYPE_DATE => $value,
+            default => $value,
+        };
     }
 
     public function getProductAttributes(int $productId): array
@@ -30,11 +56,19 @@ class ProductAttributeService
             ->with('attribute')
             ->get()
             ->map(function ($pav) {
+                $type = $pav->attribute->type;
+                $column = 'value_' . $type;
+
                 return [
                     'attribute_id' => $pav->attribute_id,
                     'name' => $pav->attribute->name,
-                    'type' => $pav->attribute->type,
-                    'value' => $pav->value,
+                    'type' => $type,
+                    'value' => match ($type) {
+                        Attribute::TYPE_JSON => json_decode($pav->$column, true),
+                        Attribute::TYPE_NUMBER => is_numeric($pav->$column) ? (int) $pav->$column : ($pav->$column ?? $pav->value),
+                        Attribute::TYPE_BOOLEAN => (bool) ($pav->$column ?? $pav->value),
+                        default => $pav->$column ?? $pav->value,
+                    },
                 ];
             })
             ->toArray();

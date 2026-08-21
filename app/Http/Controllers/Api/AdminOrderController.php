@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Services\OrderService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AdminOrderController extends Controller
 {
@@ -68,24 +69,26 @@ class AdminOrderController extends Controller
             'status' => ['required', 'string', 'in:pending,processing,shipped,delivered,cancelled'],
         ]);
 
-        $order = Order::lockForUpdate()->findOrFail($id);
+        return DB::transaction(function () use ($request, $id) {
+            $order = Order::lockForUpdate()->findOrFail($id);
 
-        $newStatus = $request->input('status');
+            $newStatus = $request->input('status');
 
-        if (! $order->canTransitionTo($newStatus)) {
+            if (! $order->canTransitionTo($newStatus)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => "Không thể chuyển từ '{$order->status}' sang '{$newStatus}'",
+                ], 422);
+            }
+
+            $order->transitionTo($newStatus);
+
             return response()->json([
-                'status' => 'error',
-                'message' => "Không thể chuyển từ '{$order->status}' sang '{$newStatus}'",
-            ], 422);
-        }
-
-        $order->transitionTo($newStatus);
-
-        return response()->json([
-            'status' => 'success',
-            'message' => 'Cập nhật trạng thái đơn hàng thành công',
-            'data' => $order,
-        ]);
+                'status' => 'success',
+                'message' => 'Cập nhật trạng thái đơn hàng thành công',
+                'data' => $order,
+            ]);
+        });
     }
 
     /**

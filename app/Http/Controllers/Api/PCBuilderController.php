@@ -291,7 +291,7 @@ class PCBuilderController extends Controller
             $result = $this->buildService->buildConfiguration(
                 budget: (int) $validated['budget'],
                 purpose: (string) $validated['purpose'],
-                subPurpose: $validated['sub_purpose'] !== null ? (string) $validated['sub_purpose'] : null,
+                subPurpose: $validated['sub_purpose'] ?? null,
             );
 
             if ($result['status'] !== 'success') {
@@ -304,25 +304,60 @@ class PCBuilderController extends Controller
             $configuration = $result['configuration'] ?? [];
             $items = $configuration['items'] ?? [];
 
-            // Server-owned total: recalculate from actual product prices in DB
+            $missingProductIds = [];
             $serverTotal = 0;
             $products = [];
+            $validatedItems = [];
 
             foreach ($items as $item) {
                 $productId = (int) ($item['id'] ?? 0);
-                if ($productId > 0) {
-                    $product = Product::find($productId);
-                    if ($product) {
-                        $serverTotal += (float) $product->price;
-                        $products[] = $product;
-                    }
+                if ($productId <= 0) {
+                    continue;
                 }
+
+                $product = Product::find($productId);
+                if (!$product) {
+                    $missingProductIds[] = $productId;
+                    continue;
+                }
+
+                $products[] = $product;
+                $serverTotal += (float) $product->price;
+
+                $validatedItems[] = [
+                    'id' => (int) $product->id,
+                    'name' => (string) $product->name,
+                    'price' => (int) round((float) $product->price),
+                    'category' => strtoupper((string) ($item['category'] ?? '')),
+                ];
             }
 
-            // Server-owned compatibility check
+            if (!empty($missingProductIds)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'AI trả về sản phẩm không tồn tại: ' . implode(', ', $missingProductIds),
+                    'data' => [
+                        'missing_product_ids' => $missingProductIds,
+                    ],
+                ], 400);
+            }
+
+            if ($serverTotal > (int) $validated['budget']) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => "Tổng giá cấu hình ({$serverTotal} VNĐ) vượt quá ngân sách ({$validated['budget']} VNĐ).",
+                    'data' => [
+                        'server_total' => (int) round($serverTotal),
+                        'budget' => (int) $validated['budget'],
+                    ],
+                ], 400);
+            }
+
+            $configuration['items'] = $validatedItems;
+            $configuration['total_price'] = (int) round($serverTotal);
+
             $compatibility = $this->compatibilityValidator->validate($products);
 
-            // Client total from AI response (for comparison)
             $clientTotal = (int) ($configuration['total_price'] ?? 0);
 
             return response()->json([
@@ -337,7 +372,7 @@ class PCBuilderController extends Controller
                     'input' => [
                         'budget' => (int) $validated['budget'],
                         'purpose' => (string) $validated['purpose'],
-                        'sub_purpose' => $validated['sub_purpose'] !== null ? (string) $validated['sub_purpose'] : null,
+                        'sub_purpose' => $validated['sub_purpose'] ?? null,
                     ],
                 ],
             ]);

@@ -28,6 +28,8 @@ class OrderApiTest extends TestCase
     /** @test */
     public function can_create_order_with_valid_data()
     {
+        Sanctum::actingAs($this->user, ['*']);
+
         $category = Category::factory()->create();
         $product = Product::factory()->create([
             'category_id' => $category->id,
@@ -36,7 +38,6 @@ class OrderApiTest extends TestCase
         ]);
 
         $payload = [
-            'user_id' => $this->user->id,
             'customer_name' => 'John Doe',
             'customer_email' => 'john@example.com',
             'customer_phone' => '0901234567',
@@ -73,6 +74,7 @@ class OrderApiTest extends TestCase
     /** @test */
     public function cannot_create_order_with_insufficient_stock()
     {
+        Sanctum::actingAs($this->user, ['*']);
         $category = Category::factory()->create();
         $product = Product::factory()->create([
             'category_id' => $category->id,
@@ -81,7 +83,6 @@ class OrderApiTest extends TestCase
         ]);
 
         $payload = [
-            'user_id' => $this->user->id,
             'customer_name' => 'John Doe',
             'customer_email' => 'john@example.com',
             'customer_phone' => '0901234567',
@@ -107,13 +108,49 @@ class OrderApiTest extends TestCase
     /** @test */
     public function cannot_create_order_with_missing_required_fields()
     {
+        Sanctum::actingAs($this->user, ['*']);
+
         $payload = [
-            'user_id' => $this->user->id,
+            'customer_name' => 'John Doe',
         ];
 
         $response = $this->postJson('/api/orders', $payload);
 
         $response->assertUnprocessable();
+    }
+
+    /** @test */
+    public function customer_cannot_forge_order_for_other_user()
+    {
+        Sanctum::actingAs($this->user, ['*']);
+
+        $otherUser = User::factory()->create();
+        $category = Category::factory()->create();
+        $product = Product::factory()->create([
+            'category_id' => $category->id,
+            'price' => 1000000,
+            'stock_quantity' => 10,
+        ]);
+
+        $payload = [
+            'user_id' => $otherUser->id,
+            'customer_name' => 'John Doe',
+            'customer_email' => 'john@example.com',
+            'customer_phone' => '0901234567',
+            'delivery_address' => '123 Main St',
+            'items' => [
+                [
+                    'product_id' => $product->id,
+                    'quantity' => 1,
+                ],
+            ],
+            'payment_method' => 'cod',
+        ];
+
+        $response = $this->postJson('/api/orders', $payload);
+
+        $response->assertUnprocessable();
+        $response->assertJsonValidationErrors('user_id');
     }
 
     /** @test */
@@ -209,22 +246,48 @@ class OrderApiTest extends TestCase
     }
 
     /** @test */
-    public function cannot_cancel_order_in_shipped_status()
+    public function can_cancel_order_in_shipped_status()
     {
         Sanctum::actingAs($this->admin, ['*']);
+        $category = Category::factory()->create();
+        $product = Product::factory()->create([
+            'category_id' => $category->id,
+            'stock_quantity' => 10,
+        ]);
+
         $order = Order::factory()->create([
             'user_id' => $this->user->id,
             'status' => Order::STATUS_SHIPPED,
         ]);
 
+        OrderItem::factory()->create([
+            'order_id' => $order->id,
+            'product_id' => $product->id,
+            'quantity' => 3,
+            'price' => $product->price,
+            'snapshot' => [
+                'name' => $product->name,
+                'price' => $product->price,
+                'thumbnail_url' => $product->thumbnail_url,
+            ],
+        ]);
+
+        $product->update(['stock_quantity' => 7]);
+
         $response = $this->postJson("/api/admin/orders/{$order->id}/cancel");
 
-        $response->assertUnprocessable();
+        $response->assertOk();
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => Order::STATUS_CANCELLED,
+        ]);
+        $this->assertEquals(10, $product->fresh()->stock_quantity);
     }
 
     /** @test */
     public function order_delivery_time_calculated_correctly()
     {
+        Sanctum::actingAs($this->user, ['*']);
         $category = Category::factory()->create();
         $product = Product::factory()->create([
             'category_id' => $category->id,
@@ -233,7 +296,6 @@ class OrderApiTest extends TestCase
         ]);
 
         $payload = [
-            'user_id' => $this->user->id,
             'customer_name' => 'John Doe',
             'customer_email' => 'john@example.com',
             'customer_phone' => '0901234567',

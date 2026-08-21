@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
-final class NvidiaNimBuildService
+class NvidiaNimBuildService
 {
     private ProductService $productService;
 

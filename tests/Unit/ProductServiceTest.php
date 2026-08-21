@@ -94,8 +94,9 @@ class ProductServiceTest extends TestCase
     {
         // Arrange
         $category = Category::factory()->create();
+        $otherCategory = Category::factory()->create();
         Product::factory(5)->create(['category_id' => $category->id]);
-        Product::factory(3)->create();
+        Product::factory(3)->create(['category_id' => $otherCategory->id]);
 
         // Act
         $products = $this->productService->filterByCategoryAndPrice($category->id, [], 50);

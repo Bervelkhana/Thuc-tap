@@ -1,8 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AiBuildView from '../views/AiBuildView.vue'
-import StartView from '../views/StartView.vue'
-import ProductList from '../components/ProductList.vue'
-import Checkout from '../components/Checkout.vue'
 import HomeView from '../views/HomeView.vue'
 import CatalogView from '../views/CatalogView.vue'
 import CategoryProductsView from '../views/CategoryProductsView.vue'
@@ -14,7 +11,6 @@ import ProductBrowserView from '../views/ProductBrowserView.vue'
 import NewestProductsView from '../views/NewestProductsView.vue'
 import PrebuiltConfigsView from '../views/PrebuiltConfigsView.vue'
 import PrebuiltConfigDetailView from '../views/PrebuiltConfigDetailView.vue'
-import BackendLayout from '../views/BackendLayout.vue'
 import LoginBackendView from '../views/LoginBackendView.vue'
 import AdminDashboardView from '../views/AdminDashboardView.vue'
 import OrderSuccessView from '../views/OrderSuccessView.vue'
@@ -24,11 +20,7 @@ const routes = [
   // Landing page - mặc định hiển thị sản phẩm mới
   { path: '/', name: 'start', component: NewestProductsView },
   
-  // Route cũ (Bước 3-4) — giữ song song
-  { path: '/old-home', name: 'home', component: ProductList },
-  { path: '/checkout', name: 'checkout', component: Checkout },
-
-  // Route mới (Bước 2 - thiết kế mockup, dùng mock data)
+  // Route mới
   { path: '/home', name: 'home-view', component: HomeView },
   { path: '/catalog', name: 'catalog', component: CatalogView },
   { path: '/category/:categoryId', name: 'category-products', component: CategoryProductsView },
@@ -55,19 +47,6 @@ const routes = [
 
    // Admin Dashboard route
    { path: '/admin/dashboard', name: 'admin-dashboard', component: AdminDashboardView, meta: { requiresAuth: true } },
-
-    // Backend routes (deprecated, redirect to dashboard)
-    {
-      path: '/backend',
-      component: BackendLayout,
-      meta: { requiresAuth: true },
-      children: [
-        { path: '', redirect: 'products' },
-        { path: 'products', name: 'backend-products', component: () => import('../components/backend/ProductManagement.vue') },
-        { path: 'prebuilt', name: 'backend-prebuilt', component: () => import('../components/backend/PrebuiltConfigManagement.vue') },
-        { path: 'orders', name: 'backend-orders', component: () => import('../components/backend/OrderManagement.vue') },
-      ],
-    },
 ]
 
 const router = createRouter({

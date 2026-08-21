@@ -291,4 +291,56 @@ class ProductService
         
         return true;
     }
+
+    /**
+     * Increase product stock
+     */
+    public function increaseStock(int $productId, int $quantity): bool
+    {
+        $product = Product::find($productId);
+
+        if (!$product) {
+            return false;
+        }
+
+        $product->increment('stock_quantity', $quantity);
+
+        return true;
+    }
+
+    /**
+     * Get product only if it has stock > 0
+     */
+    public function getProductWithStock(int $productId): ?Product
+    {
+        return Product::where('id', $productId)
+            ->where('stock_quantity', '>', 0)
+            ->first();
+    }
+
+    /**
+     * Filter products by category and/or price range
+     */
+    public function filterByCategoryAndPrice(?int $categoryId, ?array $priceRange, int $perPage = 50)
+    {
+        $query = Product::query();
+
+        if ($categoryId) {
+            $query->where('category_id', $categoryId);
+        }
+
+        if ($priceRange && is_array($priceRange) && count($priceRange) === 2) {
+            $min = $priceRange[0];
+            $max = $priceRange[1];
+            if ($min !== null && $max !== null) {
+                $query->whereBetween('price', [$min, $max]);
+            } elseif ($min !== null) {
+                $query->where('price', '>=', $min);
+            } elseif ($max !== null) {
+                $query->where('price', '<=', $max);
+            }
+        }
+
+        return $query->paginate($perPage);
+    }
 }

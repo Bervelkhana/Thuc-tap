@@ -27,26 +27,29 @@ class OrderService
         }
 
         return DB::transaction(function () use ($validated, $items) {
-            $productIds = array_column($items, 'product_id');
+            $groupedItems = [];
+            foreach ($items as $item) {
+                $productId = $item['product_id'];
+                $groupedItems[$productId] = ($groupedItems[$productId] ?? 0) + (int) $item['quantity'];
+            }
+
+            $productIds = array_keys($groupedItems);
 
             $products = Product::whereIn('id', $productIds)
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('id');
 
-            foreach ($items as $item) {
-                $productId = $item['product_id'];
-                $quantity = (int) ($item['quantity'] ?? 0);
-
+            foreach ($groupedItems as $productId => $totalQty) {
                 if (! isset($products[$productId])) {
                     throw new Exception("Sản phẩm #{$productId} không tồn tại.");
                 }
 
-                if ($quantity <= 0) {
+                if ($totalQty <= 0) {
                     throw new Exception("Số lượng sản phẩm phải lớn hơn 0.");
                 }
 
-                if ($products[$productId]->stock_quantity < $quantity) {
+                if ($products[$productId]->stock_quantity < $totalQty) {
                     throw new Exception("Sản phẩm {$products[$productId]->name} không đủ hàng.");
                 }
             }
@@ -54,7 +57,7 @@ class OrderService
             $this->assertCpuMainboardCompatible($items, $products);
 
             $order = Order::create([
-                'user_id' => $validated['user_id'] ?? null,
+                'user_id' => auth()->id(),
                 'status' => Order::STATUS_PENDING,
                 'total_amount' => 0,
                 'payment_method' => $validated['payment_method'] ?? 'cod',
@@ -67,10 +70,8 @@ class OrderService
 
             $total = 0;
 
-            foreach ($items as $item) {
-                $product = $products[$item['product_id']];
-                $quantity = (int) $item['quantity'];
-
+            foreach ($groupedItems as $productId => $quantity) {
+                $product = $products[$productId];
                 $product->stock_quantity -= $quantity;
                 $product->save();
 
@@ -133,13 +134,15 @@ class OrderService
 
     public function updateOrderStatus(int $orderId, string $status): Order
     {
-        $order = Order::lockForUpdate()->findOrFail($orderId);
+        return DB::transaction(function () use ($orderId, $status) {
+            $order = Order::lockForUpdate()->findOrFail($orderId);
 
-        if (! $order->transitionTo($status)) {
-            throw new Exception('Không thể chuyển trạng thái order này.');
-        }
+            if (! $order->transitionTo($status)) {
+                throw new Exception('Không thể chuyển trạng thái order này.');
+            }
 
-        return $order;
+            return $order;
+        });
     }
 
     public function cancelOrder(int $orderId): bool
@@ -150,6 +153,9 @@ class OrderService
             if (! $order->canTransitionTo(Order::STATUS_CANCELLED)) {
                 throw new Exception('Không thể hủy order ở trạng thái này.');
             }
+
+            $productIds = $order->items()->pluck('product_id')->toArray();
+            Product::whereIn('id', $productIds)->lockForUpdate()->get();
 
             $order->transitionTo(Order::STATUS_CANCELLED);
 

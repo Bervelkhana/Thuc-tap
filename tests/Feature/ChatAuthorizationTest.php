@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class ChatAuthorizationTest extends TestCase
@@ -13,6 +14,13 @@ class ChatAuthorizationTest extends TestCase
     /** @test */
     public function admin_can_login_with_valid_credentials()
     {
+        User::factory()->create([
+            'email' => 'admin@techgear.vn',
+            'password' => Hash::make('admin123'),
+            'role' => 'admin',
+            'name' => 'Admin TechGear',
+        ]);
+
         $response = $this->postJson('/api/admin/login', [
             'email' => 'admin@techgear.vn',
             'password' => 'admin123',

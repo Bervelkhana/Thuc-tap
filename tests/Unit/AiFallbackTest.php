@@ -24,6 +24,8 @@ class AiFallbackTest extends TestCase
                 'reply' => 'Xin chào, tôi có thể giúp gì cho bạn?',
             ]);
 
+        $this->instance(NvidiaNimChatService::class, $chatService);
+
         $response = $this->postJson('/api/chat', [
             'message' => 'Xin chào',
             'history' => [],
@@ -50,6 +52,8 @@ class AiFallbackTest extends TestCase
                 'reply' => 'Server AI đang bận. Vui lòng thử lại sau.',
             ]);
 
+        $this->instance(NvidiaNimChatService::class, $chatService);
+
         $response = $this->postJson('/api/chat', [
             'message' => 'Tìm CPU',
             'history' => [],
@@ -75,6 +79,8 @@ class AiFallbackTest extends TestCase
                 'success' => false,
                 'reply' => 'Không thể kết nối tới server AI. Vui lòng kiểm tra mạng và thử lại.',
             ]);
+
+        $this->instance(NvidiaNimChatService::class, $chatService);
 
         $response = $this->postJson('/api/chat', [
             'message' => 'Tìm RAM',
@@ -103,6 +109,8 @@ class AiFallbackTest extends TestCase
                 'success' => false,
                 'reply' => 'Có lỗi xảy ra.',
             ]);
+
+        $this->instance(NvidiaNimChatService::class, $chatService);
 
         $this->postJson('/api/chat', [
             'message' => 'Test',

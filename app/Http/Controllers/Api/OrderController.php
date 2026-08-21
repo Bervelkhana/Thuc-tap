@@ -24,26 +24,34 @@ class OrderController extends Controller
             $validated = $request->validated();
             $items = $validated['items'] ?? [];
 
-            // Client total from request
+            $productIds = array_column($items, 'product_id');
+            $products = Product::whereIn('id', $productIds)->get()->all();
+
+            if (count($products) >= 2) {
+                $compatibility = $this->compatibilityValidator->validate($products);
+
+                if (!($compatibility['is_compatible'] ?? true)) {
+                    $errorMessages = array_column($compatibility['errors'], 'message');
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Cấu hình PC không tương thích: ' . implode('; ', $errorMessages),
+                        'data' => [
+                            'compatibility' => $compatibility,
+                        ],
+                    ], Response::HTTP_UNPROCESSABLE_ENTITY);
+                }
+            }
+
+            $order = $this->orderService->createOrder($validated);
+
+            $serverTotal = (float) $order->total_amount;
+
             $clientTotal = 0;
             foreach ($items as $item) {
                 $product = Product::find((int) ($item['product_id'] ?? 0));
                 if ($product) {
                     $clientTotal += (float) $product->price * (int) ($item['quantity'] ?? 1);
                 }
-            }
-
-            $order = $this->orderService->createOrder($validated);
-
-            // Server total from order
-            $serverTotal = (float) $order->total_amount;
-
-            // Compatibility check for PC components
-            $compatibility = ['is_compatible' => true, 'errors' => [], 'warnings' => [], 'details' => []];
-            $productIds = array_column($items, 'product_id');
-            $products = Product::whereIn('id', $productIds)->get()->all();
-            if (count($products) >= 2) {
-                $compatibility = $this->compatibilityValidator->validate($products);
             }
 
             return response()->json([
@@ -57,7 +65,12 @@ class OrderController extends Controller
                     'server_total' => (int) round($serverTotal),
                     'client_total' => (int) round($clientTotal),
                     'is_total_valid' => (int) round($serverTotal) === (int) round($clientTotal),
-                    'compatibility' => $compatibility,
+                    'compatibility' => [
+                        'is_compatible' => true,
+                        'errors' => [],
+                        'warnings' => [],
+                        'details' => [],
+                    ],
                 ],
             ], Response::HTTP_CREATED);
         } catch (\Exception $e) {

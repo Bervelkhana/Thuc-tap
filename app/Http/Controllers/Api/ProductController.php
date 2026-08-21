@@ -68,10 +68,13 @@ class ProductController extends Controller
         try {
             $product = $this->productService->getProductById($id);
 
+            $data = $product->toArray();
+            $data['attributes'] = $this->productAttributeService->getProductAttributes($product->id);
+
             return response()->json([
                 'status' => 'success',
                 'message' => 'Chi tiết sản phẩm',
-                'data' => $product,
+                'data' => $data,
             ]);
         } catch (\Exception $e) {
             return response()->json([

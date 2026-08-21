@@ -26,11 +26,13 @@ Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{product}', [ProductController::class, 'show']);
 
 // Products - Backend (CRUD)
-Route::post('/products', [ProductController::class, 'store']);
-Route::put('/products/{product}', [ProductController::class, 'update']);
-Route::delete('/products/{product}', [ProductController::class, 'destroy']);
+Route::middleware(['auth:sanctum', 'role:admin,super_admin'])->group(function () {
+    Route::post('/products', [ProductController::class, 'store']);
+    Route::put('/products/{product}', [ProductController::class, 'update']);
+    Route::delete('/products/{product}', [ProductController::class, 'destroy']);
+});
 
-Route::post('/orders', [OrderController::class, 'store']);
+Route::post('/orders', [OrderController::class, 'store'])->middleware('auth:sanctum');
 
 // Admin Auth routes
 Route::post('/admin/login', [AdminAuthController::class, 'login'])->middleware('api');
@@ -66,9 +68,11 @@ Route::get('/prebuilt-configs', [PrebuiltConfigController::class, 'index']);
 Route::get('/prebuilt-configs/{id}', [PrebuiltConfigController::class, 'show']);
 
 // Prebuilt Config routes - Backend (CRUD + toggle)
-Route::post('/prebuilt-configs', [PrebuiltConfigController::class, 'store']);
-Route::put('/prebuilt-configs/{id}', [PrebuiltConfigController::class, 'update']);
-Route::delete('/prebuilt-configs/{id}', [PrebuiltConfigController::class, 'destroy']);
-Route::patch('/prebuilt-configs/{id}/toggle-active', [PrebuiltConfigController::class, 'toggleActive']);
-Route::patch('/prebuilt-configs/{id}/toggle-featured', [PrebuiltConfigController::class, 'toggleFeatured']);
+Route::middleware(['auth:sanctum', 'role:admin,super_admin'])->group(function () {
+    Route::post('/prebuilt-configs', [PrebuiltConfigController::class, 'store']);
+    Route::put('/prebuilt-configs/{id}', [PrebuiltConfigController::class, 'update']);
+    Route::delete('/prebuilt-configs/{id}', [PrebuiltConfigController::class, 'destroy']);
+    Route::patch('/prebuilt-configs/{id}/toggle-active', [PrebuiltConfigController::class, 'toggleActive']);
+    Route::patch('/prebuilt-configs/{id}/toggle-featured', [PrebuiltConfigController::class, 'toggleFeatured']);
+});
 

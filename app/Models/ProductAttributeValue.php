@@ -24,7 +24,6 @@ class ProductAttributeValue extends Model
     protected $casts = [
         'value_boolean' => 'boolean',
         'value_date' => 'datetime',
-        'value_json' => 'array',
     ];
 
     public function product(): BelongsTo

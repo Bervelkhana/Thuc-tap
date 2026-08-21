@@ -6,15 +6,11 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class StoreOrderRequest extends FormRequest
 {
-    public function authorize(): bool
-    {
-        return true;
-    }
 
     public function rules(): array
     {
         return [
-            'user_id' => 'nullable|integer|exists:users,id',
+            'user_id' => 'prohibited',
             'customer_name' => 'required|string|max:100',
             'customer_email' => 'required|email|max:100',
             'customer_phone' => 'required|regex:/^0\d{9,10}$/',
@@ -25,6 +21,17 @@ class StoreOrderRequest extends FormRequest
             'items.*.product_id' => 'required|integer|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1|max:999',
         ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $items = $this->input('items', []);
+            $productIds = array_column($items, 'product_id');
+            if (count($productIds) !== count(array_unique($productIds))) {
+                $validator->errors()->add('items', 'Mỗi sản phẩm chỉ được xuất hiện một lần trong đơn hàng.');
+            }
+        });
     }
 
     public function messages(): array
@@ -39,6 +46,7 @@ class StoreOrderRequest extends FormRequest
             'items.required' => 'Phải có ít nhất 1 sản phẩm',
             'items.*.product_id.exists' => 'Sản phẩm không tồn tại',
             'items.*.quantity.min' => 'Số lượng phải lớn hơn 0',
+            'items.duplicate' => 'Mỗi sản phẩm chỉ được xuất hiện một lần trong đơn hàng.',
         ];
     }
 }

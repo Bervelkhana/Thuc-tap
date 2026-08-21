@@ -72,7 +72,7 @@ class Order extends Model
             self::STATUS_PENDING => [self::STATUS_PROCESSING, self::STATUS_CANCELLED],
             self::STATUS_PROCESSING => [self::STATUS_PENDING, self::STATUS_SHIPPED, self::STATUS_CANCELLED],
             self::STATUS_SHIPPED => [self::STATUS_PROCESSING, self::STATUS_DELIVERED, self::STATUS_CANCELLED],
-            self::STATUS_DELIVERED => [self::STATUS_CANCELLED],
+            self::STATUS_DELIVERED => [],
             self::STATUS_CANCELLED => [],
         ];
 

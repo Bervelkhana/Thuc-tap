@@ -272,7 +272,7 @@ php artisan test --filter=ProductAttributeServiceTest
 
 ## Checkout Flow
 
-Checkout flow được consolidate thành 4 bước thống nhất trong component `UnifiedCheckoutFlow.vue`:
+Checkout flow được consolidate thành 4 bước thống nhất trong component `CheckoutView.vue`:
 
 1. **Cart Review** - Xem lại giỏ hàng
 2. **Shipping Address** - Nhập thông tin giao hàng
@@ -367,7 +367,7 @@ ChatBox AI hỗ trợ 2 nền tảng:
 
 ## Known Limitations
 
-- Chưa có user authentication cho khách hàng
+- Chưa có customer authentication (đăng nhập/đăng ký khách hàng). Hiện tại khách hàng có thể đặt hàng mà không cần đăng nhập.
 - Chưa tích hợp payment gateway thực tế (chỉ có UI)
 - Chưa có lưu lịch sử chat vào database
 - Chưa có email notification
@@ -376,12 +376,12 @@ ChatBox AI hỗ trợ 2 nền tảng:
 ## Demo Accounts
 
 ### Admin
-- Email: admin@example.com
+- Email: admin@techgear.vn
 - Password: admin123
 - URL: /login-backend
 
 ### Customer
-- Email: customer@example.com
+- Email: customer@techgear.vn
 - Password: customer123
 
 ## License
