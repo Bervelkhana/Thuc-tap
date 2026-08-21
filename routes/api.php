@@ -32,7 +32,7 @@ Route::middleware(['auth:sanctum', 'role:admin,super_admin'])->group(function ()
     Route::delete('/products/{product}', [ProductController::class, 'destroy']);
 });
 
-Route::post('/orders', [OrderController::class, 'store'])->middleware('auth:sanctum');
+Route::post('/orders', [OrderController::class, 'store']);
 
 // Admin Auth routes
 Route::post('/admin/login', [AdminAuthController::class, 'login'])->middleware('api');

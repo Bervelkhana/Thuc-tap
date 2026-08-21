@@ -1,5 +1,16 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useAdminStore } from '../../stores/adminStore'
+
+const adminStore = useAdminStore()
+
+function getAuthHeaders() {
+  const headers = { 'Content-Type': 'application/json', Accept: 'application/json' }
+  if (adminStore.token) {
+    headers['Authorization'] = `Bearer ${adminStore.token}`
+  }
+  return headers
+}
 
 const products = ref([])
 const categories = ref([])
@@ -54,7 +65,9 @@ async function fetchProducts(page = 1) {
     if (searchQuery.value) params.set('search', searchQuery.value)
     if (selectedCategory.value) params.set('category_id', String(selectedCategory.value))
 
-    const response = await fetch(`/api/products?${params.toString()}`)
+    const response = await fetch(`/api/products?${params.toString()}`, {
+      headers: getAuthHeaders(),
+    })
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
@@ -79,7 +92,9 @@ async function fetchProducts(page = 1) {
 
 async function fetchCategories() {
   try {
-    const response = await fetch('/api/categories')
+    const response = await fetch('/api/categories', {
+      headers: getAuthHeaders(),
+    })
     const result = await response.json()
     if (result.status === 'success') {
       categories.value = result.data
@@ -148,10 +163,7 @@ async function saveProduct() {
 
     const response = await fetch(url, {
       method,
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify(payload),
     })
 
@@ -197,7 +209,7 @@ async function deleteProduct(id, name) {
   try {
     const response = await fetch(`/api/products/${id}`, {
       method: 'DELETE',
-      headers: { Accept: 'application/json' },
+      headers: getAuthHeaders(),
     })
 
     let result

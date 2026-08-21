@@ -6,6 +6,8 @@ import CategoryProductsView from '../views/CategoryProductsView.vue'
 import ProductDetailView from '../views/ProductDetailView.vue'
 import CheckoutView from '../views/CheckoutView.vue'
 import AdminOrderView from '../views/AdminOrderView.vue'
+import AdminProductsView from '../views/AdminProductsView.vue'
+import AdminPrebuiltView from '../views/AdminPrebuiltView.vue'
 import PCBuilderView from '../views/PCBuilderView.vue'
 import ProductBrowserView from '../views/ProductBrowserView.vue'
 import NewestProductsView from '../views/NewestProductsView.vue'
@@ -14,13 +16,12 @@ import PrebuiltConfigDetailView from '../views/PrebuiltConfigDetailView.vue'
 import LoginBackendView from '../views/LoginBackendView.vue'
 import AdminDashboardView from '../views/AdminDashboardView.vue'
 import OrderSuccessView from '../views/OrderSuccessView.vue'
+import AdminLayout from '../layouts/AdminLayout.vue'
 import { useAdminStore } from '../stores/adminStore'
 
 const routes = [
-  // Landing page - mặc định hiển thị sản phẩm mới
   { path: '/', name: 'start', component: NewestProductsView },
   
-  // Route mới
   { path: '/home', name: 'home-view', component: HomeView },
   { path: '/catalog', name: 'catalog', component: CatalogView },
   { path: '/category/:categoryId', name: 'category-products', component: CategoryProductsView },
@@ -33,20 +34,21 @@ const routes = [
   { path: '/prebuilt-config/:id', name: 'prebuilt-config-detail', component: PrebuiltConfigDetailView, props: true },
   { path: '/browser', redirect: '/browse' },
   
-  // Admin routes
-  { path: '/admin/orders', name: 'admin-orders', component: AdminOrderView },
-  
-  // AI Build route
+  { path: '/login-backend', name: 'login-backend', component: LoginBackendView },
   { path: '/ai-build', name: 'ai-build', component: AiBuildView },
-
-  // PC Builder route
   { path: '/pc-builder', name: 'pc-builder', component: PCBuilderView },
 
-   // Login Backend route
-   { path: '/login-backend', name: 'login-backend', component: LoginBackendView },
-
-   // Admin Dashboard route
-   { path: '/admin/dashboard', name: 'admin-dashboard', component: AdminDashboardView, meta: { requiresAuth: true } },
+  {
+    path: '/admin',
+    component: AdminLayout,
+    meta: { requiresAuth: true },
+    children: [
+      { path: 'dashboard', name: 'admin-dashboard', component: AdminDashboardView },
+      { path: 'orders', name: 'admin-orders', component: AdminOrderView },
+      { path: 'products', name: 'admin-products', component: AdminProductsView },
+      { path: 'prebuilt', name: 'admin-prebuilt', component: AdminPrebuiltView },
+    ],
+  },
 ]
 
 const router = createRouter({
@@ -54,11 +56,12 @@ const router = createRouter({
   routes,
 })
 
-// Navigation guard to check authentication for protected routes
 router.beforeEach((to, from, next) => {
   const adminStore = useAdminStore()
-  
-  if (to.meta.requiresAuth && !adminStore.isAuthenticated) {
+
+  const requiresAuth = to.matched.some(record => record.meta && record.meta.requiresAuth)
+
+  if (requiresAuth && !adminStore.isAuthenticated) {
     next({ name: 'login-backend' })
   } else {
     next()
@@ -66,4 +69,3 @@ router.beforeEach((to, from, next) => {
 })
 
 export default router
-

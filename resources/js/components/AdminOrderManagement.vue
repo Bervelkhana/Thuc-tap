@@ -30,8 +30,15 @@ async function checkAuth() {
   authChecking.value = true
   error.value = null
   try {
+    const headers = {
+      Accept: 'application/json',
+    }
+    if (adminStore.token) {
+      headers['Authorization'] = `Bearer ${adminStore.token}`
+    }
+
     const response = await fetch('/api/admin/me', {
-      headers: { Accept: 'application/json' },
+      headers,
       credentials: 'same-origin',
     })
     if (response.ok) {
@@ -221,7 +228,7 @@ defineExpose({
       <div class="text-center space-y-4">
         <p class="text-gray-900 text-xl font-semibold">Bạn cần đăng nhập để truy cập trang này</p>
         <a
-          href="/admin/login"
+          href="/login-backend"
           class="inline-block px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-900 transition"
         >
           Đăng nhập admin

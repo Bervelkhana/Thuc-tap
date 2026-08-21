@@ -1,5 +1,16 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useAdminStore } from '../../stores/adminStore'
+
+const adminStore = useAdminStore()
+
+function getAuthHeaders() {
+  const headers = { 'Content-Type': 'application/json', Accept: 'application/json' }
+  if (adminStore.token) {
+    headers['Authorization'] = `Bearer ${adminStore.token}`
+  }
+  return headers
+}
 
 const configs = ref([])
 const loading = ref(false)
@@ -116,7 +127,7 @@ async function searchProduct(componentKey, query) {
     console.log(`[Search ${componentKey}] Full URL:`, url)
 
     const response = await fetch(url, {
-      headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      headers: { ...getAuthHeaders(), 'X-Requested-With': 'XMLHttpRequest' },
     })
 
     console.log(`[Search ${componentKey}] Response status:`, response.status)
@@ -275,7 +286,7 @@ async function saveConfig() {
 
     const response = await fetch(url, {
       method,
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         name: formData.value.name,
         slug: formData.value.slug,
@@ -311,7 +322,7 @@ async function deleteConfig(id, name) {
 
   loading.value = true
   try {
-    const response = await fetch(`/api/prebuilt-configs/${id}`, { method: 'DELETE' })
+    const response = await fetch(`/api/prebuilt-configs/${id}`, { method: 'DELETE', headers: getAuthHeaders() })
     const result = await response.json()
 
     if (result.status === 'success') {
@@ -330,7 +341,7 @@ async function deleteConfig(id, name) {
 
 async function toggleActive(id) {
   try {
-    const response = await fetch(`/api/prebuilt-configs/${id}/toggle-active`, { method: 'PATCH' })
+    const response = await fetch(`/api/prebuilt-configs/${id}/toggle-active`, { method: 'PATCH', headers: getAuthHeaders() })
     const result = await response.json()
     if (result.status === 'success') {
       alert(result.message)
@@ -344,7 +355,7 @@ async function toggleActive(id) {
 
 async function toggleFeatured(id) {
   try {
-    const response = await fetch(`/api/prebuilt-configs/${id}/toggle-featured`, { method: 'PATCH' })
+    const response = await fetch(`/api/prebuilt-configs/${id}/toggle-featured`, { method: 'PATCH', headers: getAuthHeaders() })
     const result = await response.json()
     if (result.status === 'success') {
       alert(result.message)
@@ -369,7 +380,9 @@ function getProductQuantityDetails(config) {
 async function fetchConfigs() {
   loading.value = true
   try {
-    const response = await fetch('/api/prebuilt-configs?all=true')
+    const response = await fetch('/api/prebuilt-configs?all=true', {
+      headers: getAuthHeaders(),
+    })
     const result = await response.json()
     if (result.status === 'success') {
       configs.value = result.data || []

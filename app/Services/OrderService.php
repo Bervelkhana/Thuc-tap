@@ -57,7 +57,7 @@ class OrderService
             $this->assertCpuMainboardCompatible($items, $products);
 
             $order = Order::create([
-                'user_id' => auth()->id(),
+                'user_id' => null,
                 'status' => Order::STATUS_PENDING,
                 'total_amount' => 0,
                 'payment_method' => $validated['payment_method'] ?? 'cod',

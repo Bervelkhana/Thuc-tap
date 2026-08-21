@@ -63,7 +63,7 @@ onMounted(() => {
       <div class="text-center space-y-4">
         <p class="text-gray-900 text-xl font-semibold">Bạn cần đăng nhập để truy cập trang này</p>
         <a
-          href="/admin/login"
+          href="/login-backend"
           class="inline-block px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-900 transition"
         >
           Đăng nhập admin

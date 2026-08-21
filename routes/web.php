@@ -39,6 +39,10 @@ Route::get('/admin/products', function () {
     return view('welcome');
 })->name('admin.products');
 
+Route::get('/admin/prebuilt', function () {
+    return view('welcome');
+})->name('admin.prebuilt');
+
 if (app()->isLocal()) {
     Route::get('/seed-admin', function () {
         \Artisan::call('db:seed', ['--class' => 'UserSeeder']);
