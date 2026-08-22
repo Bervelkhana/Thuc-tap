@@ -22,7 +22,6 @@ Route::get('/', function () {
 
 Route::get('/pc-build', [BuildController::class, 'index']);
 Route::get('/ai-build', [AiBuilderController::class, 'index']);
-Route::post('/ai-build/process', [AiBuilderController::class, 'process']);
 Route::get('/ai-build/result', [AiBuilderController::class, 'result'])->name('ai-build.result');
 Route::get('/browser-{slug}', [ProductBrowserController::class, 'showByCategory']);
 

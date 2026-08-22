@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import ChatBoxAI from './components/ChatBoxAI.vue'
 import MainLayout from './layouts/MainLayout.vue'
-import AdminLayout from './layouts/AdminLayout.vue'
 
 const route = useRoute()
 
@@ -33,12 +32,15 @@ const showSidebar = computed(() => {
 </script>
 
 <template>
-  <AdminLayout v-if="isAdminRoute">
-    <router-view />
-  </AdminLayout>
+  <!-- Admin routes: only Vue Router's nested AdminLayout renders the admin pages -->
+  <router-view v-if="isAdminRoute" />
+
+  <!-- Public/frontend routes: use MainLayout -->
   <MainLayout v-else-if="route.path !== '/login-backend'" :show-sidebar="showSidebar">
     <router-view />
   </MainLayout>
+
+  <!-- Login page: no layout wrapper -->
   <router-view v-else />
 
   <ChatBoxAI v-if="showChatBox" />

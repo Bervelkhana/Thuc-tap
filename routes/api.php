@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AdminOrderController;
 use App\Http\Controllers\Api\AdminAuthController;
 use App\Http\Controllers\Api\PCBuilderController;
 use App\Http\Controllers\Api\ChatController;
+use App\Http\Controllers\AiBuilderController;
 use App\Http\Controllers\Api\PrebuiltConfigController;
 use Illuminate\Support\Facades\Route;
 
@@ -62,6 +63,9 @@ Route::post('/pc-builder/recommend', [PCBuilderController::class, 'recommend']);
 // Chat AI routes
 Route::post('/chat', [ChatController::class, 'sendMessage']);
 Route::post('/chat/stream', [ChatController::class, 'streamMessage']);
+
+// AI Build process route (called from Vue SPA, CSRF-free API)
+Route::post('/ai-build/process', [AiBuilderController::class, 'process']);
 
 // Prebuilt Config routes - Frontend (GET)
 Route::get('/prebuilt-configs', [PrebuiltConfigController::class, 'index']);

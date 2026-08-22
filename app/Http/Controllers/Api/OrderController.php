@@ -42,7 +42,7 @@ class OrderController extends Controller
                 }
             }
 
-            $order = $this->orderService->createOrder($validated);
+            $order = $this->orderService->createOrder($validated, auth()->id());
 
             $serverTotal = (float) $order->total_amount;
 

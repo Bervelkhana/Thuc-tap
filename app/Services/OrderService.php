@@ -18,7 +18,7 @@ class OrderService
         $this->productService = $productService;
     }
 
-    public function createOrder(array $validated): Order
+    public function createOrder(array $validated, ?int $userId = null): Order
     {
         $items = $validated['items'] ?? [];
 
@@ -26,7 +26,7 @@ class OrderService
             throw new Exception('Danh sách sản phẩm không được để trống.');
         }
 
-        return DB::transaction(function () use ($validated, $items) {
+        return DB::transaction(function () use ($validated, $items, $userId) {
             $groupedItems = [];
             foreach ($items as $item) {
                 $productId = $item['product_id'];
@@ -57,7 +57,7 @@ class OrderService
             $this->assertCpuMainboardCompatible($items, $products);
 
             $order = Order::create([
-                'user_id' => null,
+                'user_id' => $userId,
                 'status' => Order::STATUS_PENDING,
                 'total_amount' => 0,
                 'payment_method' => $validated['payment_method'] ?? 'cod',

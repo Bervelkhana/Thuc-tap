@@ -43,7 +43,7 @@ class OrderServiceTest extends TestCase
             ],
         ];
 
-        $order = $this->orderService->createOrder($orderData);
+        $order = $this->orderService->createOrder($orderData, $this->user->id);
 
         $this->assertInstanceOf(Order::class, $order);
         $this->assertEquals(Order::STATUS_PENDING, $order->status);
@@ -72,7 +72,7 @@ class OrderServiceTest extends TestCase
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('không đủ hàng');
-        $this->orderService->createOrder($orderData);
+        $this->orderService->createOrder($orderData, $this->user->id);
     }
 
     /** @test */
@@ -157,7 +157,7 @@ class OrderServiceTest extends TestCase
             ],
         ];
 
-        $order = $this->orderService->createOrder($orderData);
+        $order = $this->orderService->createOrder($orderData, $this->user->id);
 
         $this->assertNotNull($order->snapshot);
         $this->assertEquals(2000000, $order->snapshot['total']);
@@ -181,7 +181,7 @@ class OrderServiceTest extends TestCase
                 'items' => [
                     ['product_id' => $product->id, 'quantity' => 10],
                 ],
-            ]);
+            ], $this->user->id);
             $this->fail('Expected exception was not thrown');
         } catch (\Exception $e) {
             $this->assertStringContainsString('không đủ hàng', $e->getMessage());
@@ -216,7 +216,7 @@ class OrderServiceTest extends TestCase
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('CPU và Mainboard không tương thích');
-        $this->orderService->createOrder($orderData);
+        $this->orderService->createOrder($orderData, $this->user->id);
     }
 
     /** @test */

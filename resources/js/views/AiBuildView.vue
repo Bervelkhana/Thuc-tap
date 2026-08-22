@@ -43,7 +43,6 @@ async function submitForm() {
 
   try {
     const formData = new FormData()
-    formData.append('_token', document.querySelector('meta[name="csrf-token"]')?.content || '')
     formData.append('budget', budget.value)
     formData.append('purpose', purpose.value)
     if (showWorkDetail.value) {
@@ -53,10 +52,9 @@ async function submitForm() {
       formData.append('gaming_type', gamingType.value)
     }
 
-    const response = await fetch('/ai-build/process', {
+    const response = await fetch('/api/ai-build/process', {
       method: 'POST',
       headers: {
-        'X-Requested-With': 'XMLHttpRequest',
         'Accept': 'application/json',
       },
       body: formData,
